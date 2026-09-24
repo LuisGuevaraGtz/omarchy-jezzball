@@ -89,15 +89,27 @@ impl WallBuilder {
 
         if !self.hi_done {
             let new_hi = self.hi + self.speed * dt;
-            // Celda que el frente hi empieza a pisar este paso.
-            let entry = new_hi.floor() as i64;
-            if entry >= max_coord as i64 {
+            // Barremos TODAS las celdas que el frente pisa en este paso, no
+            // sólo la de destino: con `speed` alta (hasta 30 celdas/s) y un
+            // frame largo el frente avanza varias celdas de golpe, y mirar
+            // únicamente el destino le permitía saltar por encima de muros y
+            // obstáculos intermedios.
+            let old_end = self.hi.floor() as i64;
+            let new_end = new_hi.floor() as i64;
+            let mut blocked: Option<i64> = None;
+            for coord in (old_end + 1)..=new_end {
+                if !self.front_open(grid, coord) {
+                    blocked = Some(coord);
+                    break;
+                }
+            }
+            if let Some(cell) = blocked {
+                // Apretado contra la celda bloqueante (sin cubrirla).
+                self.hi = cell as f32 - EPS;
+                self.hi_done = true;
+            } else if new_end >= max_coord as i64 {
                 // Llegó al borde: completa el último tramo y termina.
                 self.hi = max_coord;
-                self.hi_done = true;
-            } else if !self.front_open(grid, entry) {
-                // Apretado contra la celda bloqueante (sin cubrirla).
-                self.hi = entry as f32 - EPS;
                 self.hi_done = true;
             } else {
                 self.hi = new_hi;
@@ -106,30 +118,30 @@ impl WallBuilder {
 
         if !self.lo_done {
             let new_lo = self.lo - self.speed * dt;
-            if new_lo <= 0.0 {
-                // Alcanzó el borde izquierdo/superior.
+            // Celdas recién pisadas por el frente lo: las del intervalo
+            // [ceil(new_lo), ceil(self.lo)). Se comprueban SIEMPRE, incluso
+            // al llegar al borde: si hay un obstáculo por el camino, el frente
+            // debe pararse ahí y no en la celda 0.
+            let old_start = self.lo.ceil() as i64;
+            let new_start = new_lo.ceil().max(0.0) as i64;
+            let mut blocked: Option<i64> = None;
+            for coord in (new_start..old_start).rev() {
+                if !self.front_open(grid, coord) {
+                    blocked = Some(coord);
+                    break;
+                }
+            }
+            if let Some(cell) = blocked {
+                // Frente apoyado a la derecha de `cell`: la cobertura
+                // arranca en `cell + 1`, que no cubre la celda bloqueante.
+                self.lo = (cell + 1) as f32;
+                self.lo_done = true;
+            } else if new_lo <= 0.0 {
+                // Alcanzó el borde izquierdo/superior sin encontrar nada.
                 self.lo = 0.0;
                 self.lo_done = true;
             } else {
-                // Celdas recién pisadas por el frente lo: las del intervalo
-                // [ceil(new_lo), ceil(self.lo)).
-                let old_start = self.lo.ceil() as i64;
-                let new_start = new_lo.ceil() as i64;
-                let mut blocked: Option<i64> = None;
-                for coord in new_start..old_start {
-                    if !self.front_open(grid, coord) {
-                        blocked = Some(coord);
-                        break;
-                    }
-                }
-                if let Some(cell) = blocked {
-                    // Frente apoyado a la derecha de `cell`: la cobertura
-                    // arranca en `cell + 1`, que no cubre la celda bloqueante.
-                    self.lo = (cell + 1) as f32;
-                    self.lo_done = true;
-                } else {
-                    self.lo = new_lo.max(0.0);
-                }
+                self.lo = new_lo;
             }
         }
     }
