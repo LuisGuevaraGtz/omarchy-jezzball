@@ -5,7 +5,7 @@
 //! deciden las transiciones entre pantallas. Sin `unsafe`, sin panics.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use macroquad::prelude::*;
 use macroquad::window::screen_height;
@@ -127,6 +127,9 @@ pub struct App {
     pub menu_items: Vec<MenuItem>,
     pub selector_mode: Mode,
     pub error_msg: String,
+    /// Rutas concretas probadas al cargar los niveles (diagnóstico: se
+    /// muestran en la pantalla de error si no se encuentran).
+    pub candidates: Vec<PathBuf>,
     pub hud_compact: bool,
     pub quit_confirm: bool,
     pub quit_requested: bool,
@@ -137,11 +140,18 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let theme = resolve_theme(&OmarchyDirs::from_env());
-        let levels = load_levels();
+        let (levels, candidates) = load_levels();
+        if levels.original.is_empty() && levels.enhanced.is_empty() {
+            eprintln!("omarchy-jezzball: no se encontraron niveles. Rutas probadas:");
+            for c in &candidates {
+                eprintln!("  {}", c.display());
+            }
+        }
         let save = load_save();
         let mut app = App {
             theme,
             levels,
+            candidates,
             save,
             screen: Screen::Menu,
             state: GameState::new(fallback_level()),
@@ -213,30 +223,96 @@ fn fallback_level() -> LevelSpec {
 
 // --- Carga de niveles ---
 
-fn load_levels() -> Levels {
-    let original = load_level_list("original.ron").unwrap_or_default();
-    let enhanced = load_level_list("enhanced.ron").unwrap_or_default();
-    Levels { original, enhanced }
+/// Variable de entorno de escape para desarrollo y tests: apunta a la carpeta
+/// `assets/` del repo, que contiene `levels/`. Ver `level_candidates`.
+const ENV_ASSETS: &str = "OMARCHY_JEZZBALL_ASSETS";
+
+/// Niveles cargados + rutas candidatas probadas (para el diagnóstico).
+fn load_levels() -> (Levels, Vec<PathBuf>) {
+    let dirs = level_candidates(
+        current_exe_dir().as_deref(),
+        &crate::persist::data_home_dir(),
+        std::env::var_os(ENV_ASSETS).map(PathBuf::from).as_deref(),
+    );
+    let levels = load_levels_in(&dirs);
+    (levels, dirs)
 }
 
-/// Ruta base de los niveles en disco (ARCHITECTURE.md §13: `./assets/`,
-/// `$XDG_DATA_HOME/omarchy-jezzball/assets/`, `/usr/share/...`).
-fn levels_dir() -> PathBuf {
-    crate::persist::data_home_dir()
-        .join("omarchy-jezzball")
-        .join("assets")
-        .join("levels")
+/// Directorio del binario activo (`std::env::current_exe()`), o `None` si el
+/// SO no lo puede resolver (nunca panic).
+fn current_exe_dir() -> Option<PathBuf> {
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
 }
 
-fn load_level_list(file: &str) -> Result<Vec<LevelSpec>, String> {
-    let candidates = [
-        PathBuf::from("assets/levels").join(file),
-        levels_dir().join(file),
-        PathBuf::from("/usr/share/omarchy-jezzball/assets/levels").join(file),
-    ];
+/// Directorios candidatos donde puede haber `original.ron` / `enhanced.ron`,
+/// en orden de prioridad. Función PURA (no toca el SO) para poder testear el
+/// orden sin efectos de entorno. Orden documentado en README:
+/// 1. `$OMARCHY_JEZZBALL_ASSETS/levels`         (escape desarrollo/tests)
+/// 2. `<dir exe>/assets/levels`                 (binario junto a assets)
+/// 3. `<dir exe>/../share/omarchy-jezzball/levels` (install.sh: ~/.local)
+/// 4. `$XDG_DATA_HOME/omarchy-jezzball/levels`  (fallback ~/.local/share)
+/// 5. `/usr/share/omarchy-jezzball/levels`      (PKGBUILD / pacman)
+/// 6. `./assets/levels`                         (CWD: `cargo run` en el repo)
+fn level_candidates(
+    exe_dir: Option<&Path>,
+    data_home: &Path,
+    env_override: Option<&Path>,
+) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Some(assets) = env_override {
+        out.push(normalize_path(&assets.join("levels")));
+    }
+    if let Some(exe) = exe_dir {
+        out.push(normalize_path(&exe.join("assets").join("levels")));
+        out.push(normalize_path(
+            &exe.join("..")
+                .join("share")
+                .join("omarchy-jezzball")
+                .join("levels"),
+        ));
+    }
+    out.push(normalize_path(
+        &data_home.join("omarchy-jezzball").join("levels"),
+    ));
+    out.push(PathBuf::from("/usr/share/omarchy-jezzball/levels"));
+    out.push(PathBuf::from("assets/levels"));
+    // Con ~/.local (install.sh) los candidatos 3 y 4 convergen en la misma
+    // ruta: se coleapsa para que el diagnóstico no repita directorios.
+    out.dedup();
+    out
+}
+
+/// Colapsa `.` y `..` redundantes de una ruta (puro, nunca hace I/O).
+fn normalize_path(p: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for c in p.components() {
+        match c {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !out.pop() {
+                    out.push(c.as_os_str());
+                }
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+fn load_levels_in(dirs: &[PathBuf]) -> Levels {
+    Levels {
+        original: load_level_list(dirs, "original.ron").unwrap_or_default(),
+        enhanced: load_level_list(dirs, "enhanced.ron").unwrap_or_default(),
+    }
+}
+
+fn load_level_list(dirs: &[PathBuf], file: &str) -> Result<Vec<LevelSpec>, String> {
     let mut last_err = String::new();
-    for path in &candidates {
-        match read_level_list(path) {
+    for dir in dirs {
+        match read_level_list(&dir.join(file)) {
             Ok(mut list) => {
                 list.sort_by_key(|l| l.id);
                 return Ok(list);
@@ -247,7 +323,7 @@ fn load_level_list(file: &str) -> Result<Vec<LevelSpec>, String> {
     Err(format!("no se encontraron niveles {file}: {last_err}"))
 }
 
-fn read_level_list(path: &PathBuf) -> Result<Vec<LevelSpec>, String> {
+fn read_level_list(path: &Path) -> Result<Vec<LevelSpec>, String> {
     let text = fs::read_to_string(path)
         .map_err(|e| format!("{}: {e}", path.display()))?;
     parse_levels(&text).map_err(|e| format!("{}: {e}", path.display()))
@@ -400,9 +476,26 @@ fn original_mode_completed(app: &App) -> bool {
 
 // --- Inicio de partidas ---
 
+/// Mensaje de error cuando un modo no tiene niveles: además del aviso, lista
+/// las rutas concretas que se probaron, una por línea, para que el usuario
+/// sepa dónde colocar `original.ron` / `enhanced.ron`.
+fn no_levels_message(mode: Mode, candidates: &[PathBuf]) -> String {
+    let paths: Vec<String> = candidates
+        .iter()
+        .map(|c| format!("  {}", c.display()))
+        .collect();
+    let mut msg = format!("{} no tiene niveles disponibles.", mode_name(mode));
+    if !paths.is_empty() {
+        msg.push_str("\nSe buscaron en:\n");
+        msg.push_str(&paths.join("\n"));
+        msg.push_str("\n\nColoca original.ron y enhanced.ron en una de esas rutas.");
+    }
+    msg
+}
+
 fn start_mode(app: &mut App, mode: Mode) {
     if app.levels.list(mode).is_empty() {
-        app.error_msg = format!("{} no tiene niveles disponibles", mode_name(mode));
+        app.error_msg = no_levels_message(mode, &app.candidates);
         app.screen = Screen::Error;
         app.nav = NavRepeat::default();
         return;
@@ -954,5 +1047,129 @@ mod tests {
         assert!(!is_unlocked(&app, Mode::Enhanced, 1));
         app.save.record_for(Mode::Original, 2).completed = true;
         assert!(is_unlocked(&app, Mode::Enhanced, 1));
+    }
+
+    #[test]
+    fn orden_de_candidatos_seis_rutas_documentadas() {
+        // El orden de resolución debe ser exactamente el documentado: primero
+        // la escotilla de entorno, luego las relativas al binario, luego XDG,
+        // luego /usr/share, y por último el CWD.
+        let dirs = level_candidates(
+            Some(Path::new("/opt/jezzball/bin")),
+            Path::new("/home/user/.local/share"),
+            Some(Path::new("/tmp/mis-assets")),
+        );
+        let paths: Vec<String> = dirs
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(dirs.len(), 6, "seis candidatos: {paths:?}");
+        assert_eq!(paths[0], "/tmp/mis-assets/levels");
+        assert_eq!(paths[1], "/opt/jezzball/bin/assets/levels");
+        assert_eq!(paths[2], "/opt/jezzball/share/omarchy-jezzball/levels");
+        assert_eq!(paths[3], "/home/user/.local/share/omarchy-jezzball/levels");
+        assert_eq!(paths[4], "/usr/share/omarchy-jezzball/levels");
+        assert_eq!(paths[5], "assets/levels");
+    }
+
+    #[test]
+    fn instalacion_local_de_install_sh_converge_y_colapsa() {
+        // install.sh deja el binario en ~/.local/bin y los niveles en
+        // ~/.local/share/omarchy-jezzball/levels. El candidato 3 (relativo al
+        // exe, `bin/../share`) y el 4 (XDG_DATA_HOME) coinciden tras colapsar
+        // `..`, así que se deduplican: el diagnóstico no repite la ruta.
+        let dirs = level_candidates(
+            Some(Path::new("/home/user/.local/bin")),
+            Path::new("/home/user/.local/share"),
+            None,
+        );
+        let paths: Vec<String> = dirs
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            paths,
+            vec![
+                "/home/user/.local/bin/assets/levels",
+                "/home/user/.local/share/omarchy-jezzball/levels",
+                "/usr/share/omarchy-jezzball/levels",
+                "assets/levels",
+            ]
+        );
+    }
+
+    #[test]
+    fn ningun_candidato_contiene_el_segmento_assets_equivocado() {
+        // Regresión del bug 2: la app NUNCA debe buscar en
+        // `<...>/omarchy-jezzball/assets/levels`. Barrido de configuraciones
+        // (con y sin override, exe en binarios, pacman, etc.).
+        let cases: [(&Path, &Path, Option<&Path>); 4] = [
+            (
+                Path::new("/opt/jezzball/bin"),
+                Path::new("/home/u/.local/share"),
+                Some(Path::new("/tmp/mis-assets")),
+            ),
+            (
+                Path::new("/home/u/.local/bin"),
+                Path::new("/home/u/.local/share"),
+                None,
+            ),
+            (
+                Path::new("/usr/bin"),
+                Path::new("/var/empty/x"),
+                Some(Path::new("/opt/assets")),
+            ),
+            (Path::new("/bin"), Path::new("/srv/share"), None),
+        ];
+        let mut checked = 0;
+        for (exe, data, env) in cases {
+            for d in level_candidates(Some(exe), data, env) {
+                let s = d.to_string_lossy();
+                assert!(
+                    !s.contains("omarchy-jezzball/assets/levels"),
+                    "candidato con la ruta equivocada del bug 2: {s}"
+                );
+                checked += 1;
+            }
+        }
+        assert!(checked >= 5, "el barrido debe revisar varios candidatos");
+    }
+
+    #[test]
+    fn assets_reales_via_exe_dir_simulado_apuntando_al_repo() {
+        // Candidato 2 (`<dir exe>/assets/levels`) con el exe "vivido" en la
+        // raíz del repo: debe cargar los 70 niveles reales sin tocar el SO.
+        let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let dirs = level_candidates(Some(&repo), Path::new("/var/empty/nonexistent"), None);
+        let levels = load_levels_in(&dirs);
+        assert_eq!(levels.original.len(), 10);
+        assert_eq!(levels.enhanced.len(), 60);
+    }
+
+    #[test]
+    fn assets_reales_via_variable_de_entorno_simulada() {
+        // `$OMARCHY_JEZZBALL_ASSETS` = carpeta `assets/` del repo: el
+        // candidato 1 (escotilla de desarrollo/tests) debe encontrarla.
+        let assets = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets");
+        let dirs = level_candidates(Some(Path::new("/bin")), Path::new("/var/empty/x"), Some(&assets));
+        assert_eq!(dirs[0], normalize_path(&assets.join("levels")), "el override abre la lista");
+        let levels = load_levels_in(&dirs);
+        assert_eq!(levels.original.len(), 10);
+        assert_eq!(levels.enhanced.len(), 60);
+    }
+
+    #[test]
+    fn sin_ninguna_ruta_la_carga_devuelve_vacio_sin_panic() {
+        // Con exe y data_home en sitios inexistentes y sin override, NINGÚN
+        // candidato acierta: la carga devuelve listas vacías (que la UI muestra
+        // como "no tiene niveles disponibles"), nunca panic.
+        let dirs = level_candidates(
+            Some(Path::new("/srv/juego/bin")),
+            Path::new("/srv/no-existe"),
+            None,
+        );
+        let levels = load_levels_in(&dirs);
+        assert!(levels.original.is_empty());
+        assert!(levels.enhanced.is_empty());
     }
 }

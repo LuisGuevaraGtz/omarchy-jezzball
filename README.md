@@ -64,6 +64,27 @@ Avisa si `~/.local/bin` no está en tu `PATH`. Para desinstalar:
 
 (Tu partida no se toca: vive en la ruta XDG, ver abajo.)
 
+### ¿Dónde busca el juego los niveles?
+
+Los niveles (`original.ron` y `enhanced.ron`) se cargan en ejecución desde
+disco y se amplían sin recompilar. El juego prueba estas rutas, en este
+orden (primera que exista gana):
+
+1. `$OMARCHY_JEZZBALL_ASSETS/levels/` — escotilla de desarrollo/tests;
+   apunta a la carpeta `assets/` del repo.
+2. `<directorio del binario>/assets/levels/` — binario junto a los assets.
+3. `<directorio del binario>/../share/omarchy-jezzball/levels/` — lo que
+   produce `packaging/install.sh` (`~/.local/bin` + `~/.local/share`).
+4. `$XDG_DATA_HOME/omarchy-jezzball/levels/`
+   (si no está definida: `~/.local/share/omarchy-jezzball/levels/`).
+5. `/usr/share/omarchy-jezzball/levels/` — lo que instala el `PKGBUILD`.
+6. `./assets/levels/` — relativo al directorio actual (para `cargo run`
+   desde la raíz del repo).
+
+Si ninguna ruta contiene los niveles, la pantalla de error lista las rutas
+que se probaron, una por línea, y la misma lista se imprime por `stderr` al
+arrancar.
+
 ### Hyprland (opcional)
 
 `packaging/hyprland.conf.example` trae reglas sugeridas (ventana flotante

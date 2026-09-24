@@ -179,11 +179,25 @@ pub fn draw_mode_complete(app: &App, w: f32, h: f32) {
 
 pub fn draw_error(app: &App, msg: &str, w: f32, h: f32) {
     let t = &app.theme;
-    let pw = 560.0;
-    let ph = 160.0;
-    panel(t, (w - pw) / 2.0, (h - ph) / 2.0, pw, ph);
-    draw_text_c("ERROR", w / 2.0, h / 2.0 - 40.0, 24.0, t.danger.to_mq(1.0));
-    draw_text_c(msg, w / 2.0, h / 2.0, 14.0, t.fg.to_mq(0.95));
+    let lines: Vec<&str> = msg.lines().collect();
+    let line_h = 18.0;
+    let body_h = lines.len() as f32 * line_h;
+    let pw = 740.0;
+    let ph = (body_h + 104.0).max(140.0);
+    let px = (w - pw) / 2.0;
+    let py = ((h - ph) / 2.0).max(8.0);
+    panel(t, px, py, pw, ph);
+    draw_text_c("ERROR", w / 2.0, py + 30.0, 24.0, t.danger.to_mq(1.0));
+    let mut y = py + 62.0;
+    for (i, line) in lines.iter().enumerate() {
+        let (size, color) = if i == 0 {
+            (15.0, t.fg.to_mq(0.95))
+        } else {
+            (12.0, t.fg_dim.to_mq(0.85))
+        };
+        draw_text_c(line, w / 2.0, y, size, color);
+        y += line_h;
+    }
     footer(app, "enter / esc para volver al menu");
 }
 
