@@ -21,8 +21,13 @@ ArenaShape::Maze { density }
     solido), sembrado con la seed del nivel. `density` (0..=100) abre
     muros adicionales de forma aleatoria sembrada (crea bucles y corredores
     mas anchos). Cualquier spawn de bola se coloca SIEMPRE en el centro de
-    una celda abierta del laberinto. Para que los spawns nunca caigan sobre
-    una pared, jezzball-core debe reproducir este mismo algoritmo.
+    una celda abierta DEL LABERINTO DE ESTE SCRIPT. Nota: jezzball-core NO
+    reproduce este laberinto: materializa el Maze con su propio PRNG
+    (Rng64) y el resultado solo es ORIENTATIVO. El motor defiende el
+    invariante de que toda bola nace en una celda Open: si un spawn cae
+    donde no corresponde, lo reubica a la celda abierta mas cercana (o
+    descarta la bola si la arena no tiene ninguna). Por eso generar aqui un
+    laberinto distinto nunca produce bolas atrapadas en muros.
 
 Sin dependencias externas: solo stdlib de Python 3.
 """

@@ -16,6 +16,8 @@
 //!   i) victoria / derrota / tiempo / objetivos y estrellas
 //!   j) emitir `Vec<GameEvent>`
 
+use std::collections::VecDeque;
+
 use crate::arena::Arena;
 use crate::ball::Ball;
 use crate::geom::Vec2;
@@ -108,7 +110,7 @@ impl GameState {
     /// Construye una partida nueva a partir de un `LevelSpec`.
     pub fn new(level: LevelSpec) -> Self {
         let arena = Arena::from_spec(&level.arena, level.seed);
-        let balls = spawn_balls(&level.balls);
+        let balls = spawn_balls(&level.balls, &arena.grid);
         let lives = level.lives;
         let objectives = level
             .objectives
@@ -228,23 +230,87 @@ pub fn step(state: &GameState, input: PlayerInput, dt: f32) -> (GameState, Vec<G
     (s, events)
 }
 
-/// Crea las bolas de una partida a partir de sus `BallSpawn`.
-fn spawn_balls(spawns: &[crate::level::BallSpawn]) -> Vec<Ball> {
+/// Crea las bolas de una partida a partir de sus `BallSpawn`, reubicando
+/// cualquier spawn que no caiga en una celda `Open` de la arena ya
+/// materializada.
+fn spawn_balls(spawns: &[crate::level::BallSpawn], grid: &Grid) -> Vec<Ball> {
     spawns
         .iter()
         .enumerate()
-        .map(|(i, spawn)| {
-            Ball::new(
-                i as u32,
-                spawn.x,
-                spawn.y,
-                spawn.vx,
-                spawn.vy,
-                spawn.kind,
-                spawn.radius_mul,
-            )
-        })
+        .filter_map(|(i, spawn)| new_or_relocated_ball(i as u32, spawn, grid))
         .collect()
+}
+
+/// Crea una bola desde su `BallSpawn` y garantiza el invariante "toda bola
+/// nace en una celda `Open`".
+///
+/// Por qué hace falta una defensa aquí: `tools/gen_levels.py` genera los
+/// niveles `ArenaShape::Maze` con un laberinto recursive-backtracker sembrado
+/// con el `random` de Python y coloca los spawns de bola en las celdas
+/// abiertas DE SU laberinto. En el motor, `Arena::from_spec` ->
+/// `materialize_maze` reproduce el algoritmo pero con OTRO generador de
+/// números aleatorios (`Rng64`, xorshift). Dos RNG distintos => dos
+/// laberintos distintos => un spawn que el generador creía abierto puede
+/// caer dentro de un muro `Solid` (o fuera de la arena). En vez de replicar
+/// el RNG de Python (que acoplaría el motor a un script externo y seguiría
+/// rompiéndose al cambiar cualquiera de los dos), el motor defiende el
+/// invariante: si el spawn no cae en una celda `Open`, se busca en anchura
+/// desde la celda del spawn la primera celda `Open` que no sea `NoSplit` y
+/// ahí se reubica la bola, conservando su velocidad, su `kind` y su radio.
+/// Si no existe ninguna celda abierta en toda la arena (nivel degenerado),
+/// la bola se descarta en vez de provocar un estado inválido.
+fn new_or_relocated_ball(
+    id: u32,
+    spawn: &crate::level::BallSpawn,
+    grid: &Grid,
+) -> Option<Ball> {
+    let mut ball = Ball::new(
+        id,
+        spawn.x,
+        spawn.y,
+        spawn.vx,
+        spawn.vy,
+        spawn.kind,
+        spawn.radius_mul,
+    );
+    let sx = spawn.x.floor() as i64;
+    let sy = spawn.y.floor() as i64;
+    if grid.in_bounds(sx, sy) && grid.is_open(sx as u16, sy as u16) {
+        return Some(ball);
+    }
+    let target = nearest_open_cell(grid, sx, sy)?;
+    ball.pos = Vec2::new(target.0 as f32 + 0.5, target.1 as f32 + 0.5);
+    ball.prev = ball.pos;
+    Some(ball)
+}
+
+/// Búsqueda en anchura desde la celda `(sx, sy)`: devuelve la primera celda
+/// `Open` que no sea `NoSplit`. `None` si no hay ninguna (arena degenerada).
+fn nearest_open_cell(grid: &Grid, sx: i64, sy: i64) -> Option<(u16, u16)> {
+    let start = (
+        sx.clamp(0, grid.w as i64 - 1) as u16,
+        sy.clamp(0, grid.h as i64 - 1) as u16,
+    );
+    let mut visited = vec![false; grid.w as usize * grid.h as usize];
+    let mut queue = VecDeque::from([start]);
+    visited[grid.idx(start.0, start.1)] = true;
+    while let Some((cx, cy)) = queue.pop_front() {
+        if grid.is_open(cx, cy) && !grid.is_no_split(cx, cy) {
+            return Some((cx, cy));
+        }
+        for (dx, dy) in [(1i64, 0), (0, 1), (-1, 0), (0, -1)] {
+            let (nx, ny) = (cx as i64 + dx, cy as i64 + dy);
+            if grid.in_bounds(nx, ny) {
+                let (ux, uy) = (nx as u16, ny as u16);
+                let i = grid.idx(ux, uy);
+                if !visited[i] {
+                    visited[i] = true;
+                    queue.push_back((ux, uy));
+                }
+            }
+        }
+    }
+    None
 }
 
 /// a) Aplicar la entrada del jugador (sin Pause/Resume/Restart, ya tratados).

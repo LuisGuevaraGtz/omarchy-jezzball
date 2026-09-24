@@ -264,6 +264,11 @@ fn materialize_maze(
     let wu = w as usize;
     let hu = h as usize;
 
+    // Arenas menores de 3 celdas no admiten laberinto: se dejan sólidas.
+    if wu < 3 || hu < 3 {
+        return;
+    }
+
     // Todas las celdas inician como `Solid`; el DFS va abriendo pasajes.
     for y in 0..hu {
         for x in 0..wu {
@@ -272,9 +277,13 @@ fn materialize_maze(
         }
     }
 
-    // Vértices del laberinto en coordenadas impares: (2i+1, 2j+1).
-    let cols = (wu + 1).div_ceil(2);
-    let rows = (hu + 1).div_ceil(2);
+    // Vértices del laberinto en coordenadas impares: (2i+1, 2j+1). El
+    // número de vértices por dimensión es `w/2` (división entera): la cota
+    // `(w+1).div_ceil(2)` producía un vértice extra en arenas de ancho/alto
+    // par cuyo centro `2i+1 >= w` escribía fuera de la rejilla (pánico en
+    // `Grid::set` al construir los niveles Maze 52/55/58 de Enhanced).
+    let cols = wu / 2;
+    let rows = hu / 2;
     let mut rng = Rng64::new(seed);
     let mut visited = vec![false; rows * cols];
     let mut stack = vec![(0usize, 0usize)];

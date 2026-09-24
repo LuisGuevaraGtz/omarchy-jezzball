@@ -885,6 +885,47 @@ mod tests {
         assert!(enhanced.iter().all(|l| (1..=6).contains(&l.world)));
     }
 
+    /// Barrido sobre los 70 assets reales: ningún spawn de bola debe caer en
+    /// una celda que no sea `Open` tras construir la partida.
+    #[test]
+    fn ningun_spawn_de_los_assets_reales_cae_en_celda_no_abierta() {
+        use jezzball_core::grid::Cell;
+        use jezzball_core::state::GameState;
+
+        let base = |name: &str| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../assets/levels")
+                .join(name)
+        };
+        let original = read_level_list(&base("original.ron")).unwrap();
+        let enhanced = read_level_list(&base("enhanced.ron")).unwrap();
+
+        let mut checked = 0u32;
+        let mut violated: Vec<(u16, u8, String, i64, i64)> = Vec::new();
+        for list in [&original, &enhanced] {
+            for level in list {
+                let s = GameState::new(level.clone());
+                for b in &s.balls {
+                    checked += 1;
+                    let x = b.pos.x.floor() as i64;
+                    let y = b.pos.y.floor() as i64;
+                    if !s.arena.grid.in_bounds(x, y)
+                        || s.arena.grid.get(x as u16, y as u16) != Cell::Open
+                    {
+                        violated.push((level.id, level.world, level.name.clone(), x, y));
+                    }
+                }
+            }
+        }
+        assert!(
+            violated.is_empty(),
+            "{} bolas de {} nacen en celdas no `Open` (nivel, mundo, nombre, celda): {violated:?}",
+            violated.len(),
+            checked
+        );
+        assert!(checked > 0, "el barrido debe revisar al menos una bola");
+    }
+
     #[test]
     fn desbloqueo_original_estricto() {
         let mut app = App::new();
