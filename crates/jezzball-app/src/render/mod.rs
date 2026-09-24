@@ -112,9 +112,16 @@ fn render_game(app: &App, w: f32, h: f32) {
 
 /// Barra de pistas con los atajos principales.
 fn draw_hint(app: &App, w: f32, h: f32) {
-    let line = "ESPACIO pausa   R reiniciar   TAB eje   raton izq/der muro   F HUD   Q salir   ESC menu";
+    let line =
+        "ESPACIO pausa   R reiniciar   TAB eje   raton izq/der muro   F HUD   Q salir   ESC menu";
     let x = ((w - text_w(line, 12.0)) / 2.0).max(4.0);
-    draw_text(line, x, h - HINT_H / 2.0 + 5.0, 12.0, app.theme.fg_dim.to_mq(0.75));
+    draw_text(
+        line,
+        x,
+        h - HINT_H / 2.0 + 5.0,
+        12.0,
+        app.theme.fg_dim.to_mq(0.75),
+    );
 }
 
 /// Textos flotantes de recompensa (puntos, combo, vidas).

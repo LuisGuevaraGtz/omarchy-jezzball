@@ -11,14 +11,14 @@ use macroquad::prelude::*;
 use macroquad::window::screen_height;
 use macroquad::window::screen_width;
 
-use jezzball_core::level::{Mode, LevelSpec};
-use jezzball_core::state::{GameEvent, GamePhase, GameState, PlayerInput, step};
+use jezzball_core::level::{LevelSpec, Mode};
+use jezzball_core::state::{step, GameEvent, GamePhase, GameState, PlayerInput};
 use jezzball_core::wall::WallAxis;
 
 use crate::input::{NavRepeat, UiKey};
-use crate::persist::{SaveData, load_save, save_save};
-use crate::render::{Layout, mode_name};
-use crate::theme::{OmarchyDirs, Theme, resolve_theme};
+use crate::persist::{load_save, save_save, SaveData};
+use crate::render::{mode_name, Layout};
+use crate::theme::{resolve_theme, OmarchyDirs, Theme};
 
 /// Segundos mínimos que se muestra la pantalla de resultados antes de aceptar
 /// entrada (evita avanzar por un clic suelto del nivel anterior).
@@ -324,14 +324,12 @@ fn load_level_list(dirs: &[PathBuf], file: &str) -> Result<Vec<LevelSpec>, Strin
 }
 
 fn read_level_list(path: &Path) -> Result<Vec<LevelSpec>, String> {
-    let text = fs::read_to_string(path)
-        .map_err(|e| format!("{}: {e}", path.display()))?;
+    let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     parse_levels(&text).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 fn parse_levels(text: &str) -> Result<Vec<LevelSpec>, String> {
-    let list: Vec<LevelSpec> = ron::from_str(text)
-        .map_err(|e| format!("RON invalido: {e}"))?;
+    let list: Vec<LevelSpec> = ron::from_str(text).map_err(|e| format!("RON invalido: {e}"))?;
     Ok(list.into_iter().filter(|l| l.id >= 1).collect())
 }
 
@@ -395,7 +393,12 @@ fn open_selector(app: &mut App, mode: Mode) {
 /// Navegación vertical típica sobre `menu_items` (salta opciones deshabilitadas
 /// por teclas dobles).
 fn nav_menu(app: &mut App, dt: f32) {
-    if let Some(d) = app.nav.input(&app.frame, &crate::input::NAV_UP, &crate::input::NAV_DOWN, dt) {
+    if let Some(d) = app.nav.input(
+        &app.frame,
+        &crate::input::NAV_UP,
+        &crate::input::NAV_DOWN,
+        dt,
+    ) {
         let n = app.menu_items.len();
         if n > 0 {
             let mut sel = app.select as i64 + d as i64;
@@ -635,7 +638,8 @@ fn update_selector(app: &mut App, dt: f32) {
 
 /// Enter, Espacio o la tecla del controlador (en menús de teclado).
 fn confirm_pressed(app: &App) -> bool {
-    app.frame.pressed_any(&[UiKey::Enter, UiKey::Space, UiKey::M])
+    app.frame
+        .pressed_any(&[UiKey::Enter, UiKey::Space, UiKey::M])
 }
 
 // --- Pantalla de juego ---
@@ -1151,8 +1155,16 @@ mod tests {
         // `$OMARCHY_JEZZBALL_ASSETS` = carpeta `assets/` del repo: el
         // candidato 1 (escotilla de desarrollo/tests) debe encontrarla.
         let assets = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets");
-        let dirs = level_candidates(Some(Path::new("/bin")), Path::new("/var/empty/x"), Some(&assets));
-        assert_eq!(dirs[0], normalize_path(&assets.join("levels")), "el override abre la lista");
+        let dirs = level_candidates(
+            Some(Path::new("/bin")),
+            Path::new("/var/empty/x"),
+            Some(&assets),
+        );
+        assert_eq!(
+            dirs[0],
+            normalize_path(&assets.join("levels")),
+            "el override abre la lista"
+        );
         let levels = load_levels_in(&dirs);
         assert_eq!(levels.original.len(), 10);
         assert_eq!(levels.enhanced.len(), 60);

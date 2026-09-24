@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: fmt + clippy + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar toolchain Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cachear dependencias
+        uses: Swatinem/rust-cache@v2
+
+      # macroquad/miniquad enlaza con X11, ALSA y GL en Linux. En CI no hay
+      # pantalla, pero sí hacen falta las cabeceras para compilar.
+      - name: Dependencias de sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libx11-dev libxi-dev libgl1-mesa-dev libasound2-dev \
+            libwayland-dev libxkbcommon-dev
+
+      - name: Formato
+        run: cargo fmt --all --check
+
+      - name: Clippy (incluidos tests)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace --locked
+
+      - name: Build release
+        run: cargo build --release --locked
+
+      # El juego necesita pantalla, pero `--help` no: sirve de humo básico
+      # para detectar que el binario arranca y no panica antes de tiempo.
+      - name: Humo (--help sin display)
+        run: ./target/release/omarchy-jezzball --help

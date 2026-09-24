@@ -4,7 +4,7 @@
 
 mod common;
 
-use common::{DT, ball, frames, spec};
+use common::{ball, frames, spec, DT};
 use jezzball_core::level::{BallKind, Objective};
 use jezzball_core::powerup::PowerUpKind;
 use jezzball_core::state::{step, GameEvent, GamePhase, GameState, PlayerInput};
@@ -191,12 +191,8 @@ fn combo() {
     s = n;
     all.extend(e);
 
-    assert!(all
-        .iter()
-        .any(|e| matches!(e, GameEvent::ComboUp(2))));
-    assert!(all
-        .iter()
-        .any(|e| matches!(e, GameEvent::ComboUp(3))));
+    assert!(all.iter().any(|e| matches!(e, GameEvent::ComboUp(2))));
+    assert!(all.iter().any(|e| matches!(e, GameEvent::ComboUp(3))));
     assert_eq!(s.combo.multiplier, 3);
     assert_eq!(s.max_combo_reached, 3);
     assert_ne!(s.phase, GamePhase::Won);
@@ -228,9 +224,21 @@ fn determinism_600_steps() {
         false,
     );
     let script = vec![
-        (0u32, PlayerInput::StartWall { cell: (3, 5), axis: WallAxis::Vertical }),
+        (
+            0u32,
+            PlayerInput::StartWall {
+                cell: (3, 5),
+                axis: WallAxis::Vertical,
+            },
+        ),
         (25, PlayerInput::UsePowerUp(PowerUpKind::Freeze)),
-        (60, PlayerInput::StartWall { cell: (12, 2), axis: WallAxis::Horizontal }),
+        (
+            60,
+            PlayerInput::StartWall {
+                cell: (12, 2),
+                axis: WallAxis::Horizontal,
+            },
+        ),
         (100, PlayerInput::UsePowerUp(PowerUpKind::Shield)),
     ];
 

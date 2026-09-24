@@ -7,7 +7,7 @@ use macroquad::prelude::*;
 use jezzball_core::level::Mode;
 use jezzball_core::powerup::PowerUpKind;
 
-use crate::render::{FONT, HUD_ROW, Layout, draw_segments, draw_text_c, fmt_time, mode_name};
+use crate::render::{draw_segments, draw_text_c, fmt_time, mode_name, Layout, FONT, HUD_ROW};
 use crate::screens::App;
 
 pub fn draw_hud(app: &App, layout: &Layout) {
@@ -150,11 +150,16 @@ fn draw_hud_enhanced(app: &App) {
             ("MODO ", dim.to_mq(0.8)),
             (mode_name(app.mode), dim.to_mq(0.9)),
             (&format!("  {lv}"), lvc),
-            (&format!("  TIEMPO {}", fmt_time(app.state.elapsed)), dim.to_mq(0.9)),
+            (
+                &format!("  TIEMPO {}", fmt_time(app.state.elapsed)),
+                dim.to_mq(0.9),
+            ),
             (
                 &format!(
                     "  RESTANTE {}",
-                    remaining_time(app).map(fmt_time).unwrap_or_else(|| "--".to_string())
+                    remaining_time(app)
+                        .map(fmt_time)
+                        .unwrap_or_else(|| "--".to_string())
                 ),
                 t.danger.to_mq(if has_limit { 0.95 } else { 0.35 }),
             ),
@@ -172,10 +177,7 @@ fn draw_hud_enhanced(app: &App) {
         );
         parts.push((txt, if done { ok.to_mq(0.9) } else { dim.to_mq(0.75) }));
     }
-    parts.push((
-        format!("  ESTRELLAS {}", app.state.stars),
-        ok.to_mq(0.9),
-    ));
+    parts.push((format!("  ESTRELLAS {}", app.state.stars), ok.to_mq(0.9)));
     let refs: Vec<(&str, Color)> = parts.iter().map(|(s, c)| (s.as_str(), *c)).collect();
     draw_segments(12.0, y0 + HUD_ROW, FONT, &refs);
 
@@ -185,8 +187,14 @@ fn draw_hud_enhanced(app: &App) {
         y0 + 2.0 * HUD_ROW,
         FONT,
         &[
-            (&format!("COMBO x{}", app.state.combo.multiplier), t.accent.to_mq(0.95)),
-            (&format!("  MAX x{}", app.state.max_combo_reached), dim.to_mq(0.9)),
+            (
+                &format!("COMBO x{}", app.state.combo.multiplier),
+                t.accent.to_mq(0.95),
+            ),
+            (
+                &format!("  MAX x{}", app.state.max_combo_reached),
+                dim.to_mq(0.9),
+            ),
             (&format!("  AREA {}%", pct(app)), dim.to_mq(0.9)),
             (&format!("  PUNTOS {}", app.state.score), dim.to_mq(0.9)),
             (&format!("  VIDAS {}", app.state.lives), t.danger.to_mq(0.9)),
@@ -214,7 +222,10 @@ fn draw_hud_compact(app: &App) {
             (&format!("P {}", app.state.score), dim.to_mq(0.9)),
             (&format!("A {}%", pct(app)), dim.to_mq(0.9)),
             (&format!("V {}", app.state.lives), t.danger.to_mq(0.9)),
-            (&format!("T {}", fmt_time(app.state.elapsed)), dim.to_mq(0.9)),
+            (
+                &format!("T {}", fmt_time(app.state.elapsed)),
+                dim.to_mq(0.9),
+            ),
             (
                 &format!(
                     "R {}",

@@ -45,10 +45,7 @@ impl Vec2 {
     /// Rota el vector `angle` radianes (sentido horario en pantalla).
     pub fn rotate(self, angle: f32) -> Vec2 {
         let (sin, cos) = angle.sin_cos();
-        Vec2::new(
-            self.x * cos - self.y * sin,
-            self.x * sin + self.y * cos,
-        )
+        Vec2::new(self.x * cos - self.y * sin, self.x * sin + self.y * cos)
     }
 }
 

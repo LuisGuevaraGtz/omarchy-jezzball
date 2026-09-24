@@ -9,7 +9,7 @@ use macroquad::prelude::*;
 use jezzball_core::level::Mode;
 
 use crate::persist::save_save;
-use crate::screens::{App, update};
+use crate::screens::{update, App};
 
 mod input;
 mod persist;
@@ -18,7 +18,21 @@ mod screens;
 mod theme;
 
 /// Ventana: 1024x768, reescalable, alta resolución, 4x MSAA, V-Sync.
+///
+/// Wayland-first (ARCHITECTURE.md §1): miniquad usa `X11Only` por defecto y
+/// PANICA si no hay X11, lo que rompería el juego en un Hyprland puro sin
+/// XWayland. Preferimos Wayland y dejamos X11 como red de seguridad para
+/// quien siga en Xorg.
+///
+/// Aquí también atendemos `--help`: `#[macroquad::main]` llama a esta función
+/// y abre la ventana ANTES de ejecutar el cuerpo de `main`, así que imprimir
+/// la ayuda desde `main` exigiría un servidor gráfico. Un `--help` que solo
+/// funciona con pantalla no es ayuda; por eso salimos aquí mismo.
 fn window_conf() -> Conf {
+    if std::env::args().skip(1).any(|a| a == "--help" || a == "-h") {
+        print_help();
+        std::process::exit(0);
+    }
     Conf {
         window_title: "Omarchy-Jezzball".to_owned(),
         window_width: 1024,
@@ -26,6 +40,10 @@ fn window_conf() -> Conf {
         window_resizable: true,
         high_dpi: true,
         sample_count: 4,
+        platform: miniquad::conf::Platform {
+            linux_backend: miniquad::conf::LinuxBackend::WaylandWithX11Fallback,
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
@@ -53,9 +71,7 @@ fn parse_args() -> (Option<Mode>, Option<u16>, bool) {
                 }
             }
             "--level" => {
-                level = it
-                    .next()
-                    .and_then(|v| v.trim().parse::<u16>().ok());
+                level = it.next().and_then(|v| v.trim().parse::<u16>().ok());
                 if level.is_none() {
                     eprintln!("--level requiere un numero >= 1");
                 }
@@ -69,12 +85,10 @@ fn parse_args() -> (Option<Mode>, Option<u16>, bool) {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let (mode, level, help) = parse_args();
-    if help {
-        print_help();
-        return;
-    }
-
+    // `--help` ya se atendió en `window_conf` (ver nota allí): la macro de
+    // macroquad abre la ventana ANTES de ejecutar este cuerpo, así que la
+    // ayuda no puede imprimirse aquí sin exigir un servidor gráfico.
+    let (mode, level, _help) = parse_args();
     let mut app = App::new();
     crate::screens::launch(&mut app, mode, level);
 

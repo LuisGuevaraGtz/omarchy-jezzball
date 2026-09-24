@@ -1,4 +1,4 @@
-# Maintainer: TU_NOMBRE <tu@email.example>
+# Maintainer: Luis Guevara <luisguevaragtz@users.noreply.github.com>
 # PKGBUILD de omarchy-jezzball — clon nativo de JezzBall para Omarchy.
 #
 # Notas de las decisiones (contrato: docs/ARCHITECTURE.md, sección 14):
@@ -16,7 +16,7 @@ pkgrel=1
 pkgdesc='Clon nativo de JezzBall para Omarchy (Wayland, keyboard-first)'
 arch=('x86_64')
 # TODO(worker-pkg): sustituir por la URL real del repositorio al publicarlo.
-url='https://github.com/TU_USUARIO/omarchy-jezzball'
+url='https://github.com/LuisGuevaraGtz/omarchy-jezzball'
 license=('MIT')
 # Dependencias de sistema reales de un juego macroquad/miniquad en Wayland:
 # - wayland: protocolo del compositor (Hyprland).
@@ -27,7 +27,7 @@ depends=('wayland' 'libxkbcommon' 'libglvnd' 'alsa-lib')
 makedepends=('cargo' 'git')
 options=('!lto')
 # Se publica por tag `v$pkgver`. La suma se omite porque la fuente es git.
-source=("git+https://github.com/TU_USUARIO/omarchy-jezzball.git#tag=v${pkgver}")
+source=("git+https://github.com/LuisGuevaraGtz/omarchy-jezzball.git#tag=v${pkgver}")
 sha256sums=('SKIP')
 
 prepare() {

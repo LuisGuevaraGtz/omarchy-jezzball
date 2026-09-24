@@ -74,10 +74,7 @@ impl SaveData {
 
     /// Total de estrellas acumuladas en un modo.
     pub fn total_stars(&self, mode: Mode) -> u32 {
-        self.map(mode)
-            .values()
-            .map(|r| u32::from(r.stars))
-            .sum()
+        self.map(mode).values().map(|r| u32::from(r.stars)).sum()
     }
 
     fn map(&self, mode: Mode) -> &BTreeMap<u16, LevelRecord> {
@@ -237,7 +234,10 @@ mod tests {
         let text = ron::to_string(&s).unwrap();
         let parsed: SaveData = ron::from_str(&text).unwrap();
         assert_eq!(parsed, s);
-        assert_eq!(parsed.record(Mode::Original, 1), s.record(Mode::Original, 1));
+        assert_eq!(
+            parsed.record(Mode::Original, 1),
+            s.record(Mode::Original, 1)
+        );
         assert_eq!(parsed.completed_count(Mode::Original), 1);
         assert_eq!(parsed.total_stars(Mode::Original), 2);
     }
@@ -257,7 +257,7 @@ mod tests {
         let root = tmp_root("missing");
         let p = save_file_path_in(&root);
         assert_eq!(load_save_at(&p).version, SAVE_VERSION);
-        assert_eq!(load_save_at(&p).original_completed, false);
+        assert!(!load_save_at(&p).original_completed);
     }
 
     #[test]
@@ -291,7 +291,11 @@ mod tests {
         let root = tmp_root("oldver");
         let p = save_file_path_in(&root);
         fs::create_dir_all(p.parent().unwrap()).unwrap();
-        fs::write(&p, "(version: 0, original: {}, enhanced: {}, original_completed: false)").unwrap();
+        fs::write(
+            &p,
+            "(version: 0, original: {}, enhanced: {}, original_completed: false)",
+        )
+        .unwrap();
         let loaded = load_save_at(&p);
         assert_eq!(loaded, SaveData::default());
         assert!(p.with_extension("ron.bak").exists());

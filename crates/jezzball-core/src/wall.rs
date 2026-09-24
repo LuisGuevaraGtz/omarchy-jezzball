@@ -30,13 +30,13 @@ impl WallAxis {
 #[derive(Clone, Debug, PartialEq)]
 pub struct WallBuilder {
     pub axis: WallAxis,
-    pub origin: (u16, u16),   // celda donde el jugador pulsó
-    pub lo: f32,              // frente que crece hacia -X/-Y (en celdas)
-    pub hi: f32,              // frente que crece hacia +X/+Y
-    pub lo_done: bool,        // llegó a borde/obstáculo
+    pub origin: (u16, u16), // celda donde el jugador pulsó
+    pub lo: f32,            // frente que crece hacia -X/-Y (en celdas)
+    pub hi: f32,            // frente que crece hacia +X/+Y
+    pub lo_done: bool,      // llegó a borde/obstáculo
     pub hi_done: bool,
-    pub speed: f32,           // celdas por segundo, por frente
-    pub shielded: bool,       // power-up Escudo: absorbe 1 impacto
+    pub speed: f32,     // celdas por segundo, por frente
+    pub shielded: bool, // power-up Escudo: absorbe 1 impacto
 }
 
 /// Pequeña tolerancia para "apretar" un frente contra la celda bloqueante sin

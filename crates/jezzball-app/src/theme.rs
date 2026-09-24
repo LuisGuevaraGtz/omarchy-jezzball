@@ -106,17 +106,61 @@ impl ThemeOverrideFile {
 }
 
 /// Colores del fallback hardcodeado (ARCHITECTURE.md §12, paso 6).
-pub const FB_BG: Rgb = Rgb { r: 0x0f, g: 0x0f, b: 0x14 };
-pub const FB_BG_PANEL: Rgb = Rgb { r: 0x16, g: 0x16, b: 0x1e };
-pub const FB_FG: Rgb = Rgb { r: 0xc9, g: 0xd1, b: 0xd9 };
-pub const FB_FG_DIM: Rgb = Rgb { r: 0x6e, g: 0x6e, b: 0x79 };
-pub const FB_WALL: Rgb = Rgb { r: 0x56, g: 0x5f, b: 0x89 };
-pub const FB_WALL_BUILDING: Rgb = Rgb { r: 0xe0, g: 0xaf, b: 0x68 };
-pub const FB_BALL: Rgb = Rgb { r: 0x44, g: 0x9d, b: 0xab };
-pub const FB_BALL_SPECIAL: Rgb = Rgb { r: 0xbb, g: 0x9a, b: 0xf7 };
-pub const FB_DANGER: Rgb = Rgb { r: 0xf7, g: 0x76, b: 0x8e };
-pub const FB_OK: Rgb = Rgb { r: 0x9e, g: 0xce, b: 0x6a };
-pub const FB_ACCENT: Rgb = Rgb { r: 0x7a, g: 0xa2, b: 0xf7 };
+pub const FB_BG: Rgb = Rgb {
+    r: 0x0f,
+    g: 0x0f,
+    b: 0x14,
+};
+pub const FB_BG_PANEL: Rgb = Rgb {
+    r: 0x16,
+    g: 0x16,
+    b: 0x1e,
+};
+pub const FB_FG: Rgb = Rgb {
+    r: 0xc9,
+    g: 0xd1,
+    b: 0xd9,
+};
+pub const FB_FG_DIM: Rgb = Rgb {
+    r: 0x6e,
+    g: 0x6e,
+    b: 0x79,
+};
+pub const FB_WALL: Rgb = Rgb {
+    r: 0x56,
+    g: 0x5f,
+    b: 0x89,
+};
+pub const FB_WALL_BUILDING: Rgb = Rgb {
+    r: 0xe0,
+    g: 0xaf,
+    b: 0x68,
+};
+pub const FB_BALL: Rgb = Rgb {
+    r: 0x44,
+    g: 0x9d,
+    b: 0xab,
+};
+pub const FB_BALL_SPECIAL: Rgb = Rgb {
+    r: 0xbb,
+    g: 0x9a,
+    b: 0xf7,
+};
+pub const FB_DANGER: Rgb = Rgb {
+    r: 0xf7,
+    g: 0x76,
+    b: 0x8e,
+};
+pub const FB_OK: Rgb = Rgb {
+    r: 0x9e,
+    g: 0xce,
+    b: 0x6a,
+};
+pub const FB_ACCENT: Rgb = Rgb {
+    r: 0x7a,
+    g: 0xa2,
+    b: 0xf7,
+};
 
 /// Constructor del fallback marcado por contrato.
 pub fn fallback() -> Theme {
@@ -193,7 +237,9 @@ fn table_get<'a>(v: &'a toml::Value, key: &str) -> Option<&'a str> {
 
 /// Color opcional de una tabla por un conjunto de claves alternativas.
 fn color_or(v: &toml::Value, keys: &[&str]) -> Option<Rgb> {
-    keys.iter().find_map(|k| table_get(v, k)).and_then(parse_hex)
+    keys.iter()
+        .find_map(|k| table_get(v, k))
+        .and_then(parse_hex)
 }
 
 /// Construye `Theme` a partir de un `colors.toml` plano (claves directas).
@@ -281,10 +327,7 @@ fn read_theme_name(path: &Path) -> Option<String> {
 /// éxito gana; si ninguna aparece, devuelve el fallback hardcodeado.
 pub fn resolve_theme(dirs: &OmarchyDirs) -> Theme {
     // 1. Override del usuario.
-    let override_path = dirs
-        .config_home
-        .join("omarchy-jezzball")
-        .join("theme.ron");
+    let override_path = dirs.config_home.join("omarchy-jezzball").join("theme.ron");
     if let Some(t) = load_ron_override(&override_path) {
         return t;
     }
@@ -515,7 +558,11 @@ mod tests {
         // Paso 2 disponible para que la caída sea observable.
         let theme_dir = root.join("state/omarchy/current/theme");
         fs::create_dir_all(&theme_dir).unwrap();
-        fs::copy(fixture("retro-82-colors.toml"), theme_dir.join("colors.toml")).unwrap();
+        fs::copy(
+            fixture("retro-82-colors.toml"),
+            theme_dir.join("colors.toml"),
+        )
+        .unwrap();
         let dirs = OmarchyDirs {
             config_home: root.clone(),
             state_home: root.join("state"),
@@ -550,7 +597,11 @@ mod tests {
             fs::write(cfg.join("theme.ron"), ron).unwrap();
             let theme_dir = root.join("state/omarchy/current/theme");
             fs::create_dir_all(&theme_dir).unwrap();
-            fs::copy(fixture("retro-82-colors.toml"), theme_dir.join("colors.toml")).unwrap();
+            fs::copy(
+                fixture("retro-82-colors.toml"),
+                theme_dir.join("colors.toml"),
+            )
+            .unwrap();
             let dirs = OmarchyDirs {
                 config_home: root.clone(),
                 state_home: root.join("state"),
@@ -601,7 +652,11 @@ mod tests {
         let root = tmp_root("current");
         let theme_dir = root.join("omarchy/current/theme");
         fs::create_dir_all(&theme_dir).unwrap();
-        fs::copy(fixture("retro-82-colors.toml"), theme_dir.join("colors.toml")).unwrap();
+        fs::copy(
+            fixture("retro-82-colors.toml"),
+            theme_dir.join("colors.toml"),
+        )
+        .unwrap();
         let dirs = OmarchyDirs {
             config_home: root.join("config"),
             state_home: root.clone(),

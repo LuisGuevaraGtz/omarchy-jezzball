@@ -8,20 +8,20 @@
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LevelSpec {
-    pub id: u16,                  // 1-based, único dentro del modo
-    pub name: String,             // corto, mostrable en HUD
-    pub world: u8,                // 0 = Original; 1..=6 = mundos Enhanced
+    pub id: u16,      // 1-based, único dentro del modo
+    pub name: String, // corto, mostrable en HUD
+    pub world: u8,    // 0 = Original; 1..=6 = mundos Enhanced
     pub kind: LevelKind,
     pub arena: ArenaSpec,
     pub balls: Vec<BallSpawn>,
-    pub target_ratio: f32,        // 0.0..1.0, típico 0.75
+    pub target_ratio: f32, // 0.0..1.0, típico 0.75
     pub lives: u8,
-    pub wall_speed: f32,          // celdas/seg por frente, típico 22.0
-    pub time_limit: Option<f32>,  // segundos; None = sin reloj
+    pub wall_speed: f32,         // celdas/seg por frente, típico 22.0
+    pub time_limit: Option<f32>, // segundos; None = sin reloj
     pub powerups_enabled: bool,
     pub objectives: Vec<Objective>, // máx 3; vacío en Original
-    pub purist: bool,             // true => sin combos, sin power-ups, sin objetivos
-    pub seed: u64,                // semilla del PRNG determinista
+    pub purist: bool,               // true => sin combos, sin power-ups, sin objetivos
+    pub seed: u64,                  // semilla del PRNG determinista
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,8 +36,8 @@ pub enum LevelKind {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ArenaSpec {
-    pub w: u16,                   // celdas, 32..=96
-    pub h: u16,                   // celdas, 20..=60
+    pub w: u16, // celdas, 32..=96
+    pub h: u16, // celdas, 20..=60
     pub shape: ArenaShape,
     pub obstacles: Vec<Obstacle>, // celdas Solid pre-colocadas
 }
@@ -45,22 +45,39 @@ pub struct ArenaSpec {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ArenaShape {
-    Rect,                         // rectángulo estándar
-    Wide,                         // ratio ancho
-    Tall,                         // ratio alto
-    Irregular { notch: u16 },     // esquinas recortadas de `notch` celdas
-    Circle,                       // elipse inscrita; fuera = Solid
-    Maze { density: u8 },         // 0..=100, corredores generados por `seed`
+    Rect,                     // rectángulo estándar
+    Wide,                     // ratio ancho
+    Tall,                     // ratio alto
+    Irregular { notch: u16 }, // esquinas recortadas de `notch` celdas
+    Circle,                   // elipse inscrita; fuera = Solid
+    Maze { density: u8 },     // 0..=100, corredores generados por `seed`
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Obstacle {
-    Block { x: u16, y: u16, w: u16, h: u16 },
+    Block {
+        x: u16,
+        y: u16,
+        w: u16,
+        h: u16,
+    },
     // se mueve en línea recta rebotando; destruye muros en construcción
-    Mover { x: f32, y: f32, w: u16, h: u16, vx: f32, vy: f32 },
+    Mover {
+        x: f32,
+        y: f32,
+        w: u16,
+        h: u16,
+        vx: f32,
+        vy: f32,
+    },
     // zona que NUNCA puede rellenarse ni cerrarse (cuenta como no-fillable)
-    NoSplit { x: u16, y: u16, w: u16, h: u16 },
+    NoSplit {
+        x: u16,
+        y: u16,
+        w: u16,
+        h: u16,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -71,7 +88,7 @@ pub struct BallSpawn {
     pub vx: f32,
     pub vy: f32,
     pub kind: BallKind,
-    pub radius_mul: f32,          // 1.0 = normal
+    pub radius_mul: f32, // 1.0 = normal
 }
 
 /// Ver ARCHITECTURE.md §8 para la semántica de cada tipo.

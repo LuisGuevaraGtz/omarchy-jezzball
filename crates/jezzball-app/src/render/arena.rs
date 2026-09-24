@@ -7,7 +7,7 @@ use jezzball_core::grid::Cell;
 use jezzball_core::powerup::PowerUpKind;
 use jezzball_core::wall::WallAxis;
 
-use crate::render::{Layout, draw_text_c};
+use crate::render::{draw_text_c, Layout};
 use crate::screens::App;
 
 /// Fuerza con la que se ve la previsualización del eje mientras hay un muro
@@ -39,7 +39,13 @@ fn draw_overlays(app: &App, layout: &Layout) {
     let a_w = layout.grid_w as f32 * layout.cell;
     let a_h = layout.grid_h as f32 * layout.cell;
     if any_slow {
-        draw_rectangle(layout.arena_x, layout.arena_y, a_w, a_h, app.theme.fg_dim.to_mq(0.05));
+        draw_rectangle(
+            layout.arena_x,
+            layout.arena_y,
+            a_w,
+            a_h,
+            app.theme.fg_dim.to_mq(0.05),
+        );
         draw_text_c(
             "LENTO",
             layout.arena_x + a_w / 2.0,
@@ -49,7 +55,13 @@ fn draw_overlays(app: &App, layout: &Layout) {
         );
     }
     if any_freeze {
-        draw_rectangle(layout.arena_x, layout.arena_y, a_w, a_h, app.theme.ball.to_mq(0.06));
+        draw_rectangle(
+            layout.arena_x,
+            layout.arena_y,
+            a_w,
+            a_h,
+            app.theme.ball.to_mq(0.06),
+        );
         draw_text_c(
             "CONGELADO",
             layout.arena_x + a_w / 2.0,
@@ -242,11 +254,25 @@ fn draw_axis_ghost(app: &App, layout: &Layout, axis: WallAxis, alpha: f32) {
     match axis {
         WallAxis::Horizontal => {
             let y = layout.arena_y + (hy as f32 + 0.5) * c;
-            draw_line(layout.arena_x, y, layout.arena_x + w, y, 1.5, t.accent.to_mq(alpha));
+            draw_line(
+                layout.arena_x,
+                y,
+                layout.arena_x + w,
+                y,
+                1.5,
+                t.accent.to_mq(alpha),
+            );
         }
         WallAxis::Vertical => {
             let x = layout.arena_x + (hx as f32 + 0.5) * c;
-            draw_line(x, layout.arena_y, x, layout.arena_y + h, 1.5, t.accent.to_mq(alpha));
+            draw_line(
+                x,
+                layout.arena_y,
+                x,
+                layout.arena_y + h,
+                1.5,
+                t.accent.to_mq(alpha),
+            );
         }
     }
 }

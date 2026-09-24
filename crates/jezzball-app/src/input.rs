@@ -160,7 +160,16 @@ pub fn sample_frame() -> Frame {
     }
 
     let mut held = Vec::new();
-    for key in [UiKey::Up, UiKey::Down, UiKey::Left, UiKey::Right, UiKey::H, UiKey::J, UiKey::K, UiKey::L] {
+    for key in [
+        UiKey::Up,
+        UiKey::Down,
+        UiKey::Left,
+        UiKey::Right,
+        UiKey::H,
+        UiKey::J,
+        UiKey::K,
+        UiKey::L,
+    ] {
         let code = match key {
             UiKey::Up => KeyCode::Up,
             UiKey::Down => KeyCode::Down,
@@ -294,10 +303,19 @@ mod tests {
     #[test]
     fn nav_repeat_cambio_de_direccion() {
         let mut nav = NavRepeat::default();
-        assert_eq!(nav.input(&frame_with(&[], &[]), &NAV_UP, &NAV_DOWN, 0.1), None);
-        assert_eq!(nav.input(&frame_with(&[UiKey::J], &[]), &NAV_UP, &NAV_DOWN, 0.1), Some(1));
+        assert_eq!(
+            nav.input(&frame_with(&[], &[]), &NAV_UP, &NAV_DOWN, 0.1),
+            None
+        );
+        assert_eq!(
+            nav.input(&frame_with(&[UiKey::J], &[]), &NAV_UP, &NAV_DOWN, 0.1),
+            Some(1)
+        );
         // Cambiar a arriba dispara al instante (nueva dirección).
-        assert_eq!(nav.input(&frame_with(&[UiKey::K], &[]), &NAV_UP, &NAV_DOWN, 0.1), Some(-1));
+        assert_eq!(
+            nav.input(&frame_with(&[UiKey::K], &[]), &NAV_UP, &NAV_DOWN, 0.1),
+            Some(-1)
+        );
     }
 
     #[test]

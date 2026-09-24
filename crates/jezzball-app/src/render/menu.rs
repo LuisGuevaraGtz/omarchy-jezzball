@@ -3,7 +3,7 @@
 
 use macroquad::prelude::*;
 
-use crate::render::{FONT, draw_text_c, fmt_time, mode_name, panel, text_w, world_name};
+use crate::render::{draw_text_c, fmt_time, mode_name, panel, text_w, world_name, FONT};
 use crate::screens::{App, Screen};
 
 /// Título y cabecera comunes.
@@ -12,7 +12,11 @@ fn title(app: &App, text: &str) -> f32 {
     let w = screen_width();
     draw_text_c(text, w / 2.0, 90.0, 40.0, t.accent.to_mq(0.9));
     let sub = if app.mode == jezzball_core::level::Mode::Enhanced {
-        format!("JezzBall para Omarchy  -  {} : {}  >", mode_name(app.mode), t.name)
+        format!(
+            "JezzBall para Omarchy  -  {} : {}  >",
+            mode_name(app.mode),
+            t.name
+        )
     } else {
         format!("JezzBall para Omarchy  -  {}", t.name)
     };
@@ -48,7 +52,13 @@ fn option_list(app: &App, y: f32) -> f32 {
             format!("{}  (BLOQUEADO)", item.label)
         };
         if sel && item.enabled {
-            draw_text_c(&format!("> {}", label), w / 2.0, ny, FONT + 2.0, color.to_mq(0.95));
+            draw_text_c(
+                &format!("> {}", label),
+                w / 2.0,
+                ny,
+                FONT + 2.0,
+                color.to_mq(0.95),
+            );
         } else {
             draw_text_c(&label, w / 2.0, ny, FONT + 2.0, color.to_mq(0.75));
         }
@@ -60,8 +70,10 @@ fn option_list(app: &App, y: f32) -> f32 {
 pub fn draw_menu(app: &App, w: f32, _h: f32) {
     title(app, "OMARCHY-JEZZBALL");
     // Progreso persistido antes de la lista.
-    let (done_o, stars_o) = crate::screens::mode_progress(app, jezzball_core::level::Mode::Original);
-    let (done_e, stars_e) = crate::screens::mode_progress(app, jezzball_core::level::Mode::Enhanced);
+    let (done_o, stars_o) =
+        crate::screens::mode_progress(app, jezzball_core::level::Mode::Original);
+    let (done_e, stars_e) =
+        crate::screens::mode_progress(app, jezzball_core::level::Mode::Enhanced);
     let progress = format!(
         "Original {}/{} *{}     Enhanced {}/{} *{}",
         done_o,
@@ -73,7 +85,10 @@ pub fn draw_menu(app: &App, w: f32, _h: f32) {
     );
     let y = option_list(app, 170.0);
     draw_text_c(&progress, w / 2.0, y + 10.0, 13.0, app.theme.ok.to_mq(0.9));
-    footer(app, "flechas/k/j mover   enter elegir   esc salir   modo original -> 1o nivel");
+    footer(
+        app,
+        "flechas/k/j mover   enter elegir   esc salir   modo original -> 1o nivel",
+    );
     let _ = app.screen;
 }
 
@@ -85,7 +100,10 @@ pub fn draw_level_select(app: &App, _w: f32, _h: f32) {
         footer(app, "flechas mover   enter elegir   esc atras");
         return;
     }
-    title(app, &format!("ELEGIR NIVEL - {}", mode_name(app.selector_mode)));
+    title(
+        app,
+        &format!("ELEGIR NIVEL - {}", mode_name(app.selector_mode)),
+    );
     let y = option_list(app, 170.0);
     let _ = y;
     footer(app, "flechas mover   enter jugar   esc atras");
@@ -209,7 +227,13 @@ pub fn draw_pause_overlay(app: &App, layout: &crate::render::Layout) {
     let _ = layout;
     draw_rectangle(0.0, 0.0, w, h, Color::new(0.0, 0.0, 0.0, 0.55));
     draw_text_c("PAUSA", w / 2.0, h / 2.0 - 30.0, 32.0, t.accent.to_mq(1.0));
-    draw_text_c("espacio / esc reanudar   R reiniciar   Q salir", w / 2.0, h / 2.0 + 12.0, 15.0, t.fg.to_mq(0.95));
+    draw_text_c(
+        "espacio / esc reanudar   R reiniciar   Q salir",
+        w / 2.0,
+        h / 2.0 + 12.0,
+        15.0,
+        t.fg.to_mq(0.95),
+    );
 }
 
 /// Aviso breve centrado cerca del fondo.
@@ -217,7 +241,13 @@ pub fn draw_toast(app: &App, toast: &crate::screens::Toast, w: f32) {
     let t = &app.theme;
     let y = screen_height() - 70.0;
     let tw = text_w(&toast.text, 15.0) + 24.0;
-    draw_rectangle(w / 2.0 - tw / 2.0, y - 22.0, tw, 30.0, t.bg_panel.to_mq(0.95));
+    draw_rectangle(
+        w / 2.0 - tw / 2.0,
+        y - 22.0,
+        tw,
+        30.0,
+        t.bg_panel.to_mq(0.95),
+    );
     draw_text_c(&toast.text, w / 2.0, y, 15.0, t.accent.to_mq(0.95));
 }
 
@@ -228,6 +258,12 @@ pub fn draw_quit_confirm(app: &App, w: f32, h: f32) {
     let pw = 460.0;
     let ph = 120.0;
     panel(t, (w - pw) / 2.0, (h - ph) / 2.0, pw, ph);
-    draw_text_c("SALIR DEL JUEGO?", w / 2.0, h / 2.0 - 10.0, 22.0, t.danger.to_mq(1.0));
+    draw_text_c(
+        "SALIR DEL JUEGO?",
+        w / 2.0,
+        h / 2.0 - 10.0,
+        22.0,
+        t.danger.to_mq(1.0),
+    );
     footer(app, "enter confirmar   esc / Q cancelar");
 }

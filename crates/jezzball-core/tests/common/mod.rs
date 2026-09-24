@@ -5,7 +5,7 @@
 //! solo de los OUTCOMES (eventos, vidas, muros consolidados/destruidos).
 
 use jezzball_core::level::{
-    ArenaShape, ArenaSpec, BallKind, BallSpawn, LevelKind, LevelSpec, Obstacle, Objective,
+    ArenaShape, ArenaSpec, BallKind, BallSpawn, LevelKind, LevelSpec, Objective, Obstacle,
 };
 use jezzball_core::state::{step, GameEvent, GamePhase, GameState, PlayerInput};
 

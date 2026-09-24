@@ -5,7 +5,7 @@
 use jezzball_core::geom::Vec2;
 use jezzball_core::grid::Cell;
 use jezzball_core::level::{
-    ArenaShape, ArenaSpec, BallKind, BallSpawn, LevelKind, LevelSpec, Obstacle, Objective,
+    ArenaShape, ArenaSpec, BallKind, BallSpawn, LevelKind, LevelSpec, Objective, Obstacle,
 };
 use jezzball_core::state::GameState;
 
@@ -71,8 +71,18 @@ fn spawn_sobre_solid_se_reubica_a_la_abierta_mas_cercana() {
         12,
         8,
         vec![
-            Obstacle::Block { x: 4, y: 2, w: 3, h: 2 },
-            Obstacle::NoSplit { x: 5, y: 4, w: 1, h: 1 },
+            Obstacle::Block {
+                x: 4,
+                y: 2,
+                w: 3,
+                h: 2,
+            },
+            Obstacle::NoSplit {
+                x: 5,
+                y: 4,
+                w: 1,
+                h: 1,
+            },
         ],
         vec![
             ball(5.5, 3.5, 4.0, -3.0, BallKind::Fast),
@@ -108,7 +118,12 @@ fn arena_sin_celdas_abiertas_descarta_la_bola() {
     let s = GameState::new(spec(
         12,
         8,
-        vec![Obstacle::Block { x: 0, y: 0, w: 12, h: 8 }],
+        vec![Obstacle::Block {
+            x: 0,
+            y: 0,
+            w: 12,
+            h: 8,
+        }],
         vec![ball(6.5, 4.5, 3.0, 2.0, BallKind::Normal)],
         22.0,
         0.9,
@@ -118,6 +133,10 @@ fn arena_sin_celdas_abiertas_descarta_la_bola() {
         false,
     ));
 
-    assert_eq!(s.balls.len(), 0, "bola descartada, la arena está degenerada");
+    assert_eq!(
+        s.balls.len(),
+        0,
+        "bola descartada, la arena está degenerada"
+    );
     assert_eq!(s.arena.grid.open_count(), 0);
 }

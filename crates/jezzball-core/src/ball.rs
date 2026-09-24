@@ -38,15 +38,7 @@ pub struct Ball {
 impl Ball {
     /// Crea una bola a partir de un `BallSpawn`. La velocidad y el radio
     /// dependen del tipo (`BallKind::speed_mult` / `base_radius`).
-    pub fn new(
-        id: u32,
-        x: f32,
-        y: f32,
-        vx: f32,
-        vy: f32,
-        kind: BallKind,
-        radius_mul: f32,
-    ) -> Self {
+    pub fn new(id: u32, x: f32, y: f32, vx: f32, vy: f32, kind: BallKind, radius_mul: f32) -> Self {
         let pos = Vec2::new(x, y);
         let vel = Vec2::new(vx, vy) * kind.speed_mult();
         Ball {

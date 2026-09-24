@@ -4,7 +4,7 @@
 
 mod common;
 
-use common::{DT, ball, frames, spec};
+use common::{ball, frames, spec, DT};
 use jezzball_core::level::{BallKind, Obstacle};
 use jezzball_core::powerup::PowerUpKind;
 use jezzball_core::state::{step, GameEvent, GamePhase, GameState, PlayerInput};
@@ -30,7 +30,10 @@ fn shield_two_impacts() {
     s.inventory.push(PowerUpKind::Shield);
     let (n, _) = step(&s, PlayerInput::UsePowerUp(PowerUpKind::Shield), DT);
     s = n;
-    assert!(s.pending_shield, "el escudo queda pendiente del próximo muro");
+    assert!(
+        s.pending_shield,
+        "el escudo queda pendiente del próximo muro"
+    );
 
     let (n, e) = step(
         &s,
@@ -180,12 +183,8 @@ fn mover_destroys_wall_without_life_loss() {
     let (s, e) = frames(&s, 60);
     all.extend(e);
 
-    assert!(all
-        .iter()
-        .any(|e| matches!(e, GameEvent::WallStarted)));
-    assert!(all
-        .iter()
-        .any(|e| matches!(e, GameEvent::WallBlocked)));
+    assert!(all.iter().any(|e| matches!(e, GameEvent::WallStarted)));
+    assert!(all.iter().any(|e| matches!(e, GameEvent::WallBlocked)));
     assert!(
         !all.contains(&GameEvent::LifeLost),
         "el Mover no cuesta vidas"
@@ -194,6 +193,9 @@ fn mover_destroys_wall_without_life_loss() {
         .iter()
         .any(|e| matches!(e, GameEvent::WallCompleted { .. })));
     assert_eq!(s.lives, 3);
-    assert!(s.builders.is_empty(), "el muro quedó destruido por el Mover");
+    assert!(
+        s.builders.is_empty(),
+        "el muro quedó destruido por el Mover"
+    );
     assert_eq!(s.phase, GamePhase::Running);
 }

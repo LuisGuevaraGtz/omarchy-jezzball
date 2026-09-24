@@ -23,11 +23,9 @@ use crate::ball::Ball;
 use crate::geom::Vec2;
 use crate::grid::{Cell, Grid};
 use crate::level::{BallKind, LevelSpec, Objective};
-use crate::powerup::{
-    ActivePowerUp, PowerUp, PowerUpKind, INVENTORY_MAX, PICKUP_MAX, all_kinds,
-};
+use crate::powerup::{all_kinds, ActivePowerUp, PowerUp, PowerUpKind, INVENTORY_MAX, PICKUP_MAX};
 use crate::rng::Rng64;
-use crate::score::{Combo, region_points};
+use crate::score::{region_points, Combo};
 use crate::wall::{Wall, WallAxis, WallBuilder};
 
 /// Fase de ejecución de la partida.
@@ -43,7 +41,10 @@ pub enum GamePhase {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlayerInput {
     None,
-    StartWall { cell: (u16, u16), axis: WallAxis },
+    StartWall {
+        cell: (u16, u16),
+        axis: WallAxis,
+    },
     /// Alterna el eje por defecto del próximo muro (lo lee la capa de app).
     ToggleAxis,
     UsePowerUp(PowerUpKind),
@@ -259,11 +260,7 @@ fn spawn_balls(spawns: &[crate::level::BallSpawn], grid: &Grid) -> Vec<Ball> {
 /// ahí se reubica la bola, conservando su velocidad, su `kind` y su radio.
 /// Si no existe ninguna celda abierta en toda la arena (nivel degenerado),
 /// la bola se descarta en vez de provocar un estado inválido.
-fn new_or_relocated_ball(
-    id: u32,
-    spawn: &crate::level::BallSpawn,
-    grid: &Grid,
-) -> Option<Ball> {
+fn new_or_relocated_ball(id: u32, spawn: &crate::level::BallSpawn, grid: &Grid) -> Option<Ball> {
     let mut ball = Ball::new(
         id,
         spawn.x,
@@ -316,10 +313,7 @@ fn nearest_open_cell(grid: &Grid, sx: i64, sy: i64) -> Option<(u16, u16)> {
 /// a) Aplicar la entrada del jugador (sin Pause/Resume/Restart, ya tratados).
 fn apply_input(s: &mut GameState, input: PlayerInput, events: &mut Vec<GameEvent>) {
     match input {
-        PlayerInput::None
-        | PlayerInput::Pause
-        | PlayerInput::Resume
-        | PlayerInput::Restart => {}
+        PlayerInput::None | PlayerInput::Pause | PlayerInput::Resume | PlayerInput::Restart => {}
         PlayerInput::ToggleAxis => {
             s.current_axis = match s.current_axis {
                 WallAxis::Horizontal => WallAxis::Vertical,
@@ -712,9 +706,7 @@ fn split_splitters_in_region(s: &mut GameState, region: &[(u16, u16)]) {
         .balls
         .iter()
         .enumerate()
-        .filter(|(_, b)| {
-            ball_cell(b, &s.arena.grid).is_some_and(|cell| region.contains(&cell))
-        })
+        .filter(|(_, b)| ball_cell(b, &s.arena.grid).is_some_and(|cell| region.contains(&cell)))
         .map(|(i, _)| i)
         .collect();
     if in_region.is_empty() {
