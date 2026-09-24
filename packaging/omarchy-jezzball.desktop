@@ -1,0 +1,28 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=JezzBall
+GenericName=Juego arcade de estrategia
+Comment=Cierra el 75 % de la arena con muros sin que las bolas los rompan. Edición nativa para Omarchy.
+Comment[es]=Cierra el 75 % de la arena con muros sin que las bolas los rompan. Edición nativa para Omarchy.
+Exec=omarchy-jezzball
+Icon=omarchy-jezzball
+Terminal=false
+Categories=Game;ArcadeGame;
+StartupWMClass=omarchy-jezzball
+Keywords=jezzball;arcade;juego;estrategia;bolas;muros;omarchy;
+Actions=Original;Enhanced;
+
+# NOTA PARA EL WORKER DE LA APP (contrato docs/ARCHITECTURE.md §7):
+# la aplicación DEBE aceptar el flag `--mode <original|enhanced>` para que
+# estas acciones funcionen. Sin flag arranca en el selector de modo.
+
+[Desktop Action Original]
+Name=Modo Original
+Name[es]=Modo Original
+Exec=omarchy-jezzball --mode original
+
+[Desktop Action Enhanced]
+Name=Modo Enhanced
+Name[es]=Modo Enhanced
+Exec=omarchy-jezzball --mode enhanced

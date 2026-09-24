@@ -1,0 +1,19 @@
+[package]
+name = "jezzball-app"
+description = "Capa de render/input/persistencia de Omarchy-Jezzball (macroquad)."
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+# El binario DEBE llamarse `omarchy-jezzball`: el PKGBUILD y el .desktop
+# esperan exactamente ese nombre (packaging/PKGBUILD §package).
+[[bin]]
+name = "omarchy-jezzball"
+path = "src/main.rs"
+
+[dependencies]
+jezzball-core = { path = "../jezzball-core" }
+macroquad = "0.4"
+serde = { version = "1", features = ["derive"] }
+ron = "0.8"
+toml = { version = "0.8", default-features = false, features = ["parse"] }

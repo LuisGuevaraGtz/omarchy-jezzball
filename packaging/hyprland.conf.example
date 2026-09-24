@@ -1,0 +1,31 @@
+# Omarchy-Jezzball — ejemplo de configuración para Hyprland
+#
+# Cómo usarlo: copia las líneas que quieras a tu `~/.config/hypr/hyprland.conf`
+# (o haz `source = ~/.config/hypr/jezzball.conf` con este fichero).
+# Sintaxis válida para Hyprland reciente (windowrulev2 + bind).
+#
+# La clase de ventana es `omarchy-jezzball` (contrato §14:
+# StartupWMClass=omarchy-jezzball). Si una regla no te aplica, comprueba
+# con `hyprctl clients | grep -A2 jezzball` cuál es la clase real.
+
+# --- Ventana: flotante, tamaño inicial 1280x800 y centrada ---
+# `float` para que no reorganice tus tiles al abrir el juego.
+windowrulev2 = float, class:^(omarchy-jezzball)$
+# Tamaño inicial razonable para una arena de 64x40 celdas + HUD.
+windowrulev2 = size 1280 800, class:^(omarchy-jezzball)$
+# Centrada al abrir.
+windowrulev2 = center, class:^(omarchy-jezzball)$
+
+# --- Opcionales (descomenta si los quieres) ---
+# Fijar el tamaño para que el ratón mapee 1:1 con la arena:
+# windowrulev2 = minsize 960 600, class:^(omarchy-jezzball)$
+# windowrulev2 = maxsize 1600 1000, class:^(omarchy-jezzball)$
+# Quitar el borde/decoración si prefieres estética limpia de juego:
+# windowrulev2 = noborder, class:^(omarchy-jezzball)$
+
+# --- Atajo de ejemplo: SUPER+J lanza el juego ---
+# Cambia la tecla a la que prefieras. `exec` lo lanza en segundo plano.
+bind = SUPER, J, exec, omarchy-jezzball
+# Variante: abrir directamente en un modo concreto (requiere que la app
+# acepte `--mode`, ver packaging/omarchy-jezzball.desktop):
+# bind = SUPER_SHIFT, J, exec, omarchy-jezzball --mode enhanced

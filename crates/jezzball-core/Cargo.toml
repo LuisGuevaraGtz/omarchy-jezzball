@@ -1,0 +1,16 @@
+[package]
+name = "jezzball-core"
+description = "Lógica pura y determinista de Omarchy-Jezzball: bolas, muros, partición, puntuación. Sin I/O ni render."
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[features]
+default = ["serde"]
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+
+[dev-dependencies]
+ron = "0.8"

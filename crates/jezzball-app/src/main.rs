@@ -1,0 +1,109 @@
+//! Bucle principal de Omarchy-Jezzball (ARCHITECTURE.md §6 y §13).
+//!
+//! Un solo bucle: muestrear entrada -> `step` (core puro) -> render. Nunca
+//! se llama a `step` costosamente más de una vez por frame. `dt` se clamp
+//! a 1/30 para que un frame largo no provoque vuelos de pared absurdos.
+
+use macroquad::prelude::*;
+
+use jezzball_core::level::Mode;
+
+use crate::persist::save_save;
+use crate::screens::{App, update};
+
+mod input;
+mod persist;
+mod render;
+mod screens;
+mod theme;
+
+/// Ventana: 1024x768, reescalable, alta resolución, 4x MSAA, V-Sync.
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Omarchy-Jezzball".to_owned(),
+        window_width: 1024,
+        window_height: 768,
+        window_resizable: true,
+        high_dpi: true,
+        sample_count: 4,
+        ..Default::default()
+    }
+}
+
+/// Entrada CLI: `--mode original|enhanced`, `--level N` (1-based), `--help`.
+fn parse_args() -> (Option<Mode>, Option<u16>, bool) {
+    let mut mode = None;
+    let mut level = None;
+    let mut help = false;
+    let mut it = std::env::args().skip(1);
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--mode" => {
+                if let Some(v) = it.next() {
+                    mode = match v.to_ascii_lowercase().as_str() {
+                        "original" => Some(Mode::Original),
+                        "enhanced" => Some(Mode::Enhanced),
+                        other => {
+                            eprintln!("--mode invalido: {other} (usa original|enhanced)");
+                            None
+                        }
+                    };
+                } else {
+                    eprintln!("--mode requiere un valor (original|enhanced)");
+                }
+            }
+            "--level" => {
+                level = it
+                    .next()
+                    .and_then(|v| v.trim().parse::<u16>().ok());
+                if level.is_none() {
+                    eprintln!("--level requiere un numero >= 1");
+                }
+            }
+            "--help" | "-h" => help = true,
+            _ => eprintln!("argumento desconocido: {a}"),
+        }
+    }
+    (mode, level, help)
+}
+
+#[macroquad::main(window_conf)]
+async fn main() {
+    let (mode, level, help) = parse_args();
+    if help {
+        print_help();
+        return;
+    }
+
+    let mut app = App::new();
+    crate::screens::launch(&mut app, mode, level);
+
+    loop {
+        let dt = get_frame_time().min(1.0 / 30.0);
+        update(&mut app, dt);
+        crate::render::render(&app);
+        if app.quit_requested {
+            break;
+        }
+        next_frame().await;
+    }
+
+    if !save_save(&app.save) {
+        eprintln!("omarchy-jezzball: no se pudo guardar la partida al salir");
+    }
+    println!("omarchy-jezzball: hasta luego!");
+}
+
+fn print_help() {
+    println!(
+        "Omarchy-Jezzball: JezzBall para Omarchy (modo teclado).
+Usa: omarchy-jezzball [--mode original|enhanced] [--level N] [--help]
+  --mode    arranca directamente en el modo dado.
+  --level   arranca en el nivel N (1-based) del modo elegido.
+  --help    esta ayuda.
+
+Controles en partida: flechas/k/j navegar, enter/espacio elegir,
+espacio pausa, R reiniciar, TAB eje, 1..5 power-ups, F HUD compacto,
+Q salir, ESC menu; raton: boton izq = eje actual, boton der = opuesto."
+    );
+}
