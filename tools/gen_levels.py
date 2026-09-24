@@ -311,23 +311,33 @@ KMULT = {"Normal": 1.0, "Fast": 1.6, "Erratic": 1.0, "Splitter": 1.0,
 
 
 def gen_velocities(compo, speed, seed, bump=1.0):
+    """Velocidades iniciales en DIAGONAL PURA (45 grados).
+
+    En el JezzBall original todas las bolas se mueven a 45 grados: |vx| == |vy|.
+    Eso no es un detalle estetico, es lo que hace el juego legible y justo —
+    el jugador puede predecir la trayectoria y el rebote de un vistazo, y con
+    la resolucion por ejes separados el rebote devuelve siempre otra diagonal.
+    Angulos arbitrarios producian trayectorias erraticas imposibles de anticipar.
+
+    Lo unico que varia por bola es el CUADRANTE (los cuatro signos) y la
+    rapidez segun su tipo. Se reparten los cuadrantes para que dos bolas del
+    mismo nivel no salgan siempre en la misma direccion.
+    """
     rng = random.Random(seed ^ 0x9E37)
-    n = len(compo)
-    step = 360.0 / n
-    start = rng.uniform(0.0, 360.0)
+    # Los cuatro cuadrantes diagonales, barajados de forma determinista.
+    quadrants = [(1.0, 1.0), (1.0, -1.0), (-1.0, 1.0), (-1.0, -1.0)]
+    rng.shuffle(quadrants)
     out = []
     for i, kind in enumerate(compo):
         base = speed * KMULT[kind] * bump
-        theta = math.radians(start + step * i) + rng.uniform(0.0, 0.15)
-        while abs(math.cos(theta)) < 0.30 or abs(math.sin(theta)) < 0.30:
-            theta += 0.14
-        vx = round(base * math.cos(theta), 2)
-        vy = round(base * math.sin(theta), 2)
-        if vx == 0.0:
-            vx = 0.4 if math.cos(theta) >= 0 else -0.4
-        if vy == 0.0:
-            vy = 0.4 if math.sin(theta) >= 0 else -0.4
-        out.append((kind, vx, vy))
+        # Componente de una diagonal pura: base / sqrt(2) en cada eje, de modo
+        # que el MODULO de la velocidad sigue siendo `base`.
+        comp = round(base / math.sqrt(2.0), 2)
+        # Nunca cero: una componente nula degenera en movimiento recto.
+        if comp == 0.0:
+            comp = 0.4
+        sx, sy = quadrants[i % len(quadrants)]
+        out.append((kind, round(comp * sx, 2), round(comp * sy, 2)))
     return out
 
 

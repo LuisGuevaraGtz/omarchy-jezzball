@@ -21,6 +21,10 @@ const ERRATIC_ANGLE: f32 = std::f32::consts::PI / 6.0;
 const MAX_STEP_DISTANCE: f32 = 0.5;
 /// Tope de substeps por frame.
 const MAX_SUBSTEPS: usize = 8;
+/// Holgura para comparaciones de frontera de celda: tras un rebote la bola
+/// queda apoyada EXACTAMENTE sobre una frontera, y sin esta tolerancia el
+/// error de coma flotante decide al azar si sigue chocando o no.
+const EPS: f32 = 1e-4;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ball {
@@ -101,36 +105,54 @@ impl Ball {
 
     /// Resuelve el movimiento en un eje con separación de ejes.
     /// `is_x = true` mueve (e rebota) el eje X.
+    ///
+    /// Sólo se consideran bloqueos que estén POR DELANTE del borde de avance
+    /// actual de la bola. Es la diferencia entre rebotar y quedarse pegado:
+    /// tras un rebote la bola queda apoyada justo contra la celda (su borde
+    /// toca la frontera), y si el barrido siguiente volviera a mirar esa misma
+    /// celda la daría por bloqueante otra vez, invirtiendo la velocidad cada
+    /// frame (vibración) o empujándola al otro lado (atravesar el muro).
+    /// Lo mismo ocurre cuando un muro se consolida DETRÁS de la bola: no debe
+    /// empujarla ni invertir su sentido, sólo frenar lo que tenga delante.
     fn move_axis(&mut self, grid: &Grid, is_x: bool, dt: f32) {
         let velocity = if is_x { self.vel.x } else { self.vel.y };
         if velocity == 0.0 {
             return;
         }
 
-        // Proyección del AABB en la posición candidata.
-        let along = if is_x {
-            self.pos.x + velocity * dt
+        let current = if is_x { self.pos.x } else { self.pos.y };
+        let along = current + velocity * dt;
+
+        // Borde de ataque: el lado de la bola que avanza, antes y después.
+        // Todo bloqueo que no esté estrictamente por delante del borde actual
+        // se ignora (ya lo hemos dejado atrás o estamos apoyados en él).
+        let (lead_now, lead_next) = if velocity > 0.0 {
+            (current + self.radius, along + self.radius)
         } else {
-            self.pos.y + velocity * dt
+            (current - self.radius, along - self.radius)
         };
-        let (a0, a1) = (along - self.radius, along + self.radius);
+
+        // Rango transversal que barre la bola (el eje perpendicular).
         let (c0, c1) = if is_x {
             (self.pos.y - self.radius, self.pos.y + self.radius)
         } else {
             (self.pos.x - self.radius, self.pos.x + self.radius)
         };
-
-        let cell_a0 = a0.floor() as i64;
-        let cell_a1 = a1.floor() as i64;
         let cell_c0 = c0.floor() as i64;
         let cell_c1 = c1.floor() as i64;
 
-        // Buscamos el primer bloqueo en la dirección de avance: si vamos en
-        // positivo, el primer bloqueo de menor coordenada; si vamos en
-        // negativo, el de mayor coordenada (el que la bola toca primero).
+        // Celdas que el borde de ataque cruza en este paso.
         let mut blocked: Option<i64> = None;
         if velocity > 0.0 {
-            'outer: for a in cell_a0..=cell_a1 {
+            // `lead_now` puede estar exactamente sobre una frontera de celda
+            // (bola apoyada tras rebotar): empezamos en la celda siguiente.
+            let first = lead_now.floor() as i64;
+            let last = lead_next.floor() as i64;
+            'outer: for a in first..=last {
+                // Ignorar la celda en la que ya estamos apoyados.
+                if (a as f32) < lead_now - EPS {
+                    continue;
+                }
                 for c in cell_c0..=cell_c1 {
                     let (cx, cy) = if is_x { (a, c) } else { (c, a) };
                     if !grid.is_passable(cx, cy) {
@@ -140,7 +162,13 @@ impl Ball {
                 }
             }
         } else {
-            'outer: for a in (cell_a0..=cell_a1).rev() {
+            let first = lead_now.floor() as i64;
+            let last = lead_next.floor() as i64;
+            'outer: for a in (last..=first).rev() {
+                // Ignorar la celda en la que ya estamos apoyados.
+                if ((a + 1) as f32) > lead_now + EPS {
+                    continue;
+                }
                 for c in cell_c0..=cell_c1 {
                     let (cx, cy) = if is_x { (a, c) } else { (c, a) };
                     if !grid.is_passable(cx, cy) {

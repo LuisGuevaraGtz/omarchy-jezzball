@@ -89,12 +89,36 @@ async fn main() {
     // macroquad abre la ventana ANTES de ejecutar este cuerpo, así que la
     // ayuda no puede imprimirse aquí sin exigir un servidor gráfico.
     let (mode, level, _help) = parse_args();
+
+    // Red de seguridad: si la lógica de un frame panica, el proceso moriría
+    // llevándose la partida sin guardar y sin dejar rastro útil. Capturamos
+    // el panic, guardamos, y avisamos por stderr con la info para reportarlo.
+    // No enmascara el fallo (se sigue imprimiendo), solo evita perder datos.
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("\n=== omarchy-jezzball: fallo interno ===");
+        eprintln!("{info}");
+        eprintln!(
+            "Por favor reporta esto con los pasos para reproducirlo:\n\
+             https://github.com/LuisGuevaraGtz/omarchy-jezzball/issues"
+        );
+    }));
+
     let mut app = App::new();
     crate::screens::launch(&mut app, mode, level);
 
     loop {
         let dt = get_frame_time().min(1.0 / 30.0);
-        update(&mut app, dt);
+
+        // Un panic dentro de `update` no debe cerrar el juego en seco: se
+        // guarda la partida y se sale de forma ordenada.
+        let tick = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            update(&mut app, dt);
+        }));
+        if tick.is_err() {
+            eprintln!("omarchy-jezzball: error en la simulacion; guardando y saliendo.");
+            break;
+        }
+
         crate::render::render(&app);
         if app.quit_requested {
             break;
