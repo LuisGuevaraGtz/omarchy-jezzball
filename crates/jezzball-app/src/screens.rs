@@ -464,7 +464,13 @@ fn is_unlocked(app: &App, mode: Mode, idx: u16) -> bool {
 }
 
 fn prev_completed(app: &App, mode: Mode, idx: u16) -> bool {
-    let Some(prev_spec) = app.levels.get(mode, idx - 1) else {
+    // `idx` es 0-based: el nivel 0 no tiene anterior. Restar sin comprobarlo
+    // desbordaba el `u16` y en compilaciones debug eso PANICA, cerrando el
+    // juego al consultar el desbloqueo del primer nivel.
+    let Some(prev_idx) = idx.checked_sub(1) else {
+        return false;
+    };
+    let Some(prev_spec) = app.levels.get(mode, prev_idx) else {
         return false;
     };
     app.save
@@ -518,7 +524,10 @@ fn start_mode(app: &mut App, mode: Mode) {
 
 fn start_level(app: &mut App, mode: Mode, idx: u16) {
     let Some(spec) = app.levels.get(mode, idx).cloned() else {
-        app.error_msg = format!("El nivel {} no existe", idx + 1);
+        // `idx + 1` pasa de 0-based a 1-based para el mensaje, pero con
+        // `idx == u16::MAX` desbordaría y en debug eso panica. `saturating_add`
+        // mantiene el mensaje legible sin poder romper nunca.
+        app.error_msg = format!("El nivel {} no existe", idx.saturating_add(1));
         app.screen = Screen::Error;
         app.nav = NavRepeat::default();
         return;
@@ -631,7 +640,10 @@ fn update_selector(app: &mut App, dt: f32) {
     if app.select == 0 {
         start_level(app, mode, 0);
     } else if let Some(spec) = app.levels.get(mode, app.select as u16 - 1) {
-        let idx = spec.id - 1;
+        // Los ids de nivel son 1-based por contrato (LEVEL_SCHEMA.md), pero un
+        // .ron editado a mano podría traer `id: 0`; sin `saturating_sub` eso
+        // desbordaría el u16 y en debug cerraría el juego.
+        let idx = spec.id.saturating_sub(1);
         start_level(app, mode, idx);
     }
 }
@@ -1183,5 +1195,77 @@ mod tests {
         let levels = load_levels_in(&dirs);
         assert!(levels.original.is_empty());
         assert!(levels.enhanced.is_empty());
+    }
+
+    /// Fuzz de la lógica de desbloqueo y arranque de niveles con índices
+    /// hostiles. En debug, una resta sobre `u16` que baje de cero PANICA, así
+    /// que este test cubre la clase de fallo que cerraría el juego al navegar
+    /// por el selector (que es como se ejecuta con `cargo run`).
+    #[test]
+    fn fuzz_indices_hostiles_no_panica() {
+        let mut app = App::new();
+        app.levels.original = (1..=10).map(|i| sample_level(i, true)).collect();
+        app.levels.enhanced = (1..=60).map(|i| sample_level(i, false)).collect();
+
+        // Índices dentro, en los bordes y muy fuera de rango.
+        let hostile = [
+            0u16,
+            1,
+            2,
+            9,
+            10,
+            11,
+            59,
+            60,
+            61,
+            255,
+            256,
+            1000,
+            u16::MAX - 1,
+            u16::MAX,
+        ];
+        for mode in [Mode::Original, Mode::Enhanced] {
+            for &idx in &hostile {
+                // Ninguna de estas debe panicar, pase lo que pase.
+                let _ = is_unlocked(&app, mode, idx);
+                let _ = prev_completed(&app, mode, idx);
+                let _ = app.levels.get(mode, idx);
+                start_level(&mut app, mode, idx);
+            }
+        }
+
+        // También con las listas vacías (el caso "no hay niveles").
+        let mut vacio = App::new();
+        for mode in [Mode::Original, Mode::Enhanced] {
+            for &idx in &hostile {
+                let _ = is_unlocked(&vacio, mode, idx);
+                let _ = prev_completed(&vacio, mode, idx);
+                start_level(&mut vacio, mode, idx);
+            }
+            start_mode(&mut vacio, mode);
+        }
+    }
+
+    /// `launch` desde la CLI con `--level` arbitrario: nunca debe panicar,
+    /// aunque el usuario pida un nivel que no existe o el 0.
+    #[test]
+    fn fuzz_launch_cli_no_panica() {
+        for lvl in [
+            None,
+            Some(0u16),
+            Some(1),
+            Some(10),
+            Some(11),
+            Some(60),
+            Some(61),
+            Some(u16::MAX),
+        ] {
+            for mode in [None, Some(Mode::Original), Some(Mode::Enhanced)] {
+                let mut app = App::new();
+                app.levels.original = (1..=10).map(|i| sample_level(i, true)).collect();
+                app.levels.enhanced = (1..=60).map(|i| sample_level(i, false)).collect();
+                launch(&mut app, mode, lvl);
+            }
+        }
     }
 }

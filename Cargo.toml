@@ -6,3 +6,12 @@ members = ["crates/jezzball-core", "crates/jezzball-app"]
 edition = "2021"
 version = "0.1.0"
 license = "MIT"
+
+# Un desbordamiento de enteros es SIEMPRE un bug de lógica, no una
+# optimización aceptable. Por defecto Rust lo comprueba en debug y lo envuelve
+# en silencio en release, lo que hace que el juego se comporte distinto según
+# cómo se compile (y que un bug reproducible con `cargo run` desaparezca en el
+# binario publicado). Preferimos el mismo comportamiento en ambos: el coste es
+# despreciable para este juego y el fallo se detecta en vez de corromper estado.
+[profile.release]
+overflow-checks = true
