@@ -109,11 +109,18 @@ fn level_line(app: &App) -> (String, Color) {
     if app.mode == Mode::Enhanced {
         let world = app.state.level.world;
         (
-            format!("NIVEL {} ({})", n + 1, crate::render::world_name(world)),
+            format!(
+                "NIVEL {} ({})",
+                n.saturating_add(1),
+                crate::render::world_name(world)
+            ),
             t.accent.to_mq(1.0),
         )
     } else {
-        (format!("NIVEL {}", n + 1), t.accent.to_mq(1.0))
+        (
+            format!("NIVEL {}", n.saturating_add(1)),
+            t.accent.to_mq(1.0),
+        )
     }
 }
 
@@ -216,7 +223,11 @@ fn draw_hud_compact(app: &App) {
         13.0,
         &[
             (
-                &format!("{} L{}", mode_name(app.mode), app.level_number + 1),
+                &format!(
+                    "{} L{}",
+                    mode_name(app.mode),
+                    app.level_number.saturating_add(1)
+                ),
                 t.accent.to_mq(0.9),
             ),
             (&format!("P {}", app.state.score), dim.to_mq(0.9)),

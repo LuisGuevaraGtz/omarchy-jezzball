@@ -381,7 +381,7 @@ fn open_selector(app: &mut App, mode: Mode) {
     let list = app.levels.list(mode);
     for (i, spec) in list.iter().enumerate() {
         items.push(MenuItem {
-            label: format!("NIVEL {}  -  {}", i + 1, spec.name),
+            label: format!("NIVEL {}  -  {}", i.saturating_add(1), spec.name),
             enabled: is_unlocked(app, mode, i as u16),
         });
     }
@@ -852,7 +852,10 @@ fn update_results(app: &mut App, dt: f32) {
     let next = if app.results.no_next {
         None
     } else {
-        Some(app.level_number + 1)
+        // `saturating_add` por defensa: `no_next` ya debería cubrirlo, pero
+        // un `level_number` en el tope desbordaría y con overflow-checks eso
+        // cierra el juego. No hacemos depender la estabilidad de un flag.
+        Some(app.level_number.saturating_add(1))
     };
     if app.frame.pressed(UiKey::R) {
         start_level(app, app.mode, app.level_number);
@@ -1266,6 +1269,47 @@ mod tests {
                 app.levels.enhanced = (1..=60).map(|i| sample_level(i, false)).collect();
                 launch(&mut app, mode, lvl);
             }
+        }
+    }
+
+    /// Fuzz de la PROGRESIÓN: completar niveles en cadena, que es el camino
+    /// que recorre de verdad quien juega. Cubre `finish_level` (récords,
+    /// estrellas, desbloqueo del siguiente mundo, fin de modo) con estados
+    /// de partida extremos, buscando desbordamientos e índices inválidos.
+    #[test]
+    fn fuzz_progresion_completando_niveles_no_panica() {
+        for mode in [Mode::Original, Mode::Enhanced] {
+            let mut app = App::new();
+            app.levels.original = (1..=10).map(|i| sample_level(i, true)).collect();
+            app.levels.enhanced = (1..=60).map(|i| sample_level(i, false)).collect();
+            app.mode = mode;
+
+            let total = app.levels.len(mode);
+            // Recorremos TODOS los niveles del modo, ganando y perdiendo
+            // alternadamente, incluido el último (fin de modo).
+            for idx in 0..total {
+                start_level(&mut app, mode, idx);
+                app.level_number = idx;
+                // Estado de partida hostil: puntuación y estrellas al máximo.
+                app.state.score = u32::MAX;
+                app.state.stars = 3;
+                app.state.elapsed = f32::MAX;
+                app.state.phase = if idx % 2 == 0 {
+                    GamePhase::Won
+                } else {
+                    GamePhase::Lost
+                };
+                finish_level(&mut app);
+            }
+
+            // Y una vez más pasado el final: `level_number` fuera de rango.
+            app.level_number = total;
+            app.state.phase = GamePhase::Won;
+            finish_level(&mut app);
+
+            app.level_number = u16::MAX;
+            app.state.phase = GamePhase::Won;
+            finish_level(&mut app);
         }
     }
 }
