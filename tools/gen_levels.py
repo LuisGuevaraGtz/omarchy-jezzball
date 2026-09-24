@@ -288,11 +288,40 @@ def candidate_cells(w, h, shape, notch, maze_den, maze_seed, obstacles,
     return out
 
 
+def _es_simetrica(p, w, h):
+    """True si el spawn cae en una simetria que produce una orbita cerrada.
+
+    Con velocidades en diagonal pura (45 grados) y paredes ortogonales, el
+    rebote devuelve siempre otra diagonal. Si ademas el punto de partida es
+    simetrico respecto al centro o a la diagonal principal de la arena, la
+    trayectoria se cierra sobre si misma: la bola recorre eternamente la
+    misma linea y el nivel se vuelve degenerado (el jugador la ve 'ciclada').
+    Desplazamos esos spawns un poco para romper la resonancia.
+    """
+    x, y = p
+    return abs(x - w / 2.0) < 0.01 or abs(y - h / 2.0) < 0.01 or abs(x - y) < 0.01
+
+
 def place_spawns(count, w, h, shape, notch, maze_den, maze_seed, obstacles,
                  clearance, seed, min_dist=5.0):
     cells = candidate_cells(w, h, shape, notch, maze_den, maze_seed,
                             obstacles, clearance)
     rng = random.Random(seed ^ 0xC0FFEE)
+    for _attempt in range(40):
+        rng.shuffle(cells)
+        picked = []
+        for p in cells:
+            if len(picked) >= count:
+                break
+            # Evita posiciones que generan orbitas cerradas (ver _es_simetrica).
+            if _es_simetrica(p, w, h):
+                continue
+            if all(math.hypot(p[0] - q[0], p[1] - q[1]) >= min_dist for q in picked):
+                picked.append(p)
+        if len(picked) == count:
+            return picked
+    # Segunda vuelta sin el filtro de simetria: mas vale un nivel con una
+    # orbita fea que un nivel imposible de generar.
     for _attempt in range(40):
         rng.shuffle(cells)
         picked = []

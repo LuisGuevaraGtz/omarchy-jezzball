@@ -133,10 +133,27 @@ impl Ball {
         };
 
         // Rango transversal que barre la bola (el eje perpendicular).
+        //
+        // Se encoge por EPS en ambos extremos a propósito. Tras rebotar, la
+        // bola queda apoyada con su borde EXACTAMENTE sobre una frontera de
+        // celda (p. ej. x + radio == 20.0 en una arena de 20 de ancho). Sin
+        // este encogimiento, `floor()` de ese borde devuelve la celda de más
+        // allá del muro —fuera de la rejilla, o el propio muro— y el eje
+        // PERPENDICULAR la interpreta como bloqueo: la bola rebota también en
+        // el otro eje y sale despedida por donde vino, como si hubiera
+        // chocado en una esquina estando en mitad de una pared plana.
+        // Encogiendo el rango sólo se consideran las celdas que la bola
+        // solapa DE VERDAD, no las que toca de forma tangente.
         let (c0, c1) = if is_x {
-            (self.pos.y - self.radius, self.pos.y + self.radius)
+            (
+                self.pos.y - self.radius + EPS,
+                self.pos.y + self.radius - EPS,
+            )
         } else {
-            (self.pos.x - self.radius, self.pos.x + self.radius)
+            (
+                self.pos.x - self.radius + EPS,
+                self.pos.x + self.radius - EPS,
+            )
         };
         let cell_c0 = c0.floor() as i64;
         let cell_c1 = c1.floor() as i64;
