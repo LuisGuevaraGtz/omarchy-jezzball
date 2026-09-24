@@ -9,6 +9,7 @@
 #   ~/.local/bin/omarchy-jezzball
 #   ~/.local/share/omarchy-jezzball/levels/*.ron (+ fonts si existen)
 #   ~/.local/share/applications/omarchy-jezzball.desktop
+#   ~/.local/share/icons/hicolor/scalable/apps/omarchy-jezzball.svg
 #
 # SUPUESTO: el workspace define el binario `omarchy-jezzball`
 # (worker de la app: [[bin]] name = "omarchy-jezzball").
@@ -19,6 +20,7 @@ PREFIX="${HOME}/.local"
 BINDIR="${PREFIX}/bin"
 DATADIR="${PREFIX}/share/omarchy-jezzball"
 DESKTOPDIR="${PREFIX}/share/applications"
+ICONDIR="${PREFIX}/share/icons/hicolor/scalable/apps"
 BIN_NAME="omarchy-jezzball"
 
 # Raíz del repo = directorio padre de este script (packaging/..).
@@ -32,6 +34,7 @@ uninstall() {
     rm -f "${BINDIR}/${BIN_NAME}"
     rm -rf "${DATADIR}"
     rm -f "${DESKTOPDIR}/omarchy-jezzball.desktop"
+    rm -f "${ICONDIR}/omarchy-jezzball.svg"
     if command -v update-desktop-database >/dev/null 2>&1; then
         update-desktop-database "${DESKTOPDIR}" || true
     fi
@@ -75,7 +78,16 @@ else
     log "Aviso: no hay fuentes en assets/fonts, se omite ese paso."
 fi
 
-# 5. Instalar entrada de escritorio.
+# 5. Instalar icono (hicolor scalable: lo recogen todos los lanzadores).
+log "Instalando icono en ${ICONDIR}..."
+mkdir -p "${ICONDIR}"
+install -m644 "${ROOT}/assets/icons/omarchy-jezzball.svg" \
+    "${ICONDIR}/omarchy-jezzball.svg"
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -qtf "${PREFIX}/share/icons/hicolor" 2>/dev/null || true
+fi
+
+# 6. Instalar entrada de escritorio.
 log "Instalando lanzador en ${DESKTOPDIR}..."
 mkdir -p "${DESKTOPDIR}"
 install -m644 "${ROOT}/packaging/omarchy-jezzball.desktop" \
@@ -86,7 +98,7 @@ else
     log "Aviso: 'update-desktop-database' no encontrado; el lanzador funcionará tras reiniciar sesión."
 fi
 
-# 6. Avisar si ~/.local/bin no está en el PATH.
+# 7. Avisar si ~/.local/bin no está en el PATH.
 case ":${PATH}:" in
     *":${BINDIR}:"*) ;;
     *)

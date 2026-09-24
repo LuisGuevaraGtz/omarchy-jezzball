@@ -80,7 +80,11 @@ package() {
   install -Dm644 packaging/omarchy-jezzball.desktop \
     "$pkgdir/usr/share/applications/omarchy-jezzball.desktop"
 
-  # 4. Licencia (contrato: /usr/share/licenses/$pkgname/LICENSE).
+  # 4. Icono (hicolor scalable, coincide con `Icon=omarchy-jezzball`).
+  install -Dm644 assets/icons/omarchy-jezzball.svg \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/omarchy-jezzball.svg"
+
+  # 5. Licencia (contrato: /usr/share/licenses/$pkgname/LICENSE).
   # SUPUESTO: la raíz del repo contiene el fichero LICENSE (texto MIT).
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

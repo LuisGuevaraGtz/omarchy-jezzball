@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Icono de Omarchy-Jezzball.
+
+  Diseño deliberadamente minimalista y monocromo-ish, coherente con la
+  estética terminal/dark de Omarchy: una arena rectangular, un muro
+  consolidado que la parte, un frente de muro creciendo (ámbar = riesgo)
+  y dos bolas. Cuenta la mecánica del juego de un vistazo.
+
+  Los colores son los del fallback del tema (docs/ARCHITECTURE.md §12).
+  Es un icono estático: no sigue el tema activo, a diferencia del juego.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Fondo redondeado, color `bg` del fallback -->
+  <rect x="0" y="0" width="256" height="256" rx="40" ry="40" fill="#0f0f14"/>
+
+  <!-- Borde de la arena, color `wall` -->
+  <rect x="36" y="36" width="184" height="184" rx="8" ry="8"
+        fill="none" stroke="#565f89" stroke-width="8"/>
+
+  <!-- Región ya cerrada (arriba-izquierda): área conquistada -->
+  <rect x="44" y="44" width="80" height="72" fill="#1b1e2e"/>
+
+  <!-- Muro consolidado vertical que delimita esa región -->
+  <rect x="118" y="44" width="12" height="74" fill="#565f89"/>
+  <!-- Muro consolidado horizontal -->
+  <rect x="44" y="110" width="86" height="12" fill="#565f89"/>
+
+  <!-- Frente de muro EN CONSTRUCCIÓN (ámbar `wall_building`): el momento
+       de riesgo del juego, y por eso es el acento visual del icono.
+       Grueso a propósito: a 48 px un trazo fino desaparece. -->
+  <rect x="150" y="124" width="14" height="72" fill="#e0af68"/>
+  <!-- Cabeza del frente, más brillante -->
+  <rect x="147" y="188" width="20" height="14" rx="3" fill="#f5d9a8"/>
+
+  <!-- Bola normal (cian `ball`) -->
+  <circle cx="186" cy="82" r="17" fill="#56b6c2"/>
+  <!-- Bola especial (magenta `ball_special`), más pequeña -->
+  <circle cx="92" cy="176" r="13" fill="#c678dd"/>
+</svg>
