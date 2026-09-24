@@ -45,9 +45,24 @@ impl Rng64 {
     }
 
     /// `i64` uniforme en `[lo, hi]` (ambos inclusive).
+    ///
+    /// Si `hi < lo` el rango está vacío y se devuelve `lo`. Es importante que
+    /// no panique: todas las llamadas del motor construyen `hi` como
+    /// `longitud - 1`, así que una colección vacía daría `hi = -1` con
+    /// `lo = 0`. Antes eso hacía `span = 0` y el `% span` era una división
+    /// por cero — un cierre del juego en release, donde el `debug_assert`
+    /// ya no existe.
     pub fn range_i64(&mut self, lo: i64, hi: i64) -> i64 {
-        debug_assert!(hi >= lo);
-        let span = (hi - lo + 1) as u64;
-        lo + (self.next_u64() % span) as i64
+        if hi <= lo {
+            return lo;
+        }
+        // `wrapping_sub` evita desbordar con rangos extremos; el resultado
+        // sigue siendo el ancho correcto interpretado como u64.
+        let span = (hi.wrapping_sub(lo) as u64).wrapping_add(1);
+        if span == 0 {
+            // Rango de ancho 2^64: cualquier valor sirve.
+            return self.next_u64() as i64;
+        }
+        lo.wrapping_add((self.next_u64() % span) as i64)
     }
 }
