@@ -61,6 +61,50 @@ pub struct Theme {
     pub accent: Rgb,
 }
 
+/// Formato del fichero de override del usuario (`theme.ron`, paso 1). Es un DTO
+/// deliberadamente más pequeño que `Theme`: expone los 9 roles documentados en
+/// docs/THEMING.md §3 como cadenas `#rrggbb`, sin los 3 campos que la app deriva
+/// (`name`, `bg_panel`, `fg_dim`). El parseo RON es estricto: si falta un rol o
+/// un hex no parsea, el override entero se descarta y se pasa al paso 2.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ThemeOverrideFile {
+    pub bg: String,
+    pub fg: String,
+    pub wall: String,
+    pub wall_building: String,
+    pub ball: String,
+    pub ball_special: String,
+    pub danger: String,
+    pub ok: String,
+    pub accent: String,
+}
+
+impl ThemeOverrideFile {
+    /// Convierte el DTO a `Theme`. Devuelve `None` si cualquiera de los 9 hex es
+    /// inválido: nunca se construye un tema a medias. Los campos que el usuario
+    /// no escribe se derivan: `name` es fijo y `bg_panel`/`fg_dim` se calculan
+    /// con un ajuste de luminosidad suave sobre `bg` y `fg` (≈12 %, ver
+    /// docs/THEMING.md §3).
+    fn into_theme(self) -> Option<Theme> {
+        let bg = parse_hex(&self.bg)?;
+        let fg = parse_hex(&self.fg)?;
+        Some(Theme {
+            name: "personalizado".to_string(),
+            bg,
+            bg_panel: mix(bg, Rgb::new(255, 255, 255), DERIVE_SHIFT),
+            fg,
+            fg_dim: mix(fg, Rgb::new(0, 0, 0), DERIVE_SHIFT),
+            wall: parse_hex(&self.wall)?,
+            wall_building: parse_hex(&self.wall_building)?,
+            ball: parse_hex(&self.ball)?,
+            ball_special: parse_hex(&self.ball_special)?,
+            danger: parse_hex(&self.danger)?,
+            ok: parse_hex(&self.ok)?,
+            accent: parse_hex(&self.accent)?,
+        })
+    }
+}
+
 /// Colores del fallback hardcodeado (ARCHITECTURE.md §12, paso 6).
 pub const FB_BG: Rgb = Rgb { r: 0x0f, g: 0x0f, b: 0x14 };
 pub const FB_BG_PANEL: Rgb = Rgb { r: 0x16, g: 0x16, b: 0x1e };
@@ -126,6 +170,20 @@ pub fn parse_hex(s: &str) -> Option<Rgb> {
     }
     let comp = |i: usize| u8::from_str_radix(&t[i..i + 2], 16).ok();
     Some(Rgb::new(comp(0)?, comp(2)?, comp(4)?))
+}
+
+/// Fracción del ajuste suave de luminosidad para los roles derivados del
+/// override (docs/THEMING.md §3): `bg_panel` se aclara hacia el blanco y
+/// `fg_dim` se oscurece hacia el negro, ambos ≈12 %.
+const DERIVE_SHIFT: f32 = 0.12;
+
+/// Interpola el color `a` hacia el color `b` con factor `t` (0..=1), por canal.
+fn mix(a: Rgb, b: Rgb, t: f32) -> Rgb {
+    Rgb::new(
+        (a.r as f32 + (b.r as f32 - a.r as f32) * t).round() as u8,
+        (a.g as f32 + (b.g as f32 - a.g as f32) * t).round() as u8,
+        (a.b as f32 + (b.b as f32 - a.b as f32) * t).round() as u8,
+    )
 }
 
 /// Lee un valor `get` de un `toml::Value`, esperando una cadena de color.
@@ -198,10 +256,13 @@ fn load_colors_file(path: &Path) -> Option<Theme> {
     theme_from_value(&v)
 }
 
-/// Lee el override de usuario en RON (paso 1). Ignora errores de parseo.
+/// Lee el override de usuario en RON (paso 1). Ignora errores de parseo: un
+/// fichero con un rol de menos o un hex inválido se descarta entero y la
+/// resolución cae al paso 2 (docs/THEMING.md §3).
 fn load_ron_override(path: &Path) -> Option<Theme> {
     let content = fs::read_to_string(path).ok()?;
-    ron::from_str(&content).ok()
+    let file: ThemeOverrideFile = ron::from_str(&content).ok()?;
+    file.into_theme()
 }
 
 /// Lee el nombre del tema activo (`theme.name`). Rechaza nombres con
@@ -304,7 +365,9 @@ mod tests {
     fn parse_hex_funciona() {
         assert_eq!(parse_hex("  #05182e  "), Some(Rgb::new(0x05, 0x18, 0x2e)));
         assert_eq!(parse_hex("f6dcac"), Some(Rgb::new(0xf6, 0xdc, 0xac)));
+        assert_eq!(parse_hex("F6DCAC"), Some(Rgb::new(0xf6, 0xdc, 0xac)));
         assert_eq!(parse_hex("#zzzzzz"), None);
+        assert_eq!(parse_hex("#12345"), None);
         assert_eq!(parse_hex("abc"), None);
         assert_eq!(parse_hex(""), None);
     }
@@ -367,20 +430,17 @@ mod tests {
         fs::create_dir_all(&cfg).unwrap();
         fs::write(
             cfg.join("theme.ron"),
-            r#"(
-                name: "custom",
-                bg: (r: 1, g: 2, b: 3),
-                bg_panel: (r: 4, g: 5, b: 6),
-                fg: (r: 7, g: 8, b: 9),
-                fg_dim: (r: 10, g: 11, b: 12),
-                wall: (r: 13, g: 14, b: 15),
-                wall_building: (r: 16, g: 17, b: 18),
-                ball: (r: 19, g: 20, b: 21),
-                ball_special: (r: 22, g: 23, b: 24),
-                danger: (r: 25, g: 26, b: 27),
-                ok: (r: 28, g: 29, b: 30),
-                accent: (r: 31, g: 32, b: 33),
-            )"#,
+            r##"(
+                bg: "#010203",
+                fg: "#070809",
+                wall: "#0d0e0f",
+                wall_building: "#101112",
+                ball: "#131415",
+                ball_special: "#161718",
+                danger: "#191a1b",
+                ok: "#1c1d1e",
+                accent: "#1f2021",
+            )"##,
         )
         .unwrap();
         let dirs = OmarchyDirs {
@@ -389,9 +449,151 @@ mod tests {
             usr_share_themes: PathBuf::from("/nonexistent"),
         };
         let t = resolve_theme(&dirs);
-        assert_eq!(t.name, "custom");
-        assert_eq!(t.bg, Rgb::new(1, 2, 3));
-        assert_eq!(t.accent, Rgb::new(31, 32, 33));
+        assert_eq!(t.name, "personalizado");
+        assert_eq!(t.bg, Rgb::new(0x01, 0x02, 0x03));
+        assert_eq!(t.accent, Rgb::new(0x1f, 0x20, 0x21));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// El bloque RON exacto de docs/THEMING.md (copiado literal, con su
+    /// sangrado) debe parsear y producir los colores esperados. Es el contrato
+    /// que mantiene documento y código en la misma historia: si alguien cambia
+    /// el formato en uno de los dos sitios, este test se cae.
+    #[test]
+    fn bloque_exacto_de_theming_md_parsea() {
+        const DOCUMENTADO: &str = r##"(
+    bg: "#0f0f14",
+    fg: "#c9d1d9",
+    wall: "#e6e6e6",
+    wall_building: "#e5c07b",
+    ball: "#56b6c2",
+    ball_special: "#c678dd",
+    danger: "#e06c75",
+    ok: "#98c379",
+    accent: "#7aa2f7",
+)"##;
+        let f: ThemeOverrideFile = ron::from_str(DOCUMENTADO).expect("RON de docs parsea");
+        let t = f.into_theme().expect("hex válidos");
+        assert_eq!(t.name, "personalizado");
+        assert_eq!(t.bg, Rgb::new(0x0f, 0x0f, 0x14));
+        assert_eq!(t.accent, Rgb::new(0x7a, 0xa2, 0xf7));
+        assert_eq!(t.fg, Rgb::new(0xc9, 0xd1, 0xd9));
+        assert_eq!(t.wall, Rgb::new(0xe6, 0xe6, 0xe6));
+        assert_eq!(t.wall_building, Rgb::new(0xe5, 0xc0, 0x7b));
+        assert_eq!(t.ball, Rgb::new(0x56, 0xb6, 0xc2));
+        assert_eq!(t.ball_special, Rgb::new(0xc6, 0x78, 0xdd));
+        assert_eq!(t.danger, Rgb::new(0xe0, 0x6c, 0x75));
+        assert_eq!(t.ok, Rgb::new(0x98, 0xc3, 0x79));
+        // Campos derivados: bg_panel aclara bg un 12 % hacia blanco,
+        // fg_dim oscurece fg un 12 % hacia negro.
+        assert_eq!(t.bg_panel, Rgb::new(0x2c, 0x2c, 0x30));
+        assert_eq!(t.fg_dim, Rgb::new(0xb1, 0xb8, 0xbf));
+    }
+
+    /// Si falta un rol, el override se ignora entero y la resolución cae al
+    /// paso 2 (docs/THEMING.md §3: "no se mezclan fuentes a medias").
+    #[test]
+    fn override_con_rol_faltante_cae_al_paso_2() {
+        let root = tmp_root("faltante");
+        let cfg = root.join("omarchy-jezzball");
+        fs::create_dir_all(&cfg).unwrap();
+        // Falta `ok`: el fichero entero debe descartarse.
+        fs::write(
+            cfg.join("theme.ron"),
+            r##"(
+                bg: "#0f0f14",
+                fg: "#c9d1d9",
+                wall: "#e6e6e6",
+                wall_building: "#e5c07b",
+                ball: "#56b6c2",
+                ball_special: "#c678dd",
+                danger: "#e06c75",
+                accent: "#7aa2f7",
+            )"##,
+        )
+        .unwrap();
+        // Paso 2 disponible para que la caída sea observable.
+        let theme_dir = root.join("state/omarchy/current/theme");
+        fs::create_dir_all(&theme_dir).unwrap();
+        fs::copy(fixture("retro-82-colors.toml"), theme_dir.join("colors.toml")).unwrap();
+        let dirs = OmarchyDirs {
+            config_home: root.clone(),
+            state_home: root.join("state"),
+            usr_share_themes: PathBuf::from("/nonexistent"),
+        };
+        let t = resolve_theme(&dirs);
+        assert_eq!(t.name, "corriente"); // llegó al paso 2, override descartado
+        assert_eq!(t.bg, Rgb::new(0x05, 0x18, 0x2e));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// Un hex inválido descarta el override entero y cae al paso 2.
+    #[test]
+    fn override_con_hex_invalido_cae_al_paso_2() {
+        for (name, bad) in [("zz", "#zzzzzz"), ("corto", "#12345")] {
+            let root = tmp_root(&format!("hexinv-{name}"));
+            let cfg = root.join("omarchy-jezzball");
+            fs::create_dir_all(&cfg).unwrap();
+            let ron = format!(
+                r##"(
+                    bg: "#0f0f14",
+                    fg: "#c9d1d9",
+                    wall: "{bad}",
+                    wall_building: "#e5c07b",
+                    ball: "#56b6c2",
+                    ball_special: "#c678dd",
+                    danger: "#e06c75",
+                    ok: "#98c379",
+                    accent: "#7aa2f7",
+                )"##
+            );
+            fs::write(cfg.join("theme.ron"), ron).unwrap();
+            let theme_dir = root.join("state/omarchy/current/theme");
+            fs::create_dir_all(&theme_dir).unwrap();
+            fs::copy(fixture("retro-82-colors.toml"), theme_dir.join("colors.toml")).unwrap();
+            let dirs = OmarchyDirs {
+                config_home: root.clone(),
+                state_home: root.join("state"),
+                usr_share_themes: PathBuf::from("/nonexistent"),
+            };
+            let t = resolve_theme(&dirs);
+            assert_eq!(t.name, "corriente", "hex {bad} debe descartar el override");
+            assert_eq!(t.bg, Rgb::new(0x05, 0x18, 0x2e));
+            fs::remove_dir_all(&root).unwrap();
+        }
+    }
+
+    /// Hex sin `#` y en mayúsculas funciona (docs/THEMING.md acepta ambos).
+    #[test]
+    fn override_hex_sin_almohadilla_y_mayusculas() {
+        let root = tmp_root("mayus");
+        let cfg = root.join("omarchy-jezzball");
+        fs::create_dir_all(&cfg).unwrap();
+        fs::write(
+            cfg.join("theme.ron"),
+            r##"(
+                bg: "0F0F14",
+                fg: "C9D1D9",
+                wall: "E6E6E6",
+                wall_building: "E5C07B",
+                ball: "56B6C2",
+                ball_special: "C678DD",
+                danger: "E06C75",
+                ok: "98C379",
+                accent: "7AA2F7",
+            )"##,
+        )
+        .unwrap();
+        let dirs = OmarchyDirs {
+            config_home: root.clone(),
+            state_home: root.join("state"),
+            usr_share_themes: PathBuf::from("/nonexistent"),
+        };
+        let t = resolve_theme(&dirs);
+        assert_eq!(t.name, "personalizado");
+        assert_eq!(t.bg, Rgb::new(0x0f, 0x0f, 0x14));
+        assert_eq!(t.accent, Rgb::new(0x7a, 0xa2, 0xf7));
+        fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]

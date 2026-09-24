@@ -72,8 +72,12 @@ Notas:
 
 - Los valores son `String` con formato `#rrggbb` en minúsculas (se aceptan
   mayúsculas, pero el ejemplo usa minúsculas por convención).
+- Los 3 campos que no aparecen aquí (`name`, `bg_panel`, `fg_dim`) se derivan:
+  `name` es "personalizado", `bg_panel` aclara `bg` y `fg_dim` oscurece `fg`
+  ambos ~12 % (ajuste suave de luminosidad, por canal).
 - Para volver al tema automático de Omarchy, borra o renombra el fichero.
-- SUPUESTO de formato: este esquema `(clave: "valor", …)` es lo que el
-  worker de la app debe implementar en `crates/jezzball-app/src/theme.rs`.
-  Si la app define el struct `Theme` con otros nombres de campo, este
-  documento y ese struct deben actualizarse a la vez.
+- IMPLEMENTADO: este esquema `(clave: "valor", …)` lo implementa la app en
+  `crates/jezzball-app/src/theme.rs` vía el DTO `ThemeOverrideFile`. El test
+  `bloque_exacto_de_theming_md_parsea` copia literal este ejemplo: si el
+  formato cambia aquí o en el struct, ese test se cae y ambos deben
+  actualizarse a la vez.
