@@ -7,7 +7,7 @@ use macroquad::prelude::*;
 use jezzball_core::level::Mode;
 use jezzball_core::powerup::PowerUpKind;
 
-use crate::render::{draw_segments, draw_text_c, fmt_time, mode_name, Layout, FONT, HUD_ROW};
+use crate::render::{draw_segments, draw_text_c, fmt_time, font, hud_row, mode_name, Layout};
 use crate::screens::App;
 
 pub fn draw_hud(app: &App, layout: &Layout) {
@@ -74,7 +74,13 @@ fn draw_active_effects(app: &App, cx: f32, y: f32) {
         .collect();
     if !act.is_empty() {
         let line = act.join("   ");
-        draw_text_c(&line, cx, y, 13.0, t.ok.to_mq(0.9));
+        draw_text_c(
+            &line,
+            cx,
+            y,
+            13.0 * crate::render::ui_scale(),
+            t.ok.to_mq(0.9),
+        );
     }
 }
 
@@ -126,13 +132,13 @@ fn level_line(app: &App) -> (String, Color) {
 
 fn draw_hud_original(app: &App) {
     let t = &app.theme;
-    let y = FONT + 2.0;
+    let y = font() + 2.0 * crate::render::ui_scale();
     let dim = t.fg_dim;
     let (lv, lvc) = level_line(app);
     draw_segments(
         12.0,
         y,
-        FONT,
+        font(),
         &[
             (&lv, lvc),
             (&format!("  PUNTOS {}", app.state.score), dim.to_mq(0.9)),
@@ -144,7 +150,7 @@ fn draw_hud_original(app: &App) {
 
 fn draw_hud_enhanced(app: &App) {
     let t = &app.theme;
-    let y0 = FONT + 2.0;
+    let y0 = font() + 2.0 * crate::render::ui_scale();
     let dim = t.fg_dim;
     let ok = t.ok;
     let (lv, lvc) = level_line(app);
@@ -152,7 +158,7 @@ fn draw_hud_enhanced(app: &App) {
     draw_segments(
         12.0,
         y0,
-        FONT,
+        font(),
         &[
             ("MODO ", dim.to_mq(0.8)),
             (mode_name(app.mode), dim.to_mq(0.9)),
@@ -186,13 +192,18 @@ fn draw_hud_enhanced(app: &App) {
     }
     parts.push((format!("  ESTRELLAS {}", app.state.stars), ok.to_mq(0.9)));
     let refs: Vec<(&str, Color)> = parts.iter().map(|(s, c)| (s.as_str(), *c)).collect();
-    draw_segments(12.0, y0 + HUD_ROW, FONT, &refs);
+    draw_segments(
+        12.0 * crate::render::ui_scale(),
+        y0 + hud_row(),
+        font(),
+        &refs,
+    );
 
     // Combo y estado de partida.
     draw_segments(
         12.0,
-        y0 + 2.0 * HUD_ROW,
-        FONT,
+        y0 + 2.0 * hud_row(),
+        font(),
         &[
             (
                 &format!("COMBO x{}", app.state.combo.multiplier),
@@ -209,8 +220,8 @@ fn draw_hud_enhanced(app: &App) {
     );
 
     // Inventario y efectos.
-    draw_inventory(app, 12.0, y0 + 3.0 * HUD_ROW);
-    draw_active_effects(app, screen_width() * 0.5 + 40.0, y0 + 3.0 * HUD_ROW);
+    draw_inventory(app, 12.0, y0 + 3.0 * hud_row());
+    draw_active_effects(app, screen_width() * 0.5 + 40.0, y0 + 3.0 * hud_row());
 }
 
 fn draw_hud_compact(app: &App) {
@@ -219,7 +230,7 @@ fn draw_hud_compact(app: &App) {
     let remaining = remaining_time(app);
     draw_segments(
         12.0,
-        FONT + 2.0,
+        font() + 2.0 * crate::render::ui_scale(),
         13.0,
         &[
             (

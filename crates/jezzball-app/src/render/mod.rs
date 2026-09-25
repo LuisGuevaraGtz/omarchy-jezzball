@@ -12,12 +12,54 @@ use macroquad::prelude::*;
 
 use crate::screens::{App, Screen};
 
-/// Tamaño base de la fuente del HUD.
-pub const FONT: f32 = 14.0;
-/// Tamaño de una fila del HUD (px).
-pub const HUD_ROW: f32 = 22.0;
-/// Altura de la barra de pistas inferior.
-pub const HINT_H: f32 = 18.0;
+/// Tamaño base de la fuente del HUD, a la escala de referencia (1024x768).
+pub const FONT_BASE: f32 = 14.0;
+/// Altura base de una fila del HUD (px).
+pub const HUD_ROW_BASE: f32 = 22.0;
+/// Altura base de la barra de pistas inferior.
+pub const HINT_H_BASE: f32 = 18.0;
+
+/// Escala de la interfaz.
+///
+/// El HUD se diseñó a 1024x768 con `FONT_BASE`. Con tamaños fijos, en una
+/// pantalla grande o con `high_dpi` activo el texto queda diminuto: la arena
+/// crece con la ventana pero las letras no. Aquí se deriva un factor de la
+/// dimensión real del lienzo (que en alta densidad ya viene multiplicado por
+/// el DPI), acotado para que ni se desborde en pantallas enormes ni se vuelva
+/// ilegible en ventanas pequeñas.
+///
+/// `OMARCHY_JEZZBALL_UI_SCALE` permite ajustarlo a mano (p. ej. `1.5`).
+pub fn ui_scale() -> f32 {
+    if let Ok(v) = std::env::var("OMARCHY_JEZZBALL_UI_SCALE") {
+        if let Ok(f) = v.trim().parse::<f32>() {
+            if f.is_finite() && f > 0.1 {
+                return f.clamp(0.5, 4.0);
+            }
+        }
+    }
+    let w = screen_width().max(1.0);
+    let h = screen_height().max(1.0);
+    // Referencia: 1024x768. Se toma la dimensión más restrictiva para no
+    // desbordar el ancho en ventanas apaisadas ni el alto en las estrechas.
+    let s = (w / 1024.0).min(h / 768.0);
+    // Nunca por debajo de 1.0: el diseño base ya es el mínimo legible.
+    s.clamp(1.0, 3.0)
+}
+
+/// Tamaño de fuente del HUD ya escalado.
+pub fn font() -> f32 {
+    (FONT_BASE * ui_scale()).round()
+}
+
+/// Altura de fila del HUD ya escalada.
+pub fn hud_row() -> f32 {
+    HUD_ROW_BASE * ui_scale()
+}
+
+/// Altura de la barra de pistas ya escalada.
+pub fn hint_h() -> f32 {
+    HINT_H_BASE * ui_scale()
+}
 
 /// Geometría de la arena dentro de la ventana.
 #[derive(Clone, Copy, Debug)]
@@ -33,10 +75,10 @@ impl Layout {
     /// Encaja la arena de `grid_w x grid_h` celdas cuadradas por debajo del
     /// HUD y por encima de la barra de pistas, centrada horizontalmente.
     pub fn compute(win_w: f32, win_h: f32, grid_w: u16, grid_h: u16, hud_rows: u32) -> Self {
-        let hud_h = hud_rows.max(1) as f32 * HUD_ROW;
+        let hud_h = hud_rows.max(1) as f32 * hud_row();
         let top = hud_h + 4.0;
         let avail_w = (win_w - 24.0).max(64.0);
-        let avail_h = (win_h - top - HINT_H - 12.0).max(64.0);
+        let avail_h = (win_h - top - hint_h() - 12.0).max(64.0);
         let gw = grid_w.max(1) as f32;
         let gh = grid_h.max(1) as f32;
         let cell = (avail_w / gw).min(avail_h / gh).floor().max(2.0);
@@ -114,12 +156,13 @@ fn render_game(app: &App, w: f32, h: f32) {
 fn draw_hint(app: &App, w: f32, h: f32) {
     let line =
         "ESPACIO pausa   R reiniciar   TAB eje   raton izq/der muro   F HUD   Q salir   ESC menu";
-    let x = ((w - text_w(line, 12.0)) / 2.0).max(4.0);
+    let sz2 = 12.0 * ui_scale();
+    let x = ((w - text_w(line, sz2)) / 2.0).max(4.0);
     draw_text(
         line,
         x,
-        h - HINT_H / 2.0 + 5.0,
-        12.0,
+        h - hint_h() / 2.0 + 5.0 * ui_scale(),
+        sz2,
         app.theme.fg_dim.to_mq(0.75),
     );
 }

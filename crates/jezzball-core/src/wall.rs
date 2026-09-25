@@ -27,6 +27,11 @@ impl WallAxis {
 }
 
 /// Muro que el jugador está trazando en estos momentos.
+///
+/// Regla del JezzBall original: cada mitad se "convierte" (queda fijada) en
+/// cuanto su frente alcanza una pared u obstáculo, y desde ese momento es
+/// inmune a las bolas. Sólo la mitad que sigue creciendo puede costar una
+/// vida. `lo_sealed`/`hi_sealed` registran qué mitades ya se fijaron.
 #[derive(Clone, Debug, PartialEq)]
 pub struct WallBuilder {
     pub axis: WallAxis,
@@ -35,6 +40,10 @@ pub struct WallBuilder {
     pub hi: f32,            // frente que crece hacia +X/+Y
     pub lo_done: bool,      // llegó a borde/obstáculo
     pub hi_done: bool,
+    /// La mitad `lo` ya se volcó a la rejilla como `Filled` (es inmune).
+    pub lo_sealed: bool,
+    /// La mitad `hi` ya se volcó a la rejilla como `Filled` (es inmune).
+    pub hi_sealed: bool,
     pub speed: f32,     // celdas por segundo, por frente
     pub shielded: bool, // power-up Escudo: absorbe 1 impacto
 }
@@ -57,6 +66,8 @@ impl WallBuilder {
             hi: coord,
             lo_done: false,
             hi_done: false,
+            lo_sealed: false,
+            hi_sealed: false,
             speed,
             shielded,
         }
@@ -64,10 +75,16 @@ impl WallBuilder {
 
     /// Celdas cubiertas actualmente por el segmento `[ceil(lo), floor(hi)]`.
     pub fn cells(&self) -> Vec<(u16, u16)> {
-        let start = self.lo.ceil() as i64;
-        let end = self.hi.floor() as i64;
+        self.cells_between(self.lo.ceil() as i64, self.hi.floor() as i64)
+    }
+
+    /// Celdas del segmento entre dos coordenadas del eje de crecimiento.
+    fn cells_between(&self, start: i64, end: i64) -> Vec<(u16, u16)> {
         let mut out = Vec::new();
         for i in start..=end {
+            if i < 0 {
+                continue;
+            }
             let cell = match self.axis {
                 WallAxis::Horizontal => (i as u16, self.origin.1),
                 WallAxis::Vertical => (self.origin.0, i as u16),
@@ -75,6 +92,49 @@ impl WallBuilder {
             out.push(cell);
         }
         out
+    }
+
+    /// Coordenada del origen en el eje de crecimiento.
+    fn origin_coord(&self) -> i64 {
+        match self.axis {
+            WallAxis::Horizontal => self.origin.0 as i64,
+            WallAxis::Vertical => self.origin.1 as i64,
+        }
+    }
+
+    /// Celdas de la mitad `lo`: desde el frente hasta el origen (excluido).
+    pub fn lo_cells(&self) -> Vec<(u16, u16)> {
+        self.cells_between(self.lo.ceil() as i64, self.origin_coord() - 1)
+    }
+
+    /// Celdas de la mitad `hi`: desde el origen (incluido) hasta el frente.
+    /// El origen se asigna a esta mitad para que ninguna celda quede huérfana.
+    pub fn hi_cells(&self) -> Vec<(u16, u16)> {
+        self.cells_between(self.origin_coord(), self.hi.floor() as i64)
+    }
+
+    /// Celdas que una bola PUEDE destruir: sólo las de las mitades que aún
+    /// están creciendo. Una mitad ya sellada se comporta como muro normal.
+    ///
+    /// No se filtra por el estado de la rejilla: las celdas de una mitad viva
+    /// nunca se han volcado a ella, y filtrar por `is_open` haría desaparecer
+    /// las que un `Mover` esté pisando en ese instante (marcadas `Solid`
+    /// temporalmente), que son precisamente las que deben detectar el choque.
+    pub fn vulnerable_cells(&self, _grid: &Grid) -> Vec<(u16, u16)> {
+        let mut out = Vec::new();
+        if !self.lo_sealed {
+            out.extend(self.lo_cells());
+        }
+        if !self.hi_sealed {
+            out.extend(self.hi_cells());
+        }
+        out
+    }
+
+    /// ¿Queda alguna mitad viva (no sellada)? Si no, el muro ya está entero
+    /// en la rejilla y no puede costar vidas.
+    pub fn has_live_half(&self) -> bool {
+        !self.lo_sealed || !self.hi_sealed
     }
 
     /// ¿Ambos frentes llegaron a su límite? Solo entonces se consolida.

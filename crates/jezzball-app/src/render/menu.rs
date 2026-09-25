@@ -3,7 +3,7 @@
 
 use macroquad::prelude::*;
 
-use crate::render::{draw_text_c, fmt_time, mode_name, panel, text_w, world_name, FONT};
+use crate::render::{draw_text_c, fmt_time, font, mode_name, panel, text_w, world_name};
 use crate::screens::{App, Screen};
 
 /// Título y cabecera comunes.
@@ -20,16 +20,29 @@ fn title(app: &App, text: &str) -> f32 {
     } else {
         format!("JezzBall para Omarchy  -  {}", t.name)
     };
-    draw_text_c(&sub, w / 2.0, 118.0, 13.0, t.fg_dim.to_mq(0.7));
-    150.0
+    draw_text_c(
+        &sub,
+        w / 2.0,
+        118.0 * crate::render::ui_scale(),
+        13.0 * crate::render::ui_scale(),
+        t.fg_dim.to_mq(0.7),
+    );
+    150.0 * crate::render::ui_scale()
 }
 
 fn footer(app: &App, hint: &str) {
     let t = &app.theme;
     let w = screen_width();
     let h = screen_height();
-    let x = ((w - text_w(hint, 12.0)) / 2.0).max(4.0);
-    draw_text(hint, x, h - 24.0, 12.0, t.fg_dim.to_mq(0.8));
+    let sz = 12.0 * crate::render::ui_scale();
+    let x = ((w - text_w(hint, sz)) / 2.0).max(4.0);
+    draw_text(
+        hint,
+        x,
+        h - 24.0 * crate::render::ui_scale(),
+        sz,
+        t.fg_dim.to_mq(0.8),
+    );
 }
 
 /// Lista de opciones centrada a partir de `y`.
@@ -56,13 +69,19 @@ fn option_list(app: &App, y: f32) -> f32 {
                 &format!("> {}", label),
                 w / 2.0,
                 ny,
-                FONT + 2.0,
+                font() + 2.0 * crate::render::ui_scale(),
                 color.to_mq(0.95),
             );
         } else {
-            draw_text_c(&label, w / 2.0, ny, FONT + 2.0, color.to_mq(0.75));
+            draw_text_c(
+                &label,
+                w / 2.0,
+                ny,
+                font() + 2.0 * crate::render::ui_scale(),
+                color.to_mq(0.75),
+            );
         }
-        ny += 30.0;
+        ny += 30.0 * crate::render::ui_scale();
     }
     ny + 24.0
 }
@@ -83,8 +102,14 @@ pub fn draw_menu(app: &App, w: f32, _h: f32) {
         app.levels.len(jezzball_core::level::Mode::Enhanced),
         stars_e
     );
-    let y = option_list(app, 170.0);
-    draw_text_c(&progress, w / 2.0, y + 10.0, 13.0, app.theme.ok.to_mq(0.9));
+    let y = option_list(app, 170.0 * crate::render::ui_scale());
+    draw_text_c(
+        &progress,
+        w / 2.0,
+        y + 10.0 * crate::render::ui_scale(),
+        13.0 * crate::render::ui_scale(),
+        app.theme.ok.to_mq(0.9),
+    );
     footer(
         app,
         "flechas/k/j mover   enter elegir   esc salir   modo original -> 1o nivel",
@@ -104,7 +129,7 @@ pub fn draw_level_select(app: &App, _w: f32, _h: f32) {
         app,
         &format!("ELEGIR NIVEL - {}", mode_name(app.selector_mode)),
     );
-    let y = option_list(app, 170.0);
+    let y = option_list(app, 170.0 * crate::render::ui_scale());
     let _ = y;
     footer(app, "flechas mover   enter jugar   esc atras");
     let _ = t;

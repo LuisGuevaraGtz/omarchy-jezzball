@@ -209,11 +209,18 @@ pub fn step(state: &GameState, input: PlayerInput, dt: f32) -> (GameState, Vec<G
     for builder in &mut s.builders {
         builder.advance(&s.arena.grid, dt);
     }
-    maybe_spawn_pickup(&mut s, dt, &mut events);
-
     // e) Impacto bola <-> muro en construcción: escudo absorbe 1 impacto,
     //    Heavy lo ignora; si no hay escudo => muro destruido + vida perdida.
+    //    Va ANTES del sellado: una bola que está tocando el frente debe
+    //    romperlo, no quedar encerrada por él.
     wall_impacts(&mut s, &mut events);
+
+    // Sellado por mitades (regla del JezzBall original): en cuanto un frente
+    // alcanza su límite, ESA mitad se vuelca a la rejilla como `Filled` y
+    // pasa a ser inmune. La otra mitad sigue creciendo y sigue siendo la
+    // única que puede costar una vida.
+    seal_finished_halves(&mut s);
+    maybe_spawn_pickup(&mut s, dt, &mut events);
 
     // f+g+h) Consolidar muros, partición (flood fill), puntuación y combo.
     consolidate_walls(&mut s, &mut events);
@@ -512,12 +519,58 @@ fn destroy_builders_from_cells(
         return;
     }
     s.builders.retain(|builder| {
-        let hit = builder.cells().iter().any(|c| occupied.contains(c));
+        // Igual que con las bolas: un Mover sólo puede romper las mitades que
+        // siguen creciendo, no la que ya se selló contra la pared.
+        let vulnerables = builder.vulnerable_cells(&s.arena.grid);
+        let hit = vulnerables.iter().any(|c| occupied.contains(c));
         if hit {
             events.push(GameEvent::WallBlocked);
         }
         !hit
     });
+}
+
+/// Sella las mitades de muro que ya alcanzaron su límite.
+///
+/// Regla del JezzBall original: cuando un frente toca una pared (o un muro
+/// previo), esa mitad "se convierte" y deja de estar en riesgo. Aquí se
+/// vuelca a la rejilla como `Filled` y se marca `*_sealed`, de modo que
+/// `vulnerable_cells` deja de incluirla y una bola que la toque no cuesta
+/// nada — igual que cualquier otro muro ya consolidado.
+fn seal_finished_halves(s: &mut GameState) {
+    // Una mitad no se sella sobre la celda que ocupa una bola: la encerraría
+    // dentro del muro. En esa situación se espera al frame siguiente (la bola
+    // se habrá movido, o habrá roto el frente en `wall_impacts`).
+    let ocupadas: Vec<(u16, u16)> = s
+        .balls
+        .iter()
+        .filter_map(|b| ball_cell(b, &s.arena.grid))
+        .collect();
+
+    for builder in &mut s.builders {
+        if builder.lo_done && !builder.lo_sealed {
+            let celdas = builder.lo_cells();
+            if !celdas.iter().any(|c| ocupadas.contains(c)) {
+                for (cx, cy) in celdas {
+                    if s.arena.grid.is_open(cx, cy) {
+                        s.arena.grid.set(cx, cy, Cell::Filled);
+                    }
+                }
+                builder.lo_sealed = true;
+            }
+        }
+        if builder.hi_done && !builder.hi_sealed {
+            let celdas = builder.hi_cells();
+            if !celdas.iter().any(|c| ocupadas.contains(c)) {
+                for (cx, cy) in celdas {
+                    if s.arena.grid.is_open(cx, cy) {
+                        s.arena.grid.set(cx, cy, Cell::Filled);
+                    }
+                }
+                builder.hi_sealed = true;
+            }
+        }
+    }
 }
 
 /// e) Impacto bola <-> muro en construcción.
@@ -531,7 +584,12 @@ fn wall_impacts(s: &mut GameState, events: &mut Vec<GameEvent>) {
         if *d {
             continue;
         }
-        let cells = s.builders[bi].cells();
+        // Sólo las mitades VIVAS están en riesgo: la que ya tocó pared se
+        // sellló y se comporta como muro normal (regla del original).
+        let cells = s.builders[bi].vulnerable_cells(&s.arena.grid);
+        if cells.is_empty() {
+            continue;
+        }
         let mut shielded = s.builders[bi].shielded;
         for ball in &s.balls {
             // AABB barrido entre posiciones previa y actual (anti-túnel).
@@ -557,10 +615,26 @@ fn wall_impacts(s: &mut GameState, events: &mut Vec<GameEvent>) {
         s.builders[bi].shielded = shielded;
     }
 
-    // Aplicar destrucciones.
+    // Aplicar destrucciones. La mitad ya sellada NO se borra: sus celdas
+    // quedaron `Filled` en la rejilla y siguen ahí, igual que en el original.
     let mut keep: Vec<WallBuilder> = Vec::new();
     for (bi, builder) in s.builders.drain(..).enumerate() {
         if destroyed[bi] {
+            // Sólo se retiran las celdas de las mitades que seguían vivas.
+            if !builder.lo_sealed {
+                for (cx, cy) in builder.lo_cells() {
+                    if s.arena.grid.get(cx, cy) == Cell::Filled {
+                        s.arena.grid.set(cx, cy, Cell::Open);
+                    }
+                }
+            }
+            if !builder.hi_sealed {
+                for (cx, cy) in builder.hi_cells() {
+                    if s.arena.grid.get(cx, cy) == Cell::Filled {
+                        s.arena.grid.set(cx, cy, Cell::Open);
+                    }
+                }
+            }
             if s.lives > 0 {
                 s.lives -= 1;
             }

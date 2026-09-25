@@ -175,6 +175,14 @@ que probó se listan por stderr al arrancar. Puedes indicarla a mano:
 OMARCHY_JEZZBALL_ASSETS=/ruta/que/contiene/levels omarchy-jezzball
 ```
 
+**Texto demasiado pequeño o demasiado grande.** La interfaz escala sola con
+el tamaño de la ventana (referencia 1024x768). Para ajustarla a mano:
+
+```bash
+OMARCHY_JEZZBALL_UI_SCALE=1.5 omarchy-jezzball   # 1.5x
+OMARCHY_JEZZBALL_UI_SCALE=1.0 omarchy-jezzball   # tamano base
+```
+
 **Depurar un fallo con comprobaciones extra.** El perfil `release-checked`
 compila optimizado pero con detección de desbordamientos y símbolos de
 depuración:

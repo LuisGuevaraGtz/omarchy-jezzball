@@ -167,7 +167,13 @@ fn draw_pickups(app: &App, layout: &Layout) {
             PowerUpKind::Shield => "E",
             PowerUpKind::RemoveBall => "R",
         };
-        draw_text_c(letter, px, py + 4.0, 12.0, t.accent.to_mq(0.9));
+        draw_text_c(
+            letter,
+            px,
+            py + 4.0 * crate::render::ui_scale(),
+            12.0 * crate::render::ui_scale(),
+            t.accent.to_mq(0.9),
+        );
     }
 }
 
@@ -239,7 +245,13 @@ fn draw_ghost(app: &App, layout: &Layout) {
         WallAxis::Horizontal => "H",
         WallAxis::Vertical => "V",
     };
-    draw_text_c(letter, mx, my + 5.0, 13.0, t.accent.to_mq(0.9));
+    draw_text_c(
+        letter,
+        mx,
+        my + 5.0 * crate::render::ui_scale(),
+        13.0 * crate::render::ui_scale(),
+        t.accent.to_mq(0.9),
+    );
 }
 
 /// Línea fantasma a lo largo de todo el eje por la fila/columna indicada.
