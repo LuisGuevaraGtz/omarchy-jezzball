@@ -176,7 +176,8 @@ OMARCHY_JEZZBALL_ASSETS=/ruta/que/contiene/levels omarchy-jezzball
 ```
 
 **Texto demasiado pequeño o demasiado grande.** La interfaz escala sola con
-el tamaño de la ventana (referencia 1024x768). Para ajustarla a mano:
+el tamaño de la ventana (referencia 1280x720, mínimo x1.15). Para ajustarla
+a mano:
 
 ```bash
 OMARCHY_JEZZBALL_UI_SCALE=1.5 omarchy-jezzball   # 1.5x

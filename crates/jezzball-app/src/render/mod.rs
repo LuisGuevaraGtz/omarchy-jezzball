@@ -12,23 +12,27 @@ use macroquad::prelude::*;
 
 use crate::screens::{App, Screen};
 
-/// Tamaño base de la fuente del HUD, a la escala de referencia (1024x768).
-pub const FONT_BASE: f32 = 14.0;
+/// Tamaño base de la fuente del HUD, a la escala de referencia.
+/// 16 px: a 14 px el HUD resultaba ilegible incluso ya escalado.
+pub const FONT_BASE: f32 = 16.0;
 /// Altura base de una fila del HUD (px).
-pub const HUD_ROW_BASE: f32 = 22.0;
+pub const HUD_ROW_BASE: f32 = 24.0;
 /// Altura base de la barra de pistas inferior.
-pub const HINT_H_BASE: f32 = 18.0;
+pub const HINT_H_BASE: f32 = 20.0;
 
 /// Escala de la interfaz.
 ///
-/// El HUD se diseñó a 1024x768 con `FONT_BASE`. Con tamaños fijos, en una
-/// pantalla grande o con `high_dpi` activo el texto queda diminuto: la arena
-/// crece con la ventana pero las letras no. Aquí se deriva un factor de la
-/// dimensión real del lienzo (que en alta densidad ya viene multiplicado por
-/// el DPI), acotado para que ni se desborde en pantallas enormes ni se vuelva
-/// ilegible en ventanas pequeñas.
+/// El HUD se diseñó con `FONT_BASE` para una ventana pequeña. Con tamaños
+/// fijos, en una pantalla grande o con `high_dpi` el texto queda diminuto: la
+/// arena crece con la ventana pero las letras no.
 ///
-/// `OMARCHY_JEZZBALL_UI_SCALE` permite ajustarlo a mano (p. ej. `1.5`).
+/// La referencia es 1280x720 (no la resolución real de un monitor moderno, a
+/// propósito): así una ventana de 1900x1000 —lo normal en un portátil actual—
+/// da del orden de x1.5, que es donde el HUD se lee cómodo. Verificado sobre
+/// capturas reales del juego a 1890x1017, donde la referencia anterior
+/// (1024x768) se quedaba en x1.32 y el texto seguía siendo ilegible.
+///
+/// `OMARCHY_JEZZBALL_UI_SCALE` permite ajustarlo a mano (p. ej. `2.0`).
 pub fn ui_scale() -> f32 {
     if let Ok(v) = std::env::var("OMARCHY_JEZZBALL_UI_SCALE") {
         if let Ok(f) = v.trim().parse::<f32>() {
@@ -39,11 +43,12 @@ pub fn ui_scale() -> f32 {
     }
     let w = screen_width().max(1.0);
     let h = screen_height().max(1.0);
-    // Referencia: 1024x768. Se toma la dimensión más restrictiva para no
-    // desbordar el ancho en ventanas apaisadas ni el alto en las estrechas.
-    let s = (w / 1024.0).min(h / 768.0);
-    // Nunca por debajo de 1.0: el diseño base ya es el mínimo legible.
-    s.clamp(1.0, 3.0)
+    // Se toma la dimensión más restrictiva para no desbordar el ancho en
+    // ventanas apaisadas ni el alto en las estrechas.
+    let s = (w / 1280.0).min(h / 720.0);
+    // Suelo en 1.15: incluso en una ventana pequeña el texto base resultaba
+    // justo. Techo en 3.0 para que no invada la arena en pantallas enormes.
+    s.clamp(1.15, 3.0)
 }
 
 /// Tamaño de fuente del HUD ya escalado.

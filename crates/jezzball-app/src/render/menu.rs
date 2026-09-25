@@ -6,11 +6,64 @@ use macroquad::prelude::*;
 use crate::render::{draw_text_c, fmt_time, font, mode_name, panel, text_w, world_name};
 use crate::screens::{App, Screen};
 
+/// Marca de Omarchy dibujada con bloques, derivada del icono oficial
+/// (`/usr/share/omarchy/icon.txt`): un marco con una muesca abajo y dos
+/// huecos arriba. Se dibuja con rectángulos, sin depender de ningún fichero
+/// del sistema, para que el juego siga siendo autónomo.
+///
+/// Encaja con la estética del juego por sí sola: el logo de Omarchy YA es una
+/// rejilla de celdas rellenas, que es exactamente lo que el jugador construye
+/// al cerrar área.
+const OMARCHY_MARK: [&str; 13] = [
+    "##############",
+    "#......#.....#",
+    "#.######..##.#",
+    "#.#........#.#",
+    "#.#........#.#",
+    "#.#........#.#",
+    "###........#.#",
+    "#.#........#.#",
+    "#.#........#.#",
+    "#.#........#.#",
+    "#.##########.#",
+    "#......#.....#",
+    "########.#####",
+];
+
+/// Dibuja la marca de Omarchy centrada en `cx`, con celdas de `cell` px.
+pub fn draw_omarchy_mark(cx: f32, top: f32, cell: f32, color: Color) {
+    let w = OMARCHY_MARK[0].len() as f32 * cell;
+    let x0 = cx - w / 2.0;
+    for (row, line) in OMARCHY_MARK.iter().enumerate() {
+        for (col, ch) in line.chars().enumerate() {
+            if ch == '#' {
+                draw_rectangle(
+                    x0 + col as f32 * cell,
+                    top + row as f32 * cell,
+                    cell,
+                    cell,
+                    color,
+                );
+            }
+        }
+    }
+}
+
 /// Título y cabecera comunes.
 fn title(app: &App, text: &str) -> f32 {
     let t = &app.theme;
     let w = screen_width();
-    draw_text_c(text, w / 2.0, 90.0, 40.0, t.accent.to_mq(0.9));
+    let s = crate::render::ui_scale();
+
+    // Marca de Omarchy junto al título: pequeña, tenue, a la izquierda.
+    draw_omarchy_mark(
+        w / 2.0 - text_w(text, 40.0 * s) / 2.0 - 22.0 * s,
+        62.0 * s,
+        2.0 * s,
+        t.accent.to_mq(0.55),
+    );
+
+    draw_text_c(text, w / 2.0, 90.0 * s, 40.0 * s, t.accent.to_mq(0.9));
     let sub = if app.mode == jezzball_core::level::Mode::Enhanced {
         format!(
             "JezzBall para Omarchy  -  {} : {}  >",
@@ -20,14 +73,8 @@ fn title(app: &App, text: &str) -> f32 {
     } else {
         format!("JezzBall para Omarchy  -  {}", t.name)
     };
-    draw_text_c(
-        &sub,
-        w / 2.0,
-        118.0 * crate::render::ui_scale(),
-        13.0 * crate::render::ui_scale(),
-        t.fg_dim.to_mq(0.7),
-    );
-    150.0 * crate::render::ui_scale()
+    draw_text_c(&sub, w / 2.0, 118.0 * s, 13.0 * s, t.fg_dim.to_mq(0.7));
+    150.0 * s
 }
 
 fn footer(app: &App, hint: &str) {

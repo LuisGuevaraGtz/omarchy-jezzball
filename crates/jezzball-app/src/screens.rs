@@ -996,7 +996,8 @@ mod tests {
         assert_eq!(ids, (1..=original.len() as u16).collect::<Vec<_>>());
 
         let enhanced = read_level_list(&base("enhanced.ron")).unwrap();
-        assert_eq!(enhanced.len(), 60);
+        // 60 niveles de los 6 mundos + el nivel bonus con el logo de Omarchy.
+        assert_eq!(enhanced.len(), 61);
         assert!(enhanced.iter().all(|l| !l.purist));
         assert!(enhanced.iter().all(|l| (1..=6).contains(&l.world)));
     }
@@ -1166,7 +1167,7 @@ mod tests {
         let dirs = level_candidates(Some(&repo), Path::new("/var/empty/nonexistent"), None);
         let levels = load_levels_in(&dirs);
         assert_eq!(levels.original.len(), 10);
-        assert_eq!(levels.enhanced.len(), 60);
+        assert_eq!(levels.enhanced.len(), 61);
     }
 
     #[test]
@@ -1186,7 +1187,7 @@ mod tests {
         );
         let levels = load_levels_in(&dirs);
         assert_eq!(levels.original.len(), 10);
-        assert_eq!(levels.enhanced.len(), 60);
+        assert_eq!(levels.enhanced.len(), 61);
     }
 
     #[test]

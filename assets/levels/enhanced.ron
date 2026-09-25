@@ -1634,4 +1634,28 @@
         purist: false,
         seed: 2060,
     ),
+    (
+        id: 61,
+        name: "Firma de Omarchy",
+        world: 6,
+        kind: Standard,
+        arena: (
+            w: 64,
+            h: 40,
+            shape: Rect,
+            obstacles: [ Block(x: 11, y: 7, w: 42, h: 2), Block(x: 11, y: 9, w: 3, h: 2), Block(x: 32, y: 9, w: 3, h: 2), Block(x: 50, y: 9, w: 3, h: 2), Block(x: 11, y: 11, w: 3, h: 2), Block(x: 17, y: 11, w: 18, h: 2), Block(x: 41, y: 11, w: 6, h: 2), Block(x: 50, y: 11, w: 3, h: 2), Block(x: 11, y: 13, w: 3, h: 2), Block(x: 17, y: 13, w: 3, h: 2), Block(x: 44, y: 13, w: 3, h: 2), Block(x: 50, y: 13, w: 3, h: 2), Block(x: 11, y: 15, w: 3, h: 2), Block(x: 17, y: 15, w: 3, h: 2), Block(x: 44, y: 15, w: 3, h: 2), Block(x: 50, y: 15, w: 3, h: 2), Block(x: 11, y: 17, w: 3, h: 2), Block(x: 17, y: 17, w: 3, h: 2), Block(x: 44, y: 17, w: 3, h: 2), Block(x: 50, y: 17, w: 3, h: 2), Block(x: 11, y: 19, w: 9, h: 2), Block(x: 44, y: 19, w: 3, h: 2), Block(x: 50, y: 19, w: 3, h: 2), Block(x: 11, y: 21, w: 3, h: 2), Block(x: 17, y: 21, w: 3, h: 2), Block(x: 44, y: 21, w: 3, h: 2), Block(x: 50, y: 21, w: 3, h: 2), Block(x: 11, y: 23, w: 3, h: 2), Block(x: 17, y: 23, w: 3, h: 2), Block(x: 44, y: 23, w: 3, h: 2), Block(x: 50, y: 23, w: 3, h: 2), Block(x: 11, y: 25, w: 3, h: 2), Block(x: 17, y: 25, w: 3, h: 2), Block(x: 44, y: 25, w: 3, h: 2), Block(x: 50, y: 25, w: 3, h: 2), Block(x: 11, y: 27, w: 3, h: 2), Block(x: 17, y: 27, w: 30, h: 2), Block(x: 50, y: 27, w: 3, h: 2), Block(x: 11, y: 29, w: 3, h: 2), Block(x: 32, y: 29, w: 3, h: 2), Block(x: 50, y: 29, w: 3, h: 2), Block(x: 11, y: 31, w: 24, h: 2), Block(x: 38, y: 31, w: 15, h: 2), ],
+        ),
+        balls: [
+            
+( x: 6.5, y: 4.5, vx: 6.36, vy: 6.36, kind: Normal, radius_mul: 1.0 ),            ( x: 57.5, y: 4.5, vx: 6.36, vy: -6.36, kind: Normal, radius_mul: 1.0 ),            ( x: 6.5, y: 36.5, vx: -6.36, vy: 6.36, kind: Normal, radius_mul: 1.0 ),            ( x: 57.5, y: 36.5, vx: -6.36, vy: -6.36, kind: Normal, radius_mul: 1.0 ),
+        ],
+        target_ratio: 0.70,
+        lives: 3,
+        wall_speed: 24.0,
+        time_limit: None,
+        powerups_enabled: true,
+        objectives: [ NoLivesLost, ClearRatio(0.8) ],
+        purist: false,
+        seed: 2061,
+    ),
 ]

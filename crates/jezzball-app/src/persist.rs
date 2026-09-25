@@ -118,8 +118,21 @@ pub fn home_dir() -> PathBuf {
     }
 }
 
+/// Directorio de datos del usuario (`$XDG_DATA_HOME`, o `~/.local/share`).
+///
+/// En compilaciones de TEST se redirige a un directorio temporal dentro del
+/// propio repo: un test que construya la aplicación completa no debe leer ni
+/// —sobre todo— ESCRIBIR la partida real del usuario. (Ocurrió: un fuzz de
+/// progresión dejó `u32::MAX` en los récords de una partida de verdad.)
+#[cfg(not(test))]
 pub fn data_home_dir() -> PathBuf {
     xdg_dir("XDG_DATA_HOME").unwrap_or_else(|| home_dir().join(".local/share"))
+}
+
+/// Variante de test: directorio temporal aislado, nunca la partida real.
+#[cfg(test)]
+pub fn data_home_dir() -> PathBuf {
+    std::env::temp_dir().join("omarchy-jezzball-test-data")
 }
 
 pub fn config_home_dir() -> PathBuf {
