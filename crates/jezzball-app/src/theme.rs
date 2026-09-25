@@ -253,7 +253,15 @@ fn theme_from_flat(v: &toml::Value) -> Option<Theme> {
         bg,
         bg_panel: color_or(v, &["lighter_background", "background", "selection"]).unwrap_or(bg),
         fg,
-        fg_dim: color_or(v, &["dark_foreground", "brown", "muted"]).unwrap_or(fg),
+        // `fg_dim` es el texto secundario (pies de pantalla, resúmenes de
+        // progreso, estrellas previas). Se prioriza `light_foreground` sobre
+        // `dark_foreground`: medido sobre el tema retro-82, `dark_foreground`
+        // (#3f8f8a) compuesto con el alfa 0.7-0.8 que usa el render cae a
+        // 2.94:1 de contraste sobre el fondo, muy por debajo del mínimo
+        // legible (4.5:1). `light_foreground` da 5.49:1 en las mismas
+        // condiciones.
+        fg_dim: color_or(v, &["light_foreground", "bright_foreground", "cyan"])
+            .unwrap_or_else(|| mix(fg, bg, 0.35)),
         wall: color_or(v, &["muted", "blue", "cyan"]).unwrap_or(FB_WALL),
         wall_building: color_or(v, &["yellow", "orange"]).unwrap_or(FB_WALL_BUILDING),
         ball: color_or(v, &["cyan", "blue"]).unwrap_or(fg),
@@ -338,13 +346,17 @@ pub fn resolve_theme(dirs: &OmarchyDirs) -> Theme {
         .join("current")
         .join("theme");
 
-    // 2. Tema activo symlinkeado (colors.toml plano).
+    let name = read_theme_name(&dirs.state_home.join("omarchy/current/theme.name"));
+
+    // 2. Tema activo symlinkeado (colors.toml plano). El nombre sale de
+    //    `theme.name` (p. ej. "retro-82"); antes se escribía el literal
+    //    "corriente" —traducción palabra por palabra de "current"— que además
+    //    de no significar nada en español descartaba el nombre real, que sí
+    //    está disponible justo al lado.
     if let Some(mut t) = load_colors_file(&current.join("colors.toml")) {
-        t.name = "corriente".to_string();
+        t.name = name.clone().unwrap_or_else(|| "omarchy".to_string());
         return t;
     }
-
-    let name = read_theme_name(&dirs.state_home.join("omarchy/current/theme.name"));
 
     if let Some(n) = name.as_deref() {
         // 3. Tema del sistema.
@@ -569,7 +581,8 @@ mod tests {
             usr_share_themes: PathBuf::from("/nonexistent"),
         };
         let t = resolve_theme(&dirs);
-        assert_eq!(t.name, "corriente"); // llegó al paso 2, override descartado
+        // Sin theme.name en el fixture, el paso 2 usa el nombre generico.
+        assert_eq!(t.name, "omarchy"); // llegó al paso 2, override descartado
         assert_eq!(t.bg, Rgb::new(0x05, 0x18, 0x2e));
         fs::remove_dir_all(&root).unwrap();
     }
@@ -608,7 +621,7 @@ mod tests {
                 usr_share_themes: PathBuf::from("/nonexistent"),
             };
             let t = resolve_theme(&dirs);
-            assert_eq!(t.name, "corriente", "hex {bad} debe descartar el override");
+            assert_eq!(t.name, "omarchy", "hex {bad} debe descartar el override");
             assert_eq!(t.bg, Rgb::new(0x05, 0x18, 0x2e));
             fs::remove_dir_all(&root).unwrap();
         }
@@ -663,7 +676,7 @@ mod tests {
             usr_share_themes: PathBuf::from("/nonexistent"),
         };
         let t = resolve_theme(&dirs);
-        assert_eq!(t.name, "corriente");
+        assert_eq!(t.name, "omarchy");
         assert_eq!(t.bg, Rgb::new(0x05, 0x18, 0x2e));
     }
 

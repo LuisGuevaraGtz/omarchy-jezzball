@@ -3,6 +3,7 @@
 
 use macroquad::prelude::*;
 
+use crate::render::font;
 use jezzball_core::grid::Cell;
 use jezzball_core::powerup::PowerUpKind;
 use jezzball_core::wall::WallAxis;
@@ -171,7 +172,7 @@ fn draw_pickups(app: &App, layout: &Layout) {
             letter,
             px,
             py + 4.0 * crate::render::ui_scale(),
-            12.0 * crate::render::ui_scale(),
+            font(),
             t.accent.to_mq(0.9),
         );
     }
@@ -275,7 +276,7 @@ fn draw_ghost(app: &App, layout: &Layout) {
         letter,
         mx,
         my + 5.0 * crate::render::ui_scale(),
-        13.0 * crate::render::ui_scale(),
+        font(),
         t.accent.to_mq(0.9),
     );
 }

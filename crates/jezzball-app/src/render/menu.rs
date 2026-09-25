@@ -64,16 +64,17 @@ fn title(app: &App, text: &str) -> f32 {
     );
 
     draw_text_c(text, w / 2.0, 90.0 * s, 40.0 * s, t.accent.to_mq(0.9));
+    // El subtitulo sale del catalogo de idioma. Antes decia
+    // "... {modo} : {tema}  >" con el tema literal "corriente" (traduccion
+    // palabra por palabra de "current"), que no significa nada en espanol.
     let sub = if app.mode == jezzball_core::level::Mode::Enhanced {
-        format!(
-            "JezzBall para Omarchy  -  {} : {}  >",
-            mode_name(app.mode),
-            t.name
-        )
+        crate::i18n::t("menu.subtitulo_modo")
+            .replacen("{}", mode_name(app.mode), 1)
+            .replacen("{}", &t.name, 1)
     } else {
-        format!("JezzBall para Omarchy  -  {}", t.name)
+        crate::i18n::t("menu.subtitulo").replacen("{}", &t.name, 1)
     };
-    draw_text_c(&sub, w / 2.0, 118.0 * s, 13.0 * s, t.fg_dim.to_mq(0.7));
+    draw_text_c(&sub, w / 2.0, 118.0 * s, font(), t.fg_dim.to_mq(1.0));
     150.0 * s
 }
 
@@ -90,7 +91,7 @@ fn footer(app: &App, hint: &str) {
         x,
         h - 24.0 * crate::render::ui_scale(),
         sz,
-        t.fg_dim.to_mq(0.9),
+        t.fg_dim.to_mq(1.0),
     );
 }
 
@@ -139,9 +140,9 @@ pub fn draw_help(app: &App, w: f32, h: f32) {
         w / 2.0,
         py + ph - 16.0 * s,
         sz,
-        t.fg_dim.to_mq(0.8),
+        t.fg_dim.to_mq(1.0),
     );
-    footer(app, "flechas cambiar pagina   enter siguiente   esc volver");
+    footer(app, crate::i18n::t("pie.ayuda"));
 }
 
 /// Lista de opciones centrada a partir de `y`.
@@ -200,66 +201,73 @@ fn option_list(app: &App, y: f32) -> f32 {
 
     // Indicadores de que hay más lista fuera de la ventana.
     if top > 0 {
-        draw_text_c("^", w / 2.0, y - row * 0.6, sz, t.fg_dim.to_mq(0.8));
+        draw_text_c("^", w / 2.0, y - row * 0.6, sz, t.fg_dim.to_mq(1.0));
     }
     if top + visibles < n {
         draw_text_c(
-            &format!("v   {} mas", n - (top + visibles)),
+            &crate::i18n::t("menu.mas_abajo").replace("{}", &(n - (top + visibles)).to_string()),
             w / 2.0,
             ny + row * 0.1,
             sz,
-            t.fg_dim.to_mq(0.8),
+            t.fg_dim.to_mq(1.0),
         );
     }
     ny + 24.0
 }
 
 pub fn draw_menu(app: &App, w: f32, _h: f32) {
-    title(app, "OMARCHY-JEZZBALL");
+    title(app, crate::i18n::t("menu.titulo"));
     // Progreso persistido antes de la lista.
     let (done_o, stars_o) =
         crate::screens::mode_progress(app, jezzball_core::level::Mode::Original);
     let (done_e, stars_e) =
         crate::screens::mode_progress(app, jezzball_core::level::Mode::Enhanced);
-    let progress = format!(
-        "Original {}/{} *{}     Enhanced {}/{} *{}",
-        done_o,
-        app.levels.len(jezzball_core::level::Mode::Original),
-        stars_o,
-        done_e,
-        app.levels.len(jezzball_core::level::Mode::Enhanced),
-        stars_e
-    );
+    let progress = crate::i18n::t("menu.progreso")
+        .replacen("{}", &done_o.to_string(), 1)
+        .replacen(
+            "{}",
+            &app.levels
+                .len(jezzball_core::level::Mode::Original)
+                .to_string(),
+            1,
+        )
+        .replacen("{}", &stars_o.to_string(), 1)
+        .replacen("{}", &done_e.to_string(), 1)
+        .replacen(
+            "{}",
+            &app.levels
+                .len(jezzball_core::level::Mode::Enhanced)
+                .to_string(),
+            1,
+        )
+        .replacen("{}", &stars_e.to_string(), 1);
     let y = option_list(app, 170.0 * crate::render::ui_scale());
     draw_text_c(
         &progress,
         w / 2.0,
         y + 10.0 * crate::render::ui_scale(),
-        13.0 * crate::render::ui_scale(),
-        app.theme.ok.to_mq(0.9),
+        font(),
+        app.theme.ok.to_mq(1.0),
     );
-    footer(
-        app,
-        "flechas/k/j mover   enter elegir   esc salir   modo original -> 1o nivel",
-    );
+    footer(app, crate::i18n::t("pie.menu"));
     let _ = app.screen;
 }
 
 pub fn draw_level_select(app: &App, _w: f32, _h: f32) {
     let t = &app.theme;
     if app.screen == Screen::ModeMenu {
-        title(app, "ELEGIR NIVEL");
+        title(app, crate::i18n::t("menu.elegir_nivel"));
         option_list(app, 170.0);
-        footer(app, "flechas mover   enter elegir   esc atras");
+        footer(app, crate::i18n::t("pie.menu"));
         return;
     }
     title(
         app,
-        &format!("ELEGIR NIVEL - {}", mode_name(app.selector_mode)),
+        &crate::i18n::t("menu.elegir_nivel_modo").replace("{}", mode_name(app.selector_mode)),
     );
     let y = option_list(app, 170.0 * crate::render::ui_scale());
     let _ = y;
-    footer(app, "flechas mover   enter jugar   esc atras");
+    footer(app, crate::i18n::t("pie.selector"));
     let _ = t;
 }
 
@@ -273,9 +281,9 @@ pub fn draw_results(app: &App, w: f32, h: f32) {
     panel(t, px, py, pw, ph);
 
     let head = if r.won {
-        format!("NIVEL {}  COMPLETADO", r.level)
+        crate::i18n::t("resultados.completado").replace("{}", &r.level.to_string())
     } else {
-        format!("NIVEL {}  DERROTA", r.level)
+        crate::i18n::t("resultados.derrota").replace("{}", &r.level.to_string())
     };
     draw_text_c(&head, w / 2.0, py + 44.0, 26.0, t.accent.to_mq(1.0));
 
@@ -288,23 +296,25 @@ pub fn draw_results(app: &App, w: f32, h: f32) {
         .collect();
     draw_text_c(&stars, w / 2.0, py + 86.0, 26.0, t.ok.to_mq(1.0));
     draw_text_c(
-        &format!("antes: {}", prev_stars),
+        &crate::i18n::t("resultados.antes").replace("{}", &prev_stars),
         w / 2.0,
         py + 108.0,
         13.0,
-        t.fg_dim.to_mq(0.8),
+        t.fg_dim.to_mq(1.0),
     );
 
     let mut lines: Vec<String> = Vec::new();
-    lines.push(format!("Puntos: {}", r.score));
+    lines.push(crate::i18n::t("resultados.puntos").replace("{}", &r.score.to_string()));
     if r.new_best {
-        lines.push(format!("NUEVO RECORD  (record: {})", r.prev_best));
+        lines.push(
+            crate::i18n::t("resultados.nuevo_record").replace("{}", &r.prev_best.to_string()),
+        );
     } else {
-        lines.push(format!("Record: {}", r.prev_best));
+        lines.push(crate::i18n::t("resultados.record").replace("{}", &r.prev_best.to_string()));
     }
-    lines.push(format!("Tiempo: {}", fmt_time(r.time)));
+    lines.push(crate::i18n::t("resultados.tiempo").replace("{}", &fmt_time(r.time)));
     if let Some(wrld) = r.next_world {
-        lines.push(format!("Nuevo mundo desbloqueado: {}", world_name(wrld)));
+        lines.push(crate::i18n::t("resultados.nuevo_mundo").replace("{}", world_name(wrld)));
     }
     let mut y = py + 140.0;
     let dim = t.fg;
@@ -314,9 +324,9 @@ pub fn draw_results(app: &App, w: f32, h: f32) {
     }
 
     if r.no_next {
-        footer(app, "enter continuar   R repetir   M menu");
+        footer(app, crate::i18n::t("pie.resultados"));
     } else {
-        footer(app, "enter siguiente nivel   R repetir   M menu");
+        footer(app, crate::i18n::t("pie.resultados_siguiente"));
     }
 }
 
@@ -325,27 +335,30 @@ pub fn draw_mode_complete(app: &App, w: f32, h: f32) {
     let (done, stars) = crate::screens::mode_progress(app, app.mode);
     let total = app.levels.len(app.mode);
     draw_text_c(
-        &format!("MODO {} COMPLETADO", mode_name(app.mode)),
+        &crate::i18n::t("resultados.modo_completado").replace("{}", mode_name(app.mode)),
         w / 2.0,
         h / 2.0 - 60.0,
         32.0,
         t.accent.to_mq(1.0),
     );
     draw_text_c(
-        &format!("{}/{} niveles   {} estrellas", done, total, stars),
+        &crate::i18n::t("resultados.resumen_modo")
+            .replacen("{}", &done.to_string(), 1)
+            .replacen("{}", &total.to_string(), 1)
+            .replacen("{}", &stars.to_string(), 1),
         w / 2.0,
         h / 2.0 - 20.0,
         16.0,
         t.ok.to_mq(0.95),
     );
     draw_text_c(
-        "Puedes rejugar cualquiera de los niveles desde el selector.",
+        crate::i18n::t("resultados.rejugar"),
         w / 2.0,
         h / 2.0 + 16.0,
         13.0,
-        t.fg_dim.to_mq(0.8),
+        t.fg_dim.to_mq(1.0),
     );
-    footer(app, "enter menu");
+    footer(app, crate::i18n::t("pie.enter_menu"));
 }
 
 pub fn draw_error(app: &App, msg: &str, w: f32, h: f32) {
@@ -358,7 +371,13 @@ pub fn draw_error(app: &App, msg: &str, w: f32, h: f32) {
     let px = (w - pw) / 2.0;
     let py = ((h - ph) / 2.0).max(8.0);
     panel(t, px, py, pw, ph);
-    draw_text_c("ERROR", w / 2.0, py + 30.0, 24.0, t.danger.to_mq(1.0));
+    draw_text_c(
+        crate::i18n::t("error.titulo"),
+        w / 2.0,
+        py + 30.0,
+        24.0,
+        t.danger.to_mq(1.0),
+    );
     let mut y = py + 62.0;
     for (i, line) in lines.iter().enumerate() {
         let (size, color) = if i == 0 {
@@ -369,7 +388,7 @@ pub fn draw_error(app: &App, msg: &str, w: f32, h: f32) {
         draw_text_c(line, w / 2.0, y, size, color);
         y += line_h;
     }
-    footer(app, "enter / esc para volver al menu");
+    footer(app, crate::i18n::t("pie.error"));
 }
 
 /// Overlay de pausa sobre la arena (el juego REAL está a medias).
@@ -379,9 +398,15 @@ pub fn draw_pause_overlay(app: &App, layout: &crate::render::Layout) {
     let h = screen_height();
     let _ = layout;
     draw_rectangle(0.0, 0.0, w, h, Color::new(0.0, 0.0, 0.0, 0.55));
-    draw_text_c("PAUSA", w / 2.0, h / 2.0 - 30.0, 32.0, t.accent.to_mq(1.0));
     draw_text_c(
-        "espacio/esc reanudar   R reiniciar nivel   M salir al menu   H ayuda   Q cerrar juego",
+        crate::i18n::t("hud.pausa"),
+        w / 2.0,
+        h / 2.0 - 30.0,
+        32.0,
+        t.accent.to_mq(1.0),
+    );
+    draw_text_c(
+        crate::i18n::t("pie.pausa"),
         w / 2.0,
         h / 2.0 + 12.0,
         15.0,
@@ -412,11 +437,11 @@ pub fn draw_quit_confirm(app: &App, w: f32, h: f32) {
     let ph = 120.0;
     panel(t, (w - pw) / 2.0, (h - ph) / 2.0, pw, ph);
     draw_text_c(
-        "SALIR DEL JUEGO?",
+        crate::i18n::t("dialogo.salir"),
         w / 2.0,
         h / 2.0 - 10.0,
         22.0,
         t.danger.to_mq(1.0),
     );
-    footer(app, "enter confirmar   esc / Q cancelar");
+    footer(app, crate::i18n::t("dialogo.salir_pie"));
 }

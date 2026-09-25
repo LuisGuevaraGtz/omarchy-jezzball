@@ -1,0 +1,104 @@
+// Catálogo de textos en español (idioma de referencia).
+//
+// Convención de claves: <pantalla>.<elemento>. Los `{}` son marcadores de
+// posición y deben conservarse en todas las traducciones, en el mismo orden.
+//
+// Para añadir un idioma: copiar este fichero como `<código>.ron`, traducir los
+// valores (NO las claves) y registrarlo en `CATALOGOS` (crates/jezzball-app/src/i18n.rs).
+{
+    // --- Menús ---
+    "menu.titulo": "OMARCHY-JEZZBALL",
+    "menu.subtitulo": "JezzBall para Omarchy  -  tema {}",
+    "menu.subtitulo_modo": "JezzBall para Omarchy  -  {}  -  tema {}",
+    "menu.modo_original": "MODO ORIGINAL",
+    "menu.modo_enhanced": "MODO ENHANCED",
+    "menu.elegir_nivel": "ELEGIR NIVEL",
+    "menu.como_se_juega": "COMO SE JUEGA",
+    "menu.enhanced_bloqueado": "MODO ENHANCED  -  completa los {} niveles de ORIGINAL",
+    "menu.progreso": "Original {}/{} *{}     Enhanced {}/{} *{}",
+    "menu.bloqueado": "{}  (BLOQUEADO)",
+    "menu.empieza_nivel_1": "EMPIEZA EN NIVEL 1",
+    "menu.nivel_item": "NIVEL {}  -  {}",
+    "menu.mas_abajo": "v   {} mas",
+    "menu.elegir_nivel_modo": "ELEGIR NIVEL - {}",
+
+    // --- Pies de pantalla ---
+    "pie.menu": "flechas mover   enter elegir   esc salir",
+    "pie.selector": "flechas mover   enter jugar   esc atras",
+    "pie.juego": "ESPACIO pausa   R reiniciar   TAB eje   raton izq/der muro   F HUD   ESC pausa",
+    "pie.pausa": "espacio/esc reanudar   R reiniciar nivel   M salir al menu   H ayuda   Q cerrar juego",
+    "pie.resultados": "enter continuar   R repetir nivel   esc menu",
+    "pie.resultados_siguiente": "enter siguiente nivel   R repetir   M menu",
+    "pie.enter_menu": "enter menu",
+    "resultados.resumen_modo": "{}/{} niveles   {} estrellas",
+    "pie.ayuda": "flechas cambiar pagina   enter siguiente   esc volver",
+    "pie.error": "enter / esc para volver al menu",
+
+    // --- HUD ---
+    "hud.nivel": "NIVEL {}",
+    "hud.nivel_mundo": "NIVEL {} ({})",
+    "hud.area": "Area {:.0}%",
+    "hud.area_corta": "A {}%",
+    "hud.combo": "Combo x{}",
+    "hud.combo_mayus": "COMBO x{}",
+    "hud.vidas": "Vidas",
+    "hud.puntos": "Puntos",
+    "hud.objetivos": "OBJETIVOS ",
+    "hud.pausa": "PAUSA",
+
+    // --- Power-ups activos ---
+    "powerup.lento": "LENTO {:.0}s",
+    "powerup.congelado": "CONGELADO {:.0}s",
+    "powerup.doble": "DOBLE {:.0}s",
+    "powerup.escudo": "ESCUDO {:.0}s",
+    "powerup.quitar": "QUITAR {:.0}s",
+
+    // --- Resultados ---
+    "resultados.completado": "NIVEL {}  COMPLETADO",
+    "resultados.derrota": "NIVEL {}  DERROTA",
+    "resultados.puntos": "Puntos: {}",
+    "resultados.record": "Record: {}",
+    "resultados.nuevo_record": "NUEVO RECORD  (record: {})",
+    "resultados.tiempo": "Tiempo: {}",
+    "resultados.antes": "antes: {}",
+    "resultados.nuevo_mundo": "Nuevo mundo desbloqueado: {}",
+    "resultados.modo_completado": "MODO {} COMPLETADO",
+    "resultados.rejugar": "Puedes rejugar cualquiera de los niveles desde el selector.",
+
+    // --- Objetivos ---
+    "objetivo.sin_vidas": "Sin perder vidas",
+    "objetivo.sin_powerups": "Sin power-ups",
+    "objetivo.tiempo": "Tiempo <{:.0}s",
+    "objetivo.area": "Area {:.0}%",
+    "objetivo.puntos": "Puntos {}",
+    "objetivo.combo": "Combo x{}",
+
+    // --- Mundos ---
+    "mundo.1": "Clasico",
+    "mundo.2": "Velocidad",
+    "mundo.3": "Obstaculos",
+    "mundo.4": "Bolas especiales",
+    "mundo.5": "Power-ups",
+    "mundo.6": "Retos avanzados",
+    "mundo.desconocido": "Desconocido",
+
+    // --- Modos ---
+    "modo.original": "ORIGINAL",
+    "modo.enhanced": "ENHANCED",
+
+    // --- Diálogos ---
+    "dialogo.salir": "SALIR DEL JUEGO?",
+    "dialogo.salir_pie": "enter salir   esc cancelar",
+    "error.titulo": "ERROR",
+
+    // --- Ayuda ---
+    "ayuda.pagina": "pagina {} de {}",
+    "ayuda.p1.titulo": "COMO SE JUEGA",
+    "ayuda.p1.cuerpo": "Encierra la arena trazando muros mientras las bolas rebotan.\n\n# Como se traza un muro\nRaton IZQUIERDO: traza en el eje actual.\nRaton DERECHO:   traza en el eje contrario.\nTAB:             cambia el eje por defecto.\n\nEl muro crece por sus DOS extremos a la vez.\nCuando una mitad toca una pared, esa mitad queda FIJA:\nuna bola ya no puede romperla (color de muro solido).\nSolo la mitad que sigue creciendo (color de aviso) cuesta\nuna vida si una bola la alcanza.\n\n# Objetivo\nCierra el porcentaje de area que pide el nivel. Toda region\nque quede SIN bolas se sella automaticamente.",
+    "ayuda.p2.titulo": "PUNTUACION Y ESTRELLAS",
+    "ayuda.p2.cuerpo": "# Riesgo y recompensa\nCerrar un area grande y comoda da POCOS puntos.\nCerrar un area pequena, con bolas cerca y rapidas, da MUCHOS.\nLa puntuacion sube con: area pequena, bolas cercanas y\nvelocidad alta.\n\n# Combo\nMuros consolidados seguidos suben el multiplicador (x2, x3...\nhasta x8). Se reinicia al perder una vida o si tardas\ndemasiado entre muros.\n\n# Estrellas\nCada nivel de Enhanced tiene objetivos opcionales: no perder\nvidas, cerrar mas area de la pedida, acabar a tiempo,\nmantener combo... Dan de 1 a 3 estrellas y puedes rejugar\npara mejorarlas.",
+    "ayuda.p3.titulo": "ENHANCED: OBSTACULOS Y BOLAS",
+    "ayuda.p3.cuerpo": "Enhanced anade elementos sobre la MISMA mecanica base.\n\n# Obstaculos (mundo 3)\nBloque solido:    no se puede atravesar ni construir sobre el.\n                  Las bolas rebotan en el.\nZona indivisible: las bolas la CRUZAN, pero tu muro no puede\n                  crecer a traves de ella. No cuenta para el\n                  porcentaje de area.\nObstaculo movil:  se desplaza solo. Si toca un muro en\n                  construccion lo rompe, pero NO te cuesta\n                  vidas. Solo las bolas quitan vidas.\n\n# Bolas especiales (mundo 4)\nNormal:       la clasica.\nRapida:       mas veloz, menos margen de reaccion.\nImpredecible: cambia de direccion sin avisar.\nDivisora:     al romper un muro se divide en dos.\nPesada:       grande y lenta; ignora los escudos.",
+    "ayuda.p4.titulo": "ENHANCED: POWER-UPS Y CONTROLES",
+    "ayuda.p4.cuerpo": "# Power-ups (mundo 5)\nAparecen en la arena cada cierto tiempo. Se recogen pasando\npor encima y se activan con las teclas 1 a 5.\n\nCamara lenta:  baja la velocidad de las bolas un rato.\nCongelar:      detiene las bolas por completo.\nMuro doble:    el siguiente muro se traza al doble de rapido.\nEscudo:        el siguiente muro aguanta un impacto sin\n               romperse (no frente a una bola Pesada).\nEliminar bola: quita una bola de la arena.\n\n# Controles\nESPACIO pausa      R reinicia el nivel\nF cambia el HUD    1-5 usan power-ups\nESC pausa / atras  M sale al menu\n\nEl MODO ORIGINAL no tiene nada de esto: 10 niveles, dos bolas\nal principio y la mecanica clasica, sin power-ups ni combos.",
+}

@@ -156,6 +156,21 @@ Dentro de Enhanced, los mundos 2 a 6 se van abriendo segun el avance en
 Original. La pantalla COMO SE JUEGA del menu explica las reglas, la
 puntuacion y cada obstaculo, bola especial y power-up.
 
+## Idioma
+
+El juego detecta el idioma del sistema (`LANG` / `LC_ALL`). Incluye espanol
+e ingles. Para forzar uno:
+
+```bash
+OMARCHY_JEZZBALL_LANG=en omarchy-jezzball
+```
+
+Todos los textos viven en `assets/i18n/<codigo>.ron`, fuera del codigo.
+Para anadir un idioma: copiar `es.ron`, traducir los VALORES (no las
+claves) y registrar el codigo en `CATALOGOS` (`crates/jezzball-app/src/i18n.rs`).
+Un test comprueba que todos los idiomas tienen exactamente las mismas
+claves, y otro que no se cuelen textos escritos dentro del codigo.
+
 ## Si el juego no arranca o se cierra
 
 Cada fallo interno se registra en disco, además de imprimirse por stderr:

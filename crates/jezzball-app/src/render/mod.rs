@@ -160,7 +160,7 @@ fn render_game(app: &App, w: f32, h: f32) {
 
 /// Barra de pistas con los atajos principales.
 fn draw_hint(app: &App, w: f32, h: f32) {
-    let line = "ESPACIO pausa   R reiniciar   TAB eje   raton izq/der muro   F HUD   ESC pausa";
+    let line = crate::i18n::t("pie.juego");
     let sz2 = 12.0 * ui_scale();
     let x = ((w - text_w(line, sz2)) / 2.0).max(4.0);
     draw_text(
@@ -168,7 +168,7 @@ fn draw_hint(app: &App, w: f32, h: f32) {
         x,
         h - hint_h() / 2.0 + 5.0 * ui_scale(),
         sz2,
-        app.theme.fg_dim.to_mq(0.75),
+        app.theme.fg_dim.to_mq(1.0),
     );
 }
 
@@ -225,34 +225,37 @@ pub fn fmt_time(s: f32) -> String {
 
 /// Etiqueta corta de un objetivo, en ASCII seguro (fuente por defecto).
 pub fn objective_label(o: &jezzball_core::level::Objective) -> String {
+    use crate::i18n::t;
     use jezzball_core::level::Objective::*;
     match o {
-        ClearRatio(r) => format!("Area {:.0}%", r * 100.0),
-        NoLivesLost => "Sin perder vidas".to_string(),
-        UnderTime(t) => format!("Tiempo <{:.0}s", t),
-        MinScore(m) => format!("{} puntos", m),
-        KeepCombo(c) => format!("Combo x{}", c),
-        NoPowerUps => "Sin power-ups".to_string(),
+        ClearRatio(r) => t("objetivo.area").replace("{:.0}", &format!("{:.0}", r * 100.0)),
+        NoLivesLost => t("objetivo.sin_vidas").to_string(),
+        UnderTime(s) => t("objetivo.tiempo").replace("{:.0}", &format!("{:.0}", s)),
+        MinScore(m) => t("objetivo.puntos").replace("{}", &m.to_string()),
+        KeepCombo(c) => t("objetivo.combo").replace("{}", &c.to_string()),
+        NoPowerUps => t("objetivo.sin_powerups").to_string(),
     }
 }
 
 /// Nombre de un modo.
 pub fn mode_name(mode: jezzball_core::level::Mode) -> &'static str {
+    use crate::i18n::t;
     match mode {
-        jezzball_core::level::Mode::Original => "MODO ORIGINAL",
-        jezzball_core::level::Mode::Enhanced => "MODO ENHANCED",
+        jezzball_core::level::Mode::Original => t("menu.modo_original"),
+        jezzball_core::level::Mode::Enhanced => t("menu.modo_enhanced"),
     }
 }
 
 /// Nombre de un mundo Enhanced.
 pub fn world_name(world: u8) -> &'static str {
+    use crate::i18n::t;
     match world {
-        1 => "Clasico",
-        2 => "Velocidad",
-        3 => "Obstaculos",
-        4 => "Bolas especiales",
-        5 => "Power-ups",
-        6 => "Retos avanzados",
-        _ => "Desconocido",
+        1 => t("mundo.1"),
+        2 => t("mundo.2"),
+        3 => t("mundo.3"),
+        4 => t("mundo.4"),
+        5 => t("mundo.5"),
+        6 => t("mundo.6"),
+        _ => t("mundo.desconocido"),
     }
 }

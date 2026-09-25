@@ -11,6 +11,7 @@ use jezzball_core::level::Mode;
 use crate::persist::save_save;
 use crate::screens::{update, App};
 
+mod i18n;
 mod input;
 mod persist;
 mod render;

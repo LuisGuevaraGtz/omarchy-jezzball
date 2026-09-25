@@ -359,16 +359,14 @@ fn open_menu(app: &mut App) {
     // jugador sin saber qué hacer).
     let enh_ok = original_mode_completed(app);
     let enh_label = if enh_ok {
-        "MODO ENHANCED".to_string()
+        crate::i18n::t("menu.modo_enhanced").to_string()
     } else {
-        format!(
-            "MODO ENHANCED  -  completa los {} niveles de ORIGINAL",
-            app.levels.len(Mode::Original)
-        )
+        crate::i18n::t("menu.enhanced_bloqueado")
+            .replace("{}", &app.levels.len(Mode::Original).to_string())
     };
     app.menu_items = vec![
         MenuItem {
-            label: "MODO ORIGINAL".into(),
+            label: crate::i18n::t("menu.modo_original").into(),
             enabled: !app.levels.original.is_empty(),
         },
         MenuItem {
@@ -376,11 +374,11 @@ fn open_menu(app: &mut App) {
             enabled: !app.levels.enhanced.is_empty() && enh_ok,
         },
         MenuItem {
-            label: "ELEGIR NIVEL".into(),
+            label: crate::i18n::t("menu.elegir_nivel").into(),
             enabled: true,
         },
         MenuItem {
-            label: "COMO SE JUEGA".into(),
+            label: crate::i18n::t("menu.como_se_juega").into(),
             enabled: true,
         },
     ];
@@ -392,7 +390,7 @@ fn open_mode_menu(app: &mut App) {
     app.screen = Screen::ModeMenu;
     app.menu_items = vec![
         MenuItem {
-            label: "MODO ORIGINAL".into(),
+            label: crate::i18n::t("menu.modo_original").into(),
             enabled: !app.levels.original.is_empty(),
         },
         MenuItem {
@@ -408,13 +406,15 @@ fn open_selector(app: &mut App, mode: Mode) {
     app.selector_mode = mode;
     app.screen = Screen::Selector;
     let mut items = vec![MenuItem {
-        label: "EMPIEZA EN NIVEL 1".into(),
+        label: crate::i18n::t("menu.empieza_nivel_1").into(),
         enabled: true,
     }];
     let list = app.levels.list(mode);
     for (i, spec) in list.iter().enumerate() {
         items.push(MenuItem {
-            label: format!("NIVEL {}  -  {}", i.saturating_add(1), spec.name),
+            label: crate::i18n::t("menu.nivel_item")
+                .replacen("{}", &i.saturating_add(1).to_string(), 1)
+                .replacen("{}", &spec.name, 1),
             enabled: is_unlocked(app, mode, i as u16),
         });
     }
@@ -694,95 +694,20 @@ fn update_menu(app: &mut App, dt: f32) {
     }
 }
 
-/// Páginas de la ayuda. Se define aquí (capa app) y no en el core porque es
-/// texto de presentación.
+/// Páginas de la ayuda. El contenido vive en los catálogos de idioma
+/// (`assets/i18n/*.ron`), no aquí: añadir un idioma no toca este código.
 pub const HELP_PAGES: usize = 4;
 
-/// Contenido de una página de ayuda: título + líneas.
+/// Título y cuerpo de una página de ayuda, traducidos.
 /// Las líneas que empiezan por "# " son subtítulos y el render las resalta.
-pub fn help_page(n: usize) -> (&'static str, &'static [&'static str]) {
-    const BASICO: &[&str] = &[
-        "Encierra la arena trazando muros mientras las bolas rebotan.",
-        "",
-        "# Como se traza un muro",
-        "Raton IZQUIERDO: traza en el eje actual.",
-        "Raton DERECHO:   traza en el eje contrario.",
-        "TAB:             cambia el eje por defecto.",
-        "",
-        "El muro crece por sus DOS extremos a la vez.",
-        "Cuando una mitad toca una pared, esa mitad queda FIJA:",
-        "una bola ya no puede romperla (color de muro solido).",
-        "Solo la mitad que sigue creciendo (color de aviso) cuesta",
-        "una vida si una bola la alcanza.",
-        "",
-        "# Objetivo",
-        "Cierra el porcentaje de area que pide el nivel. Toda region",
-        "que quede SIN bolas se sella automaticamente.",
-    ];
-    const PUNTOS: &[&str] = &[
-        "# Riesgo y recompensa",
-        "Cerrar un area grande y comoda da POCOS puntos.",
-        "Cerrar un area pequena, con bolas cerca y rapidas, da MUCHOS.",
-        "La puntuacion sube con: area pequena, bolas cercanas y",
-        "velocidad alta.",
-        "",
-        "# Combo",
-        "Muros consolidados seguidos suben el multiplicador (x2, x3...",
-        "hasta x8). Se reinicia al perder una vida o si tardas",
-        "demasiado entre muros.",
-        "",
-        "# Estrellas",
-        "Cada nivel de Enhanced tiene objetivos opcionales: no perder",
-        "vidas, cerrar mas area de la pedida, acabar a tiempo,",
-        "mantener combo... Dan de 1 a 3 estrellas y puedes rejugar",
-        "para mejorarlas.",
-    ];
-    const ENHANCED: &[&str] = &[
-        "Enhanced anade elementos sobre la MISMA mecanica base.",
-        "",
-        "# Obstaculos (mundo 3)",
-        "Bloque solido: no se puede atravesar ni construir sobre el.",
-        "                 Las bolas rebotan en el.",
-        "Zona indivisible: las bolas la CRUZAN, pero tu muro no puede",
-        "                 crecer a traves de ella. No cuenta para el",
-        "                 porcentaje de area.",
-        "Obstaculo movil:  se desplaza solo. Si toca un muro en",
-        "                 construccion lo rompe, pero NO te cuesta",
-        "                 vidas. Solo las bolas quitan vidas.",
-        "",
-        "# Bolas especiales (mundo 4)",
-        "Normal:       la clasica.",
-        "Rapida:       mas veloz, menos margen de reaccion.",
-        "Impredecible: cambia de direccion sin avisar.",
-        "Divisora:     al romper un muro se divide en dos.",
-        "Pesada:       grande y lenta; ignora los escudos.",
-    ];
-    const POWERUPS: &[&str] = &[
-        "# Power-ups (mundo 5)",
-        "Aparecen en la arena cada cierto tiempo. Se recogen pasando",
-        "por encima y se activan con las teclas 1 a 5.",
-        "",
-        "Camara lenta: baja la velocidad de las bolas un rato.",
-        "Congelar:     detiene las bolas por completo.",
-        "Muro doble:   el siguiente muro se traza al doble de rapido.",
-        "Escudo:       el siguiente muro aguanta un impacto sin",
-        "              romperse (no frente a una bola Pesada).",
-        "Eliminar bola: quita una bola de la arena.",
-        "",
-        "# Controles",
-        "ESPACIO pausa      R reinicia el nivel",
-        "F cambia el HUD    1-5 usan power-ups",
-        "ESC pausa / atras  Q sale al menu",
-        "",
-        "El MODO ORIGINAL no tiene nada de esto: 10 niveles, dos bolas",
-        "al principio y la mecanica clasica, sin power-ups ni combos.",
-    ];
-    match n {
-        0 => ("COMO SE JUEGA", BASICO),
-        1 => ("PUNTUACION Y ESTRELLAS", PUNTOS),
-        2 => ("ENHANCED: OBSTACULOS Y BOLAS", ENHANCED),
-        _ => ("ENHANCED: POWER-UPS Y CONTROLES", POWERUPS),
-    }
+pub fn help_page(n: usize) -> (&'static str, Vec<&'static str>) {
+    let (kt, kc) = match n {
+        0 => ("ayuda.p1.titulo", "ayuda.p1.cuerpo"),
+        1 => ("ayuda.p2.titulo", "ayuda.p2.cuerpo"),
+        2 => ("ayuda.p3.titulo", "ayuda.p3.cuerpo"),
+        _ => ("ayuda.p4.titulo", "ayuda.p4.cuerpo"),
+    };
+    (crate::i18n::t(kt), crate::i18n::t(kc).lines().collect())
 }
 
 /// Pantalla de ayuda: reglas, controles y catálogo de obstáculos, bolas y

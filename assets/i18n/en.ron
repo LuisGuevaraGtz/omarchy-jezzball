@@ -1,0 +1,104 @@
+// English text catalogue.
+//
+// Key convention: <screen>.<element>. The `{}` placeholders must be kept in
+// every translation, in the same order.
+//
+// To add a language: copy this file as `<code>.ron`, translate the values
+// (NOT the keys) and register it in `CATALOGOS` (crates/jezzball-app/src/i18n.rs).
+{
+    // --- Menus ---
+    "menu.titulo": "OMARCHY-JEZZBALL",
+    "menu.subtitulo": "JezzBall for Omarchy  -  {} theme",
+    "menu.subtitulo_modo": "JezzBall for Omarchy  -  {}  -  {} theme",
+    "menu.modo_original": "ORIGINAL MODE",
+    "menu.modo_enhanced": "ENHANCED MODE",
+    "menu.elegir_nivel": "SELECT LEVEL",
+    "menu.como_se_juega": "HOW TO PLAY",
+    "menu.enhanced_bloqueado": "ENHANCED MODE  -  finish all {} ORIGINAL levels",
+    "menu.progreso": "Original {}/{} *{}     Enhanced {}/{} *{}",
+    "menu.bloqueado": "{}  (LOCKED)",
+    "menu.empieza_nivel_1": "START AT LEVEL 1",
+    "menu.nivel_item": "LEVEL {}  -  {}",
+    "menu.mas_abajo": "v   {} more",
+    "menu.elegir_nivel_modo": "SELECT LEVEL - {}",
+
+    // --- Footers ---
+    "pie.menu": "arrows move   enter select   esc quit",
+    "pie.selector": "arrows move   enter play   esc back",
+    "pie.juego": "SPACE pause   R restart   TAB axis   left/right click wall   F HUD   ESC pause",
+    "pie.pausa": "space/esc resume   R restart level   M back to menu   H help   Q quit game",
+    "pie.resultados": "enter continue   R replay level   esc menu",
+    "pie.resultados_siguiente": "enter next level   R replay   M menu",
+    "pie.enter_menu": "enter menu",
+    "resultados.resumen_modo": "{}/{} levels   {} stars",
+    "pie.ayuda": "arrows change page   enter next   esc back",
+    "pie.error": "enter / esc to return to the menu",
+
+    // --- HUD ---
+    "hud.nivel": "LEVEL {}",
+    "hud.nivel_mundo": "LEVEL {} ({})",
+    "hud.area": "Area {:.0}%",
+    "hud.area_corta": "A {}%",
+    "hud.combo": "Combo x{}",
+    "hud.combo_mayus": "COMBO x{}",
+    "hud.vidas": "Lives",
+    "hud.puntos": "Score",
+    "hud.objetivos": "GOALS ",
+    "hud.pausa": "PAUSED",
+
+    // --- Active power-ups ---
+    "powerup.lento": "SLOW {:.0}s",
+    "powerup.congelado": "FROZEN {:.0}s",
+    "powerup.doble": "DOUBLE {:.0}s",
+    "powerup.escudo": "SHIELD {:.0}s",
+    "powerup.quitar": "REMOVE {:.0}s",
+
+    // --- Results ---
+    "resultados.completado": "LEVEL {}  COMPLETE",
+    "resultados.derrota": "LEVEL {}  FAILED",
+    "resultados.puntos": "Score: {}",
+    "resultados.record": "Best: {}",
+    "resultados.nuevo_record": "NEW BEST  (previous: {})",
+    "resultados.tiempo": "Time: {}",
+    "resultados.antes": "before: {}",
+    "resultados.nuevo_mundo": "New world unlocked: {}",
+    "resultados.modo_completado": "{} MODE COMPLETE",
+    "resultados.rejugar": "You can replay any level from the selector.",
+
+    // --- Goals ---
+    "objetivo.sin_vidas": "No lives lost",
+    "objetivo.sin_powerups": "No power-ups",
+    "objetivo.tiempo": "Time <{:.0}s",
+    "objetivo.area": "Area {:.0}%",
+    "objetivo.puntos": "Score {}",
+    "objetivo.combo": "Combo x{}",
+
+    // --- Worlds ---
+    "mundo.1": "Classic",
+    "mundo.2": "Speed",
+    "mundo.3": "Obstacles",
+    "mundo.4": "Special balls",
+    "mundo.5": "Power-ups",
+    "mundo.6": "Advanced challenges",
+    "mundo.desconocido": "Unknown",
+
+    // --- Modes ---
+    "modo.original": "ORIGINAL",
+    "modo.enhanced": "ENHANCED",
+
+    // --- Dialogs ---
+    "dialogo.salir": "QUIT THE GAME?",
+    "dialogo.salir_pie": "enter quit   esc cancel",
+    "error.titulo": "ERROR",
+
+    // --- Help ---
+    "ayuda.pagina": "page {} of {}",
+    "ayuda.p1.titulo": "HOW TO PLAY",
+    "ayuda.p1.cuerpo": "Close off the arena by drawing walls while the balls bounce.\n\n# Drawing a wall\nLEFT click:  draws along the current axis.\nRIGHT click: draws along the opposite axis.\nTAB:         switches the default axis.\n\nA wall grows from BOTH ends at once.\nWhen one half reaches a wall, that half is SEALED:\na ball can no longer break it (solid wall colour).\nOnly the half still growing (warning colour) costs you\na life if a ball reaches it.\n\n# Goal\nClose off the percentage of area the level asks for. Any\nregion left WITHOUT balls is sealed automatically.",
+    "ayuda.p2.titulo": "SCORING AND STARS",
+    "ayuda.p2.cuerpo": "# Risk and reward\nClosing a large, comfortable area scores FEW points.\nClosing a small area, with balls close by and fast, scores MANY.\nThe score rises with: smaller area, nearer balls and\nhigher speed.\n\n# Combo\nConsecutive completed walls raise the multiplier (x2, x3...\nup to x8). It resets when you lose a life or wait too long\nbetween walls.\n\n# Stars\nEvery Enhanced level has optional goals: lose no lives,\nclose more area than required, finish in time, keep a\ncombo... They award 1 to 3 stars and you can replay levels\nto improve them.",
+    "ayuda.p3.titulo": "ENHANCED: OBSTACLES AND BALLS",
+    "ayuda.p3.cuerpo": "Enhanced adds elements on top of the SAME base mechanic.\n\n# Obstacles (world 3)\nSolid block:   cannot be crossed or built upon.\n               Balls bounce off it.\nNo-split zone: balls PASS THROUGH it, but your wall cannot\n               grow across it. It does not count towards the\n               area percentage.\nMoving block:  drifts on its own. If it touches a wall under\n               construction it destroys it, but it does NOT\n               cost you a life. Only balls take lives.\n\n# Special balls (world 4)\nNormal:       the classic one.\nFast:         quicker, less time to react.\nErratic:      changes direction without warning.\nSplitter:     splits in two when it breaks a wall.\nHeavy:        large and slow; ignores shields.",
+    "ayuda.p4.titulo": "ENHANCED: POWER-UPS AND CONTROLS",
+    "ayuda.p4.cuerpo": "# Power-ups (world 5)\nThey appear in the arena from time to time. Pick them up by\nrunning over them and use them with keys 1 to 5.\n\nSlow motion: slows the balls down for a while.\nFreeze:      stops the balls completely.\nDouble wall: the next wall is drawn twice as fast.\nShield:      the next wall survives one impact without\n             breaking (not against a Heavy ball).\nRemove ball: takes one ball out of the arena.\n\n# Controls\nSPACE pause        R restart the level\nF toggle HUD       1-5 use power-ups\nESC pause / back   M back to menu\n\nORIGINAL MODE has none of this: 10 levels, two balls to\nstart with and the classic mechanic, no power-ups or combos.",
+}

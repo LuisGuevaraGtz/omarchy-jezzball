@@ -60,27 +60,28 @@ pub fn powerup_letter(k: PowerUpKind) -> &'static str {
 /// Efectos temporales activos con su tiempo restante.
 fn draw_active_effects(app: &App, cx: f32, y: f32) {
     let t = &app.theme;
-    let act: Vec<String> = app
-        .state
-        .powerups_active
-        .iter()
-        .map(|p| match p.kind {
-            PowerUpKind::SlowMotion => format!("LENTO {:.0}s", p.remaining),
-            PowerUpKind::Freeze => format!("CONGELADO {:.0}s", p.remaining),
-            PowerUpKind::DoubleWall => format!("DOBLE {:.0}s", p.remaining),
-            PowerUpKind::Shield => format!("ESCUDO {:.0}s", p.remaining),
-            PowerUpKind::RemoveBall => format!("QUITAR {:.0}s", p.remaining),
-        })
-        .collect();
+    let act: Vec<String> =
+        app.state
+            .powerups_active
+            .iter()
+            .map(|p| match p.kind {
+                PowerUpKind::SlowMotion => {
+                    crate::i18n::t("powerup.lento").replace("{:.0}", &format!("{:.0}", p.remaining))
+                }
+                PowerUpKind::Freeze => crate::i18n::t("powerup.congelado")
+                    .replace("{:.0}", &format!("{:.0}", p.remaining)),
+                PowerUpKind::DoubleWall => {
+                    crate::i18n::t("powerup.doble").replace("{:.0}", &format!("{:.0}", p.remaining))
+                }
+                PowerUpKind::Shield => crate::i18n::t("powerup.escudo")
+                    .replace("{:.0}", &format!("{:.0}", p.remaining)),
+                PowerUpKind::RemoveBall => crate::i18n::t("powerup.quitar")
+                    .replace("{:.0}", &format!("{:.0}", p.remaining)),
+            })
+            .collect();
     if !act.is_empty() {
         let line = act.join("   ");
-        draw_text_c(
-            &line,
-            cx,
-            y,
-            13.0 * crate::render::ui_scale(),
-            t.ok.to_mq(0.9),
-        );
+        draw_text_c(&line, cx, y, font(), t.ok.to_mq(0.9));
     }
 }
 
@@ -124,7 +125,7 @@ fn level_line(app: &App) -> (String, Color) {
         )
     } else {
         (
-            format!("NIVEL {}", n.saturating_add(1)),
+            crate::i18n::t("hud.nivel").replace("{}", &n.saturating_add(1).to_string()),
             t.accent.to_mq(1.0),
         )
     }
@@ -160,7 +161,7 @@ fn draw_hud_enhanced(app: &App) {
         y0,
         font(),
         &[
-            ("MODO ", dim.to_mq(0.8)),
+            ("MODO ", dim.to_mq(1.0)),
             (mode_name(app.mode), dim.to_mq(0.9)),
             (&format!("  {lv}"), lvc),
             (
@@ -180,7 +181,8 @@ fn draw_hud_enhanced(app: &App) {
     );
 
     // Objetivos con su estado.
-    let mut parts: Vec<(String, Color)> = vec![("OBJETIVOS ".to_string(), dim.to_mq(0.8))];
+    let mut parts: Vec<(String, Color)> =
+        vec![(crate::i18n::t("hud.objetivos").to_string(), dim.to_mq(1.0))];
     for o in &app.state.objectives {
         let done = o.done;
         let txt = format!(
@@ -188,16 +190,11 @@ fn draw_hud_enhanced(app: &App) {
             if done { "OK" } else { "  " },
             crate::render::objective_label(&o.objective)
         );
-        parts.push((txt, if done { ok.to_mq(0.9) } else { dim.to_mq(0.75) }));
+        parts.push((txt, if done { ok.to_mq(0.9) } else { dim.to_mq(1.0) }));
     }
     parts.push((format!("  ESTRELLAS {}", app.state.stars), ok.to_mq(0.9)));
     let refs: Vec<(&str, Color)> = parts.iter().map(|(s, c)| (s.as_str(), *c)).collect();
-    draw_segments(
-        12.0 * crate::render::ui_scale(),
-        y0 + hud_row(),
-        font(),
-        &refs,
-    );
+    draw_segments(font(), y0 + hud_row(), font(), &refs);
 
     // Combo y estado de partida.
     draw_segments(
