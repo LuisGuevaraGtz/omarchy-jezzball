@@ -194,13 +194,39 @@ fn draw_balls(app: &App, layout: &Layout) {
     }
 }
 
-/// Muros en construcción: celdas del segmento en `wall_building` (el color
-/// que "canta" porque es el momento de riesgo).
+/// Muros en construcción.
+///
+/// Se distinguen las dos mitades porque ya NO son equivalentes (regla del
+/// JezzBall original): la que ha tocado pared está sellada y es inmune, así
+/// que se dibuja como muro normal; la que sigue creciendo se pinta en
+/// `wall_building`, el color que "canta" porque es la única que cuesta vidas.
+/// Pintarlas iguales engañaría al jugador sobre dónde está el riesgo.
 fn draw_builders(app: &App, layout: &Layout) {
     let t = &app.theme;
     let c = layout.cell;
     for b in &app.state.builders {
-        for (cx, cy) in b.cells() {
+        // Mitad ya anclada: color de muro consolidado.
+        let selladas: Vec<(u16, u16)> = {
+            let mut v = Vec::new();
+            if b.lo_sealed {
+                v.extend(b.lo_cells());
+            }
+            if b.hi_sealed {
+                v.extend(b.hi_cells());
+            }
+            v
+        };
+        for (cx, cy) in selladas {
+            draw_rectangle(
+                layout.arena_x + cx as f32 * c,
+                layout.arena_y + cy as f32 * c,
+                c,
+                c,
+                t.wall.to_mq(0.95),
+            );
+        }
+        // Mitad viva: en riesgo.
+        for (cx, cy) in b.vulnerable_cells(&app.state.arena.grid) {
             draw_rectangle(
                 layout.arena_x + cx as f32 * c,
                 layout.arena_y + cy as f32 * c,
