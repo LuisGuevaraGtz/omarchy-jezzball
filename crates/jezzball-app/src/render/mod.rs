@@ -133,6 +133,7 @@ pub fn render(app: &App) {
         Screen::Playing => render_game(app, w, h),
         Screen::Results => menu::draw_results(app, w, h),
         Screen::ModeComplete => menu::draw_mode_complete(app, w, h),
+        Screen::Help => menu::draw_help(app, w, h),
         Screen::Error => menu::draw_error(app, &app.error_msg, w, h),
     }
     if app.quit_confirm {
@@ -159,8 +160,7 @@ fn render_game(app: &App, w: f32, h: f32) {
 
 /// Barra de pistas con los atajos principales.
 fn draw_hint(app: &App, w: f32, h: f32) {
-    let line =
-        "ESPACIO pausa   R reiniciar   TAB eje   raton izq/der muro   F HUD   Q salir   ESC menu";
+    let line = "ESPACIO pausa   R reiniciar   TAB eje   raton izq/der muro   F HUD   ESC pausa";
     let sz2 = 12.0 * ui_scale();
     let x = ((w - text_w(line, sz2)) / 2.0).max(4.0);
     draw_text(

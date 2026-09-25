@@ -146,6 +146,16 @@ Contrato §11. Sin red, sin cuentas, escritura atómica
   (normalmente `~/.config/omarchy-jezzball/config.ron`).
 - Override de tema: `~/.config/omarchy-jezzball/theme.ron` (ver theming).
 
+## Progresion
+
+El MODO ENHANCED se desbloquea al completar los 10 niveles del MODO
+ORIGINAL. Enhanced es la evolucion de la mecanica clasica (obstaculos,
+bolas especiales, power-ups), asi que primero se aprende la base.
+
+Dentro de Enhanced, los mundos 2 a 6 se van abriendo segun el avance en
+Original. La pantalla COMO SE JUEGA del menu explica las reglas, la
+puntuacion y cada obstaculo, bola especial y power-up.
+
 ## Si el juego no arranca o se cierra
 
 Cada fallo interno se registra en disco, además de imprimirse por stderr:

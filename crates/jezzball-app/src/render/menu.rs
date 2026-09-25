@@ -81,23 +81,102 @@ fn footer(app: &App, hint: &str) {
     let t = &app.theme;
     let w = screen_width();
     let h = screen_height();
-    let sz = 12.0 * crate::render::ui_scale();
+    // El pie tenia 12 px fijos de base: con el juego a pantalla completa era
+    // practicamente ilegible. Va a la misma base que el resto del HUD.
+    let sz = font();
     let x = ((w - text_w(hint, sz)) / 2.0).max(4.0);
     draw_text(
         hint,
         x,
         h - 24.0 * crate::render::ui_scale(),
         sz,
-        t.fg_dim.to_mq(0.8),
+        t.fg_dim.to_mq(0.9),
     );
 }
 
+/// Pantalla de ayuda paginada: reglas base, puntuacion y catalogo de
+/// obstaculos / bolas / power-ups de Enhanced.
+pub fn draw_help(app: &App, w: f32, h: f32) {
+    let t = &app.theme;
+    let s = crate::render::ui_scale();
+    let (titulo, lineas) = crate::screens::help_page(app.help_page);
+
+    let pw = (w - 80.0 * s).min(760.0 * s);
+    let ph = h - 150.0 * s;
+    let px = (w - pw) / 2.0;
+    let py = 96.0 * s;
+    panel(t, px, py, pw, ph);
+
+    draw_text_c(
+        titulo,
+        w / 2.0,
+        py + 34.0 * s,
+        font() + 8.0 * s,
+        t.accent.to_mq(1.0),
+    );
+
+    let sz = font();
+    let row = sz * 1.5;
+    let mut y = py + 68.0 * s;
+    let x = px + 28.0 * s;
+    for linea in lineas {
+        if let Some(sub) = linea.strip_prefix("# ") {
+            // Subtitulo: acentuado y con algo de aire por encima.
+            y += row * 0.35;
+            draw_text(sub, x, y, sz, t.accent.to_mq(0.95));
+        } else {
+            draw_text(linea, x, y, sz, t.fg.to_mq(0.9));
+        }
+        y += row;
+    }
+
+    draw_text_c(
+        &format!(
+            "pagina {} de {}",
+            app.help_page + 1,
+            crate::screens::HELP_PAGES
+        ),
+        w / 2.0,
+        py + ph - 16.0 * s,
+        sz,
+        t.fg_dim.to_mq(0.8),
+    );
+    footer(app, "flechas cambiar pagina   enter siguiente   esc volver");
+}
+
 /// Lista de opciones centrada a partir de `y`.
+/// Fila de lista y posición donde empieza: compartidas por el render y por la
+/// lógica de desplazamiento, para que ambos cuenten lo mismo.
+pub fn fila_alto() -> f32 {
+    30.0 * crate::render::ui_scale()
+}
+
+/// Cuántas filas de lista caben en pantalla. Única fuente de verdad: si el
+/// render y el scroll usaran cuentas distintas, la selección se saldría de la
+/// ventana visible.
+pub fn filas_visibles() -> usize {
+    crate::screens::filas_visibles_para(screen_height(), crate::render::ui_scale())
+}
+
+/// Lista de opciones con ventana de desplazamiento.
+///
+/// Con 61 niveles la lista no cabe en pantalla: antes se dibujaban todos desde
+/// el primero, así que al bajar más allá del borde el jugador seguía viendo el
+/// principio y no sabía qué tenía seleccionado. Ahora se dibuja sólo la
+/// ventana visible y se acompaña la selección.
 fn option_list(app: &App, y: f32) -> f32 {
     let t = &app.theme;
     let w = screen_width();
+    let s = crate::render::ui_scale();
+    let row = fila_alto();
+    let sz = font() + 2.0 * s;
+
+    let n = app.menu_items.len();
+    let visibles = filas_visibles().min(n.max(1));
+    let top = app.list_top.min(n.saturating_sub(visibles));
+
     let mut ny = y;
-    for (idx, item) in app.menu_items.iter().enumerate() {
+    for (idx, item) in app.menu_items.iter().enumerate().skip(top).take(visibles) {
         let sel = app.select == idx;
         let color = if !item.enabled {
             t.fg_dim
@@ -112,23 +191,25 @@ fn option_list(app: &App, y: f32) -> f32 {
             format!("{}  (BLOQUEADO)", item.label)
         };
         if sel && item.enabled {
-            draw_text_c(
-                &format!("> {}", label),
-                w / 2.0,
-                ny,
-                font() + 2.0 * crate::render::ui_scale(),
-                color.to_mq(0.95),
-            );
+            draw_text_c(&format!("> {}", label), w / 2.0, ny, sz, color.to_mq(0.95));
         } else {
-            draw_text_c(
-                &label,
-                w / 2.0,
-                ny,
-                font() + 2.0 * crate::render::ui_scale(),
-                color.to_mq(0.75),
-            );
+            draw_text_c(&label, w / 2.0, ny, sz, color.to_mq(0.75));
         }
-        ny += 30.0 * crate::render::ui_scale();
+        ny += row;
+    }
+
+    // Indicadores de que hay más lista fuera de la ventana.
+    if top > 0 {
+        draw_text_c("^", w / 2.0, y - row * 0.6, sz, t.fg_dim.to_mq(0.8));
+    }
+    if top + visibles < n {
+        draw_text_c(
+            &format!("v   {} mas", n - (top + visibles)),
+            w / 2.0,
+            ny + row * 0.1,
+            sz,
+            t.fg_dim.to_mq(0.8),
+        );
     }
     ny + 24.0
 }
@@ -300,7 +381,7 @@ pub fn draw_pause_overlay(app: &App, layout: &crate::render::Layout) {
     draw_rectangle(0.0, 0.0, w, h, Color::new(0.0, 0.0, 0.0, 0.55));
     draw_text_c("PAUSA", w / 2.0, h / 2.0 - 30.0, 32.0, t.accent.to_mq(1.0));
     draw_text_c(
-        "espacio / esc reanudar   R reiniciar   Q salir",
+        "espacio/esc reanudar   R reiniciar nivel   M salir al menu   H ayuda   Q cerrar juego",
         w / 2.0,
         h / 2.0 + 12.0,
         15.0,

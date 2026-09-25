@@ -33,6 +33,7 @@ pub enum Screen {
     Playing,
     Results,
     ModeComplete,
+    Help,
     Error,
 }
 
@@ -135,6 +136,15 @@ pub struct App {
     pub quit_requested: bool,
     /// Cuenta atrás de protección de la pantalla de resultados.
     pub results_wait: f32,
+    /// Página visible de la pantalla de ayuda (0..HELP_PAGES).
+    pub help_page: usize,
+    /// Primer elemento visible de la lista del selector: sin esto, con 61
+    /// niveles la lista se salía de la pantalla y no se veía la selección.
+    pub list_top: usize,
+    /// Filas de lista que caben en pantalla. Lo refresca el bucle de render
+    /// (unico sitio que conoce el alto real de la ventana) y lo consume la
+    /// logica de desplazamiento, que asi no depende de macroquad.
+    pub filas_visibles: usize,
 }
 
 impl App {
@@ -186,6 +196,9 @@ impl App {
             quit_confirm: false,
             quit_requested: false,
             results_wait: RESULTS_WAIT,
+            help_page: 0,
+            list_top: 0,
+            filas_visibles: 12,
         };
         open_menu(&mut app);
         app
@@ -341,17 +354,33 @@ fn parse_levels(text: &str) -> Result<Vec<LevelSpec>, String> {
 
 fn open_menu(app: &mut App) {
     app.screen = Screen::Menu;
+    // Enhanced se gana: hasta completar los 10 de Original, la opción aparece
+    // bloqueada y el rótulo dice por qué (un "(BLOQUEADO)" a secas dejaría al
+    // jugador sin saber qué hacer).
+    let enh_ok = original_mode_completed(app);
+    let enh_label = if enh_ok {
+        "MODO ENHANCED".to_string()
+    } else {
+        format!(
+            "MODO ENHANCED  -  completa los {} niveles de ORIGINAL",
+            app.levels.len(Mode::Original)
+        )
+    };
     app.menu_items = vec![
         MenuItem {
             label: "MODO ORIGINAL".into(),
             enabled: !app.levels.original.is_empty(),
         },
         MenuItem {
-            label: "MODO ENHANCED".into(),
-            enabled: !app.levels.enhanced.is_empty(),
+            label: enh_label,
+            enabled: !app.levels.enhanced.is_empty() && enh_ok,
         },
         MenuItem {
             label: "ELEGIR NIVEL".into(),
+            enabled: true,
+        },
+        MenuItem {
+            label: "COMO SE JUEGA".into(),
             enabled: true,
         },
     ];
@@ -368,7 +397,7 @@ fn open_mode_menu(app: &mut App) {
         },
         MenuItem {
             label: "MODO ENHANCED".into(),
-            enabled: !app.levels.enhanced.is_empty(),
+            enabled: !app.levels.enhanced.is_empty() && original_mode_completed(app),
         },
     ];
     app.select = 0;
@@ -390,7 +419,12 @@ fn open_selector(app: &mut App, mode: Mode) {
         });
     }
     app.menu_items = items;
-    app.select = 0;
+    // Arrancar en el primer nivel jugable, no en el 1 si ya está superado:
+    // con 61 niveles, abrir siempre arriba obliga a bajar decenas de veces.
+    let primero = app.menu_items.iter().position(|i| i.enabled).unwrap_or(0);
+    app.select = primero;
+    app.list_top = 0;
+    ajustar_ventana(app);
     app.nav = NavRepeat::default();
 }
 
@@ -413,8 +447,38 @@ fn nav_menu(app: &mut App, dt: f32) {
                 guard += 1;
             }
             app.select = sel.clamp(0, n as i64 - 1) as usize;
+            ajustar_ventana(app);
         }
     }
+}
+
+/// Filas de lista visibles, para la lógica de desplazamiento.
+///
+/// No puede preguntarle al render: `screen_height()` de macroquad panica si no
+/// hay ventana, y eso hacía imposible testear el scroll. El render usa esta
+/// misma función, así que ambos cuentan lo mismo.
+pub fn filas_visibles_para(alto: f32, escala: f32) -> usize {
+    let row = 30.0 * escala;
+    let disponible = (alto - 170.0 * escala - 20.0 * escala - 24.0 * escala).max(row);
+    ((disponible / row).floor() as usize).max(1)
+}
+
+/// Mantiene `list_top` de forma que `select` quede siempre dentro de la
+/// ventana visible de la lista. Sin esto, con 61 niveles el jugador movía la
+/// selección fuera de la pantalla y seguía viendo los primeros niveles.
+fn ajustar_ventana(app: &mut App) {
+    let visibles = app.filas_visibles;
+    let n = app.menu_items.len();
+    if n <= visibles {
+        app.list_top = 0;
+        return;
+    }
+    if app.select < app.list_top {
+        app.list_top = app.select;
+    } else if app.select >= app.list_top + visibles {
+        app.list_top = app.select + 1 - visibles;
+    }
+    app.list_top = app.list_top.min(n - visibles);
 }
 
 /// Progreso persistido por modo, para el menú.
@@ -428,6 +492,14 @@ pub fn mode_progress(app: &App, mode: Mode) -> (usize, u32) {
 /// ¿Este nivel está desbloqueado para jugar? (progreso parcial en Original →
 /// desbloquea Enhancement como modalidad de rejugar enteras a angelical)
 fn is_unlocked(app: &App, mode: Mode, idx: u16) -> bool {
+    // Puerta de entrada a Enhanced: se comprueba ANTES que nada, incluido el
+    // primer nivel. Enhanced es la evolución de la mecánica clásica, así que
+    // exige los 10 niveles de Original completos; si no, un jugador nuevo
+    // empezaría en niveles con obstáculos y bolas especiales sin haber
+    // aprendido la base.
+    if mode == Mode::Enhanced && !original_mode_completed(app) {
+        return false;
+    }
     if idx == 0 {
         return true;
     }
@@ -442,7 +514,7 @@ fn is_unlocked(app: &App, mode: Mode, idx: u16) -> bool {
         }
         return prev_completed(app, mode, idx);
     }
-    // Enhanced: además hay una puerta temática: los mundos 2..=6 exigen un
+    // Dentro de Enhanced hay una puerta temática: los mundos 2..=6 exigen un
     // avance mínimo en Original (§7: original nivel n => enhanced mundo w,
     // con n >= 2(w-1)). El mundo entero se desbloquea a la vez (se puede
     // jugar cualquier nivel de ese mundo, sin secuencia interna).
@@ -570,6 +642,10 @@ pub fn launch(app: &mut App, mode: Option<Mode>, level: Option<u16>) {
 pub fn update(app: &mut App, dt: f32) {
     app.frame = crate::input::sample_frame();
     app.mouse_pos = (app.frame.mouse.x, app.frame.mouse.y);
+    // El alto de la ventana puede cambiar (redimensionar, pantalla completa),
+    // así que la cuenta de filas visibles se refresca cada frame aquí, donde
+    // sí hay ventana, y la lógica de scroll la consume sin tocar macroquad.
+    app.filas_visibles = crate::render::menu::filas_visibles();
 
     if app.quit_confirm {
         update_quit_confirm(app);
@@ -583,6 +659,7 @@ pub fn update(app: &mut App, dt: f32) {
         Screen::Playing => update_playing(app, dt),
         Screen::Results => update_results(app, dt),
         Screen::ModeComplete => update_mode_complete(app, dt),
+        Screen::Help => update_help(app, dt),
         Screen::Error => update_error(app),
     }
 
@@ -612,7 +689,128 @@ fn update_menu(app: &mut App, dt: f32) {
     match app.select {
         0 => start_mode(app, Mode::Original),
         1 => start_mode(app, Mode::Enhanced),
-        _ => open_mode_menu(app),
+        2 => open_mode_menu(app),
+        _ => open_help(app),
+    }
+}
+
+/// Páginas de la ayuda. Se define aquí (capa app) y no en el core porque es
+/// texto de presentación.
+pub const HELP_PAGES: usize = 4;
+
+/// Contenido de una página de ayuda: título + líneas.
+/// Las líneas que empiezan por "# " son subtítulos y el render las resalta.
+pub fn help_page(n: usize) -> (&'static str, &'static [&'static str]) {
+    const BASICO: &[&str] = &[
+        "Encierra la arena trazando muros mientras las bolas rebotan.",
+        "",
+        "# Como se traza un muro",
+        "Raton IZQUIERDO: traza en el eje actual.",
+        "Raton DERECHO:   traza en el eje contrario.",
+        "TAB:             cambia el eje por defecto.",
+        "",
+        "El muro crece por sus DOS extremos a la vez.",
+        "Cuando una mitad toca una pared, esa mitad queda FIJA:",
+        "una bola ya no puede romperla (color de muro solido).",
+        "Solo la mitad que sigue creciendo (color de aviso) cuesta",
+        "una vida si una bola la alcanza.",
+        "",
+        "# Objetivo",
+        "Cierra el porcentaje de area que pide el nivel. Toda region",
+        "que quede SIN bolas se sella automaticamente.",
+    ];
+    const PUNTOS: &[&str] = &[
+        "# Riesgo y recompensa",
+        "Cerrar un area grande y comoda da POCOS puntos.",
+        "Cerrar un area pequena, con bolas cerca y rapidas, da MUCHOS.",
+        "La puntuacion sube con: area pequena, bolas cercanas y",
+        "velocidad alta.",
+        "",
+        "# Combo",
+        "Muros consolidados seguidos suben el multiplicador (x2, x3...",
+        "hasta x8). Se reinicia al perder una vida o si tardas",
+        "demasiado entre muros.",
+        "",
+        "# Estrellas",
+        "Cada nivel de Enhanced tiene objetivos opcionales: no perder",
+        "vidas, cerrar mas area de la pedida, acabar a tiempo,",
+        "mantener combo... Dan de 1 a 3 estrellas y puedes rejugar",
+        "para mejorarlas.",
+    ];
+    const ENHANCED: &[&str] = &[
+        "Enhanced anade elementos sobre la MISMA mecanica base.",
+        "",
+        "# Obstaculos (mundo 3)",
+        "Bloque solido: no se puede atravesar ni construir sobre el.",
+        "                 Las bolas rebotan en el.",
+        "Zona indivisible: las bolas la CRUZAN, pero tu muro no puede",
+        "                 crecer a traves de ella. No cuenta para el",
+        "                 porcentaje de area.",
+        "Obstaculo movil:  se desplaza solo. Si toca un muro en",
+        "                 construccion lo rompe, pero NO te cuesta",
+        "                 vidas. Solo las bolas quitan vidas.",
+        "",
+        "# Bolas especiales (mundo 4)",
+        "Normal:       la clasica.",
+        "Rapida:       mas veloz, menos margen de reaccion.",
+        "Impredecible: cambia de direccion sin avisar.",
+        "Divisora:     al romper un muro se divide en dos.",
+        "Pesada:       grande y lenta; ignora los escudos.",
+    ];
+    const POWERUPS: &[&str] = &[
+        "# Power-ups (mundo 5)",
+        "Aparecen en la arena cada cierto tiempo. Se recogen pasando",
+        "por encima y se activan con las teclas 1 a 5.",
+        "",
+        "Camara lenta: baja la velocidad de las bolas un rato.",
+        "Congelar:     detiene las bolas por completo.",
+        "Muro doble:   el siguiente muro se traza al doble de rapido.",
+        "Escudo:       el siguiente muro aguanta un impacto sin",
+        "              romperse (no frente a una bola Pesada).",
+        "Eliminar bola: quita una bola de la arena.",
+        "",
+        "# Controles",
+        "ESPACIO pausa      R reinicia el nivel",
+        "F cambia el HUD    1-5 usan power-ups",
+        "ESC pausa / atras  Q sale al menu",
+        "",
+        "El MODO ORIGINAL no tiene nada de esto: 10 niveles, dos bolas",
+        "al principio y la mecanica clasica, sin power-ups ni combos.",
+    ];
+    match n {
+        0 => ("COMO SE JUEGA", BASICO),
+        1 => ("PUNTUACION Y ESTRELLAS", PUNTOS),
+        2 => ("ENHANCED: OBSTACULOS Y BOLAS", ENHANCED),
+        _ => ("ENHANCED: POWER-UPS Y CONTROLES", POWERUPS),
+    }
+}
+
+/// Pantalla de ayuda: reglas, controles y catálogo de obstáculos, bolas y
+/// power-ups de Enhanced. Accesible desde el menú y desde la pausa.
+fn open_help(app: &mut App) {
+    app.screen = Screen::Help;
+    app.help_page = 0;
+    app.nav = NavRepeat::default();
+}
+
+fn update_help(app: &mut App, _dt: f32) {
+    if app.frame.pressed(UiKey::Escape) {
+        open_menu(app);
+        return;
+    }
+    // Paginación: abajo/derecha avanza, arriba/izquierda retrocede.
+    if app.frame.pressed_any(&[UiKey::Down, UiKey::J, UiKey::L]) {
+        app.help_page = (app.help_page + 1).min(HELP_PAGES.saturating_sub(1));
+    }
+    if app.frame.pressed_any(&[UiKey::Up, UiKey::K, UiKey::H]) {
+        app.help_page = app.help_page.saturating_sub(1);
+    }
+    if confirm_pressed(app) {
+        if app.help_page + 1 >= HELP_PAGES {
+            open_menu(app);
+        } else {
+            app.help_page += 1;
+        }
     }
 }
 
@@ -669,6 +867,11 @@ fn update_playing(app: &mut App, dt: f32) {
             } else if app.frame.pressed(UiKey::R) {
                 let (ns, _) = step(&app.state, PlayerInput::Restart, 0.0);
                 app.state = ns;
+            } else if app.frame.pressed(UiKey::H) {
+                open_help(app);
+            } else if app.frame.pressed(UiKey::M) {
+                // Salir DEL NIVEL al menú, sin cerrar el juego.
+                open_menu(app);
             } else if app.frame.pressed(UiKey::Q) {
                 app.quit_confirm = true;
             }
@@ -1065,12 +1268,96 @@ mod tests {
         app.levels.enhanced[0].world = 2;
         app.levels.enhanced[1].world = 2;
         app.save = SaveData::default();
-        // Nivel 1 del mundo 2: siempre desbloqueado (inicio).
+
+        // Puerta de entrada: sin Original completo, NADA de Enhanced se puede
+        // jugar, ni siquiera el primer nivel.
+        assert!(
+            !is_unlocked(&app, Mode::Enhanced, 0),
+            "Enhanced no debe abrirse antes de completar Original"
+        );
+
+        // Completar Original entero abre Enhanced.
+        for i in 1..=10 {
+            app.save.record_for(Mode::Original, i).completed = true;
+        }
+        app.save.original_completed = true;
         assert!(is_unlocked(&app, Mode::Enhanced, 0));
-        // El resto del mundo 2 pide que el original 2 esté completado.
-        assert!(!is_unlocked(&app, Mode::Enhanced, 1));
-        app.save.record_for(Mode::Original, 2).completed = true;
         assert!(is_unlocked(&app, Mode::Enhanced, 1));
+    }
+
+    #[test]
+    fn enhanced_bloqueado_en_el_menu_hasta_terminar_original() {
+        let mut app = App::new();
+        app.levels.original = (1..=10).map(|i| sample_level(i, true)).collect();
+        app.levels.enhanced = (1..=5).map(|i| sample_level(i, false)).collect();
+        app.save = SaveData::default();
+
+        open_menu(&mut app);
+        let enh = &app.menu_items[1];
+        assert!(!enh.enabled, "la entrada de Enhanced debe estar bloqueada");
+        assert!(
+            enh.label.contains("ORIGINAL"),
+            "el rotulo debe explicar como desbloquearlo, no solo decir BLOQUEADO: {:?}",
+            enh.label
+        );
+
+        app.save.original_completed = true;
+        open_menu(&mut app);
+        assert!(app.menu_items[1].enabled, "tras Original, Enhanced se abre");
+    }
+
+    #[test]
+    fn la_ventana_de_lista_sigue_a_la_seleccion() {
+        // Regresion: con 61 niveles la lista se dibujaba entera desde el
+        // primero, asi que al seleccionar uno bajo, el jugador seguia viendo
+        // el principio de la lista y no sabia que tenia elegido.
+        let mut app = App::new();
+        app.menu_items = (0..61)
+            .map(|i| MenuItem {
+                label: format!("NIVEL {i}"),
+                enabled: true,
+            })
+            .collect();
+        app.list_top = 0;
+
+        app.filas_visibles = filas_visibles_para(1000.0, 1.4);
+        let visibles = app.filas_visibles;
+
+        // Seleccion dentro de la primera ventana: no hace falta desplazar.
+        app.select = 0;
+        ajustar_ventana(&mut app);
+        assert_eq!(app.list_top, 0);
+
+        // Seleccion muy por debajo: la ventana debe alcanzarla.
+        app.select = 55;
+        ajustar_ventana(&mut app);
+        assert!(
+            app.select >= app.list_top && app.select < app.list_top + visibles,
+            "la seleccion {} quedo fuera de la ventana [{}, {})",
+            app.select,
+            app.list_top,
+            app.list_top + visibles
+        );
+
+        // Y al volver arriba, otra vez dentro.
+        app.select = 2;
+        ajustar_ventana(&mut app);
+        assert!(
+            app.select >= app.list_top && app.select < app.list_top + visibles,
+            "al subir, la seleccion volvio a quedar fuera de la ventana"
+        );
+    }
+
+    #[test]
+    fn la_ayuda_tiene_todas_las_paginas_con_contenido() {
+        for n in 0..HELP_PAGES {
+            let (titulo, lineas) = help_page(n);
+            assert!(!titulo.is_empty(), "la pagina {n} no tiene titulo");
+            assert!(
+                lineas.iter().any(|l| !l.trim().is_empty()),
+                "la pagina {n} no tiene contenido"
+            );
+        }
     }
 
     #[test]
