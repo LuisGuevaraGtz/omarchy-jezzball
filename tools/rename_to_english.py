@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent
 
 # --- Code identifiers (functions, variables, fields, types) ---
 CODE = {
@@ -47,7 +47,7 @@ CODE = {
     "NO_INTERFAZ": "NOT_UI",
     "EXCEPCIONES": "EXCEPTIONS",
     "raiz": "root",
-    "ruta": "path",
+    "path": "path",
     "contenido": "contents",
     "codigo_fuente": "source",
     "linea": "line",
@@ -215,30 +215,30 @@ TESTS_ROUND_2 = {
 MAP = {**CODE, **TESTS, **TESTS_ROUND_2}
 
 
-def ficheros_rust():
-    salida = subprocess.run(
+def rust_files():
+    output = subprocess.run(
         ["git", "ls-files", "*.rs"],
-        cwd=RAIZ, capture_output=True, text=True, check=True,
+        cwd=ROOT, capture_output=True, text=True, check=True,
     ).stdout.split()
-    return [RAIZ / f for f in salida]
+    return [ROOT / f for f in output]
 
 
 def main():
     dry = "--dry-run" in sys.argv
     # Longest names first: this stops "clave" from mangling
     # "clave_desconocida_devuelve_la_propia_clave".
-    claves = sorted(MAP, key=len, reverse=True)
-    patron = re.compile(r"\b(" + "|".join(re.escape(k) for k in claves) + r")\b")
+    keys = sorted(MAP, key=len, reverse=True)
+    pattern = re.compile(r"\b(" + "|".join(re.escape(k) for k in keys) + r")\b")
 
     total = 0
-    for ruta in ficheros_rust():
-        original = ruta.read_text(encoding="utf-8")
-        nuevo, n = patron.subn(lambda m: MAP[m.group(1)], original)
+    for path in rust_files():
+        original = path.read_text(encoding="utf-8")
+        new_text, n = pattern.subn(lambda m: MAP[m.group(1)], original)
         if n:
             total += n
-            print(f"{n:5d}  {ruta.relative_to(RAIZ)}")
+            print(f"{n:5d}  {path.relative_to(ROOT)}")
             if not dry:
-                ruta.write_text(nuevo, encoding="utf-8")
+                path.write_text(new_text, encoding="utf-8")
     print(f"\n{'(dry run) ' if dry else ''}{total} replacements")
 
 
