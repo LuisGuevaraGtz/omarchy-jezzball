@@ -43,7 +43,7 @@ impl Rgb {
     }
 }
 
-/// Paleta del juego, derivada del tema activo de Omarchy. Ningún render hardcodea
+/// Paleta del juego, derivada del tema active de Omarchy. Ningún render hardcodea
 /// un color: todo sale de aquí (ARCHITECTURE.md §12 "Mapeo de roles").
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Theme {
@@ -235,14 +235,14 @@ fn table_get<'a>(v: &'a toml::Value, key: &str) -> Option<&'a str> {
     v.get(key).and_then(|x| x.as_str())
 }
 
-/// Color opcional de una tabla por un conjunto de claves alternativas.
+/// Color opcional de una tabla por un conjunto de keys alternativas.
 fn color_or(v: &toml::Value, keys: &[&str]) -> Option<Rgb> {
     keys.iter()
         .find_map(|k| table_get(v, k))
         .and_then(parse_hex)
 }
 
-/// Construye `Theme` a partir de un `colors.toml` plano (claves directas).
+/// Construye `Theme` a partir de un `colors.toml` plano (keys directas).
 /// Exige `background` y `foreground`; el resto cae a alternativas del propio
 /// tema o al fallback por rol.
 fn theme_from_flat(v: &toml::Value) -> Option<Theme> {
@@ -319,8 +319,8 @@ fn load_ron_override(path: &Path) -> Option<Theme> {
     file.into_theme()
 }
 
-/// Lee el nombre del tema activo (`theme.name`). Rechaza nombres con
-/// separadores de ruta para evitar traversal.
+/// Lee el nombre del tema active (`theme.name`). Rechaza nombres con
+/// separadores de path para evitar traversal.
 fn read_theme_name(path: &Path) -> Option<String> {
     let raw = fs::read_to_string(path).ok()?;
     let name = raw.trim();
@@ -348,11 +348,11 @@ pub fn resolve_theme(dirs: &OmarchyDirs) -> Theme {
 
     let name = read_theme_name(&dirs.state_home.join("omarchy/current/theme.name"));
 
-    // 2. Tema activo symlinkeado (colors.toml plano). El nombre sale de
+    // 2. Tema active symlinkeado (colors.toml plano). El nombre sale de
     //    `theme.name` (p. ej. "retro-82"); antes se escribía el literal
     //    "corriente" —traducción palabra por palabra de "current"— que además
     //    de no significar nada en español descartaba el nombre real, que sí
-    //    está disponible justo al lado.
+    //    está available justo al lado.
     if let Some(mut t) = load_colors_file(&current.join("colors.toml")) {
         t.name = name.clone().unwrap_or_else(|| "omarchy".to_string());
         return t;
@@ -405,7 +405,7 @@ mod tests {
         fs::read_to_string(fixture(name)).expect("fixture presente")
     }
 
-    /// Directorio temporal para tests que tocan disco, dentro del repo
+    /// Directorio temporal para tests que tocan disco, inside del repo
     /// (el sandbox bloquea /tmp y ~/.local, pero el repo es de escritura).
     fn tmp_root(name: &str) -> PathBuf {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -511,11 +511,11 @@ mod tests {
     }
 
     /// El bloque RON exacto de docs/THEMING.md (copiado literal, con su
-    /// sangrado) debe parsear y producir los colores esperados. Es el contrato
+    /// sangrado) debe parse y producir los colores esperados. Es el contrato
     /// que mantiene documento y código en la misma historia: si alguien cambia
     /// el formato en uno de los dos sitios, este test se cae.
     #[test]
-    fn bloque_exacto_de_theming_md_parsea() {
+    fn exact_block_from_theming_md_parses() {
         const DOCUMENTADO: &str = r##"(
     bg: "#0f0f14",
     fg: "#c9d1d9",
@@ -567,7 +567,7 @@ mod tests {
             )"##,
         )
         .unwrap();
-        // Paso 2 disponible para que la caída sea observable.
+        // Paso 2 available para que la caída sea observable.
         let theme_dir = root.join("state/omarchy/current/theme");
         fs::create_dir_all(&theme_dir).unwrap();
         fs::copy(
@@ -661,7 +661,7 @@ mod tests {
     }
 
     #[test]
-    fn current_colors_toml_del_estado() {
+    fn current_colors_toml_from_state() {
         let root = tmp_root("current");
         let theme_dir = root.join("omarchy/current/theme");
         fs::create_dir_all(&theme_dir).unwrap();
@@ -724,7 +724,7 @@ mod tests {
     }
 
     #[test]
-    fn alacritty_como_ultimo_recurso() {
+    fn alacritty_as_last_resort() {
         let root = tmp_root("alac");
         let sys = root.join("system/t");
         fs::create_dir_all(&sys).unwrap();

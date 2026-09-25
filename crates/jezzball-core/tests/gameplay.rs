@@ -140,7 +140,7 @@ fn single_wall_points(col: u16, _row: u16) -> (u32, u32) {
     completed[0]
 }
 
-/// Dos muros consecutivos dentro de la ventana (4 s) suben el combo a x3, y
+/// Dos muros consecutivos inside de la ventana (4 s) suben el combo a x3, y
 /// se reinicia solo cuando la ventana caduca sin consolidar más muros.
 #[test]
 fn combo() {
@@ -176,7 +176,7 @@ fn combo() {
     all.extend(e);
 
     // Segundo muro: horizontal en la fila 2, que puede cerrar la región
-    // superior (sin bolas) y seguir dentro de la ventana de combo.
+    // superior (sin bolas) y seguir inside de la ventana de combo.
     let (n, e) = step(
         &s,
         PlayerInput::StartWall {

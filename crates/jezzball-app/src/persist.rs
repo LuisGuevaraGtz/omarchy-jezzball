@@ -2,8 +2,8 @@
 //!
 //! Guardado en `$XDG_DATA_HOME/omarchy-jezzball/save.ron` (fallback
 //! `~/.local/share/omarchy-jezzball/save.ron`) con escritura ATÓMICA:
-//! primero a `save.ron.tmp` y luego `rename`. Cero `unwrap()`/`expect()` en
-//! rutas de I/O: todo falla y se degrada a un `SaveData` limpio, nunca panic.
+//! first a `save.ron.tmp` y luego `rename`. Cero `unwrap()`/`expect()` en
+//! rutas de I/O: todo falla y se degrada a un `SaveData` trimmed, nunca panic.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -13,7 +13,7 @@ use jezzball_core::level::Mode;
 use serde::{Deserialize, Serialize};
 
 /// Versión del formato de guardado. Un fichero con versión distinta se
-/// considera incompatible: se respalda y se empieza limpio.
+/// considera incompatible: se respalda y se empieza trimmed.
 pub const SAVE_VERSION: u32 = 1;
 
 /// Récord de un nivel concreto en un modo.
@@ -92,7 +92,7 @@ impl SaveData {
     }
 }
 
-/// Resuelve una variable XDG a una ruta absoluta, o `None` si no está o no es
+/// Resuelve una variable XDG a una path absoluta, o `None` si no está o no es
 /// absoluta.
 pub fn xdg_dir(var: &str) -> Option<PathBuf> {
     let raw = std::env::var_os(var)?;
@@ -120,7 +120,7 @@ pub fn home_dir() -> PathBuf {
 
 /// Directorio de datos del usuario (`$XDG_DATA_HOME`, o `~/.local/share`).
 ///
-/// En compilaciones de TEST se redirige a un directorio temporal dentro del
+/// En compilaciones de TEST se redirige a un directorio temporal inside del
 /// propio repo: un test que construya la aplicación completa no debe leer ni
 /// —sobre todo— ESCRIBIR la partida real del usuario. (Ocurrió: un fuzz de
 /// progresión dejó `u32::MAX` en los récords de una partida de verdad.)
@@ -153,7 +153,7 @@ pub fn save_file_path_in(data_home: &Path) -> PathBuf {
     data_home.join("omarchy-jezzball").join("save.ron")
 }
 
-/// Parsea y valida el contenido de un guardado. `Err` si el RON no es válido o
+/// Parsea y valida el contents de un guardado. `Err` si el RON no es válido o
 /// la versión es incompatible.
 pub fn parse_save(content: &str) -> Result<SaveData, String> {
     let data: SaveData = ron::from_str(content).map_err(|e| format!("RON inválido: {e}"))?;
@@ -166,14 +166,14 @@ pub fn parse_save(content: &str) -> Result<SaveData, String> {
     Ok(data)
 }
 
-/// Carga el guardado desde la ruta por defecto XDG.
+/// Carga el guardado desde la path por defecto XDG.
 pub fn load_save() -> SaveData {
     load_save_at(&save_file_path())
 }
 
-/// Carga un guardado de la ruta indicada. Si el fichero no existe, devuelve un
-/// `SaveData` limpio. Si existe pero está corrupto o es de otra versión, hace
-/// backup a `.ron.bak` y devuelve uno limpio. Nunca panic.
+/// Carga un guardado de la path indicada. Si el fichero no existe, devuelve un
+/// `SaveData` trimmed. Si existe pero está corrupto o es de otra versión, hace
+/// backup a `.ron.bak` y devuelve uno trimmed. Nunca panic.
 pub fn load_save_at(path: &Path) -> SaveData {
     let Ok(content) = fs::read_to_string(path) else {
         return SaveData::default();
@@ -195,7 +195,7 @@ fn backup_file(path: &Path) {
     }
 }
 
-/// Guarda el progreso en la ruta XDG por defecto. Devuelve `true` si todo OK.
+/// Guarda el progreso en la path XDG por defecto. Devuelve `true` si todo OK.
 pub fn save_save(data: &SaveData) -> bool {
     save_save_at(data, &save_file_path())
 }
@@ -287,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    fn corrupto_hace_backup_y_empieza_limpio() {
+    fn corrupt_save_is_backed_up_and_starts_clean() {
         let root = tmp_root("corrupt");
         let p = save_file_path_in(&root);
         fs::create_dir_all(p.parent().unwrap()).unwrap();

@@ -6,7 +6,7 @@ use macroquad::prelude::*;
 use crate::render::{draw_text_c, fmt_time, font, mode_name, panel, text_w, world_name};
 use crate::screens::{App, Screen};
 
-/// Marca de Omarchy dibujada con bloques, derivada del icono oficial
+/// Marca de Omarchy dibujada con blocks, derivada del icono oficial
 /// (`/usr/share/omarchy/icon.txt`): un marco con una muesca abajo y dos
 /// huecos arriba. Se dibuja con rectángulos, sin depender de ningún fichero
 /// del sistema, para que el juego siga siendo autónomo.
@@ -64,7 +64,7 @@ fn title(app: &App, text: &str) -> f32 {
     );
 
     draw_text_c(text, w / 2.0, 90.0 * s, 40.0 * s, t.accent.to_mq(0.9));
-    // El subtitulo sale del catalogo de idioma. Antes decia
+    // El subtitulo sale del catalogo de language. Antes decia
     // "... {modo} : {tema}  >" con el tema literal "corriente" (traduccion
     // palabra por palabra de "current"), que no significa nada en espanol.
     let sub = if app.mode == jezzball_core::level::Mode::Enhanced {
@@ -100,7 +100,7 @@ fn footer(app: &App, hint: &str) {
 pub fn draw_help(app: &App, w: f32, h: f32) {
     let t = &app.theme;
     let s = crate::render::ui_scale();
-    let (titulo, lineas) = crate::screens::help_page(app.help_page);
+    let (title, lines) = crate::screens::help_page(app.help_page);
 
     let pw = (w - 80.0 * s).min(760.0 * s);
     let ph = h - 150.0 * s;
@@ -109,7 +109,7 @@ pub fn draw_help(app: &App, w: f32, h: f32) {
     panel(t, px, py, pw, ph);
 
     draw_text_c(
-        titulo,
+        title,
         w / 2.0,
         py + 34.0 * s,
         font() + 8.0 * s,
@@ -120,13 +120,13 @@ pub fn draw_help(app: &App, w: f32, h: f32) {
     let row = sz * 1.5;
     let mut y = py + 68.0 * s;
     let x = px + 28.0 * s;
-    for linea in lineas {
-        if let Some(sub) = linea.strip_prefix("# ") {
+    for line in lines {
+        if let Some(sub) = line.strip_prefix("# ") {
             // Subtitulo: acentuado y con algo de aire por encima.
             y += row * 0.35;
             draw_text(sub, x, y, sz, t.accent.to_mq(0.95));
         } else {
-            draw_text(linea, x, y, sz, t.fg.to_mq(0.9));
+            draw_text(line, x, y, sz, t.fg.to_mq(0.9));
         }
         y += row;
     }
@@ -148,42 +148,42 @@ pub fn draw_help(app: &App, w: f32, h: f32) {
 /// Lista de opciones centrada a partir de `y`.
 /// Fila de lista y posición donde empieza: compartidas por el render y por la
 /// lógica de desplazamiento, para que ambos cuenten lo mismo.
-pub fn fila_alto() -> f32 {
+pub fn row_height() -> f32 {
     30.0 * crate::render::ui_scale()
 }
 
 /// Y donde arranca la lista de opciones. Compartida por todas las pantallas
-/// de menú: si una la escala y otra no, los textos se solapan (ocurrió).
-pub fn lista_y() -> f32 {
+/// de menú: si una la scale y otra no, los texts se solapan (ocurrió).
+pub fn list_y() -> f32 {
     170.0 * crate::render::ui_scale()
 }
 
 /// Cuántas filas de lista caben en pantalla. Única fuente de verdad: si el
 /// render y el scroll usaran cuentas distintas, la selección se saldría de la
 /// ventana visible.
-pub fn filas_visibles() -> usize {
-    crate::screens::filas_visibles_para(screen_height(), crate::render::ui_scale())
+pub fn visible_rows() -> usize {
+    crate::screens::visible_rows_for(screen_height(), crate::render::ui_scale())
 }
 
 /// Lista de opciones con ventana de desplazamiento.
 ///
 /// Con 61 niveles la lista no cabe en pantalla: antes se dibujaban todos desde
-/// el primero, así que al bajar más allá del borde el jugador seguía viendo el
+/// el first, así que al bajar más allá del borde el jugador seguía viendo el
 /// principio y no sabía qué tenía seleccionado. Ahora se dibuja sólo la
 /// ventana visible y se acompaña la selección.
 fn option_list(app: &App, y: f32) -> f32 {
     let t = &app.theme;
     let w = screen_width();
     let s = crate::render::ui_scale();
-    let row = fila_alto();
+    let row = row_height();
     let sz = font() + 2.0 * s;
 
     let n = app.menu_items.len();
-    let visibles = filas_visibles().min(n.max(1));
-    let top = app.list_top.min(n.saturating_sub(visibles));
+    let visible = visible_rows().min(n.max(1));
+    let top = app.list_top.min(n.saturating_sub(visible));
 
     let mut ny = y;
-    for (idx, item) in app.menu_items.iter().enumerate().skip(top).take(visibles) {
+    for (idx, item) in app.menu_items.iter().enumerate().skip(top).take(visible) {
         let sel = app.select == idx;
         let color = if !item.enabled {
             t.fg_dim
@@ -209,9 +209,9 @@ fn option_list(app: &App, y: f32) -> f32 {
     if top > 0 {
         draw_text_c("^", w / 2.0, y - row * 0.6, sz, t.fg_dim.to_mq(1.0));
     }
-    if top + visibles < n {
+    if top + visible < n {
         draw_text_c(
-            &crate::i18n::t("menu.mas_abajo").replace("{}", &(n - (top + visibles)).to_string()),
+            &crate::i18n::t("menu.mas_abajo").replace("{}", &(n - (top + visible)).to_string()),
             w / 2.0,
             ny + row * 0.1,
             sz,
@@ -222,7 +222,7 @@ fn option_list(app: &App, y: f32) -> f32 {
 }
 
 pub fn draw_menu(app: &App, w: f32, _h: f32) {
-    title(app, crate::i18n::t("menu.titulo"));
+    title(app, crate::i18n::t("menu.title"));
     // Progreso persistido antes de la lista.
     let (done_o, stars_o) =
         crate::screens::mode_progress(app, jezzball_core::level::Mode::Original);
@@ -247,7 +247,7 @@ pub fn draw_menu(app: &App, w: f32, _h: f32) {
             1,
         )
         .replacen("{}", &stars_e.to_string(), 1);
-    let y = option_list(app, lista_y());
+    let y = option_list(app, list_y());
     draw_text_c(
         &progress,
         w / 2.0,
@@ -265,8 +265,8 @@ pub fn draw_level_select(app: &App, _w: f32, _h: f32) {
         title(app, crate::i18n::t("menu.elegir_nivel"));
         // La `y` de la lista DEBE escalar igual que el título: con la ventana
         // grande, un 170.0 sin escalar dejaba las opciones por encima del
-        // subtítulo y los textos se pisaban unos a otros.
-        option_list(app, lista_y());
+        // subtítulo y los texts se pisaban unos a otros.
+        option_list(app, list_y());
         footer(app, crate::i18n::t("pie.menu"));
         return;
     }
@@ -274,7 +274,7 @@ pub fn draw_level_select(app: &App, _w: f32, _h: f32) {
         app,
         &crate::i18n::t("menu.elegir_nivel_modo").replace("{}", mode_name(app.selector_mode)),
     );
-    let y = option_list(app, lista_y());
+    let y = option_list(app, list_y());
     let _ = y;
     footer(app, crate::i18n::t("pie.selector"));
     let _ = t;
@@ -381,7 +381,7 @@ pub fn draw_error(app: &App, msg: &str, w: f32, h: f32) {
     let py = ((h - ph) / 2.0).max(8.0);
     panel(t, px, py, pw, ph);
     draw_text_c(
-        crate::i18n::t("error.titulo"),
+        crate::i18n::t("error.title"),
         w / 2.0,
         py + 30.0,
         24.0,

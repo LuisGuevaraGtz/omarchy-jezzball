@@ -84,7 +84,7 @@ fn rebote_conserva_la_rapidez_y_avanza_de_verdad() {
 /// se consolida justo donde la bola acaba de pasar) no debe empujarla ni
 /// invertir su velocidad: sólo bloquea lo que hay por delante.
 #[test]
-fn celda_rellenada_detras_no_empuja_a_la_bola() {
+fn filled_cell_behind_does_not_push_the_ball() {
     let mut g = arena();
     let mut rng = Rng64::new(1);
     // Bola en el centro de la celda 4, viajando hacia +X.
@@ -109,7 +109,7 @@ fn celda_rellenada_detras_no_empuja_a_la_bola() {
     );
 }
 
-/// BUG 3 — En una esquina, la bola rebota en ambos ejes y debe seguir dentro
+/// BUG 3 — En una esquina, la bola rebota en ambos ejes y debe seguir inside
 /// de la arena, sin quedar atrapada ni salir despedida.
 #[test]
 fn rebote_en_esquina_mantiene_la_bola_dentro() {
@@ -140,7 +140,7 @@ fn rebote_en_esquina_mantiene_la_bola_dentro() {
 #[test]
 fn pasillo_estrecho_rebota_limpio() {
     let mut g = arena();
-    // Pasillo horizontal de 1 celda de alto en la fila 4, entre x=1 y x=8.
+    // Pasillo horizontal de 1 celda de height en la fila 4, entre x=1 y x=8.
     for x in 0..10 {
         for y in 0..10 {
             if y != 4 {

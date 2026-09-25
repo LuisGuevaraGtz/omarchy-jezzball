@@ -1,5 +1,5 @@
 //! Render de la arena: rejilla, celdas, bolas, muros en construcción,
-//! power-ups del suelo y la previsualización del eje activo (línea fantasma).
+//! power-ups del suelo y la previsualización del eje active (línea fantasma).
 
 use macroquad::prelude::*;
 
@@ -207,7 +207,7 @@ fn draw_builders(app: &App, layout: &Layout) {
     let c = layout.cell;
     for b in &app.state.builders {
         // Mitad ya anclada: color de muro consolidado.
-        let selladas: Vec<(u16, u16)> = {
+        let sealed_cells: Vec<(u16, u16)> = {
             let mut v = Vec::new();
             if b.lo_sealed {
                 v.extend(b.lo_cells());
@@ -217,7 +217,7 @@ fn draw_builders(app: &App, layout: &Layout) {
             }
             v
         };
-        for (cx, cy) in selladas {
+        for (cx, cy) in sealed_cells {
             draw_rectangle(
                 layout.arena_x + cx as f32 * c,
                 layout.arena_y + cy as f32 * c,
@@ -244,7 +244,7 @@ fn draw_builders(app: &App, layout: &Layout) {
     }
 }
 
-/// Previsualización del eje activo bajo el cursor (requisito: siempre visible
+/// Previsualización del eje active bajo el cursor (requisito: siempre visible
 /// junto al ratón). El eje del botón izquierdo se ve fuerte; el del derecho
 /// (contrario) se insinúa más tenue.
 fn draw_ghost(app: &App, layout: &Layout) {

@@ -1,7 +1,7 @@
 //! Render global (ARCHITECTURE.md §13): el render NUNCA decide lógica de
 //! juego, se limita a leer `&App` / `&GameState` y dibujar.
 //!
-//! `Layout` calcula dónde vive la arena dentro de la ventana y se usa tanto
+//! `Layout` calcula dónde vive la arena inside de la ventana y se usa tanto
 //! para dibujar como para el hit-testing del ratón en `screens`.
 
 pub mod arena;
@@ -12,7 +12,7 @@ use macroquad::prelude::*;
 
 use crate::screens::{App, Screen};
 
-/// Tamaño base de la fuente del HUD, a la escala de referencia.
+/// Tamaño base de la fuente del HUD, a la scale de reference.
 /// 16 px: a 14 px el HUD resultaba ilegible incluso ya escalado.
 pub const FONT_BASE: f32 = 16.0;
 /// Altura base de una fila del HUD (px).
@@ -26,10 +26,10 @@ pub const HINT_H_BASE: f32 = 20.0;
 /// fijos, en una pantalla grande o con `high_dpi` el texto queda diminuto: la
 /// arena crece con la ventana pero las letras no.
 ///
-/// La referencia es 1280x720 (no la resolución real de un monitor moderno, a
-/// propósito): así una ventana de 1900x1000 —lo normal en un portátil actual—
+/// La reference es 1280x720 (no la resolución real de un monitor moderno, a
+/// propósito): así una ventana de 1900x1000 —lo normal en un portátil current—
 /// da del orden de x1.5, que es donde el HUD se lee cómodo. Verificado sobre
-/// capturas reales del juego a 1890x1017, donde la referencia anterior
+/// capturas reales del juego a 1890x1017, donde la reference anterior
 /// (1024x768) se quedaba en x1.32 y el texto seguía siendo ilegible.
 ///
 /// `OMARCHY_JEZZBALL_UI_SCALE` permite ajustarlo a mano (p. ej. `2.0`).
@@ -43,8 +43,8 @@ pub fn ui_scale() -> f32 {
     }
     let w = screen_width().max(1.0);
     let h = screen_height().max(1.0);
-    // Se toma la dimensión más restrictiva para no desbordar el ancho en
-    // ventanas apaisadas ni el alto en las estrechas.
+    // Se toma la dimensión más restrictiva para no desbordar el width en
+    // ventanas apaisadas ni el height en las estrechas.
     let s = (w / 1280.0).min(h / 720.0);
     // Suelo en 1.15: incluso en una ventana pequeña el texto base resultaba
     // justo. Techo en 3.0 para que no invada la arena en pantallas enormes.
@@ -66,7 +66,7 @@ pub fn hint_h() -> f32 {
     HINT_H_BASE * ui_scale()
 }
 
-/// Geometría de la arena dentro de la ventana.
+/// Geometría de la arena inside de la ventana.
 #[derive(Clone, Copy, Debug)]
 pub struct Layout {
     pub arena_x: f32,

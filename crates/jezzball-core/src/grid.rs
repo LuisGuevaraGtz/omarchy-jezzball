@@ -47,7 +47,7 @@ impl Grid {
         (y as usize) * (self.w as usize) + x as usize
     }
 
-    /// ¿El punto de rejilla `(x, y)` cae dentro de la arena?
+    /// ¿El punto de rejilla `(x, y)` cae inside de la arena?
     pub fn in_bounds(&self, x: i64, y: i64) -> bool {
         x >= 0 && y >= 0 && (x as u64) < self.w as u64 && (y as u64) < self.h as u64
     }

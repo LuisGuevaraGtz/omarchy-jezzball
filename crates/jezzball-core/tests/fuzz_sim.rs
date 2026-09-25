@@ -152,7 +152,7 @@ fn hammer(spec: &LevelSpec, seed: u64, frames: usize) {
 
 /// Fuzz sobre niveles sintéticos: formas y tamaños hostiles.
 #[test]
-fn fuzz_niveles_sinteticos_no_panica() {
+fn fuzz_synthetic_levels_does_not_panic() {
     for spec in synthetic_levels() {
         for seed in [1u64, 7, 99] {
             hammer(&spec, seed, 1200);

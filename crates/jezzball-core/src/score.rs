@@ -12,7 +12,7 @@
 //! points    = base * size_mult * risk * speed_b * combo_mult
 //! ```
 
-/// Ventana de combo en segundos: cada muro consolidado sin perder vida dentro
+/// Ventana de combo en segundos: cada muro consolidado sin perder vida inside
 /// de esta ventana sube el multiplicador.
 pub const COMBO_WINDOW: f32 = 4.0;
 /// Tope del multiplicador de combo (x1 → x2 → ... → x8).

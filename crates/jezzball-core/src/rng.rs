@@ -57,10 +57,10 @@ impl Rng64 {
             return lo;
         }
         // `wrapping_sub` evita desbordar con rangos extremos; el resultado
-        // sigue siendo el ancho correcto interpretado como u64.
+        // sigue siendo el width correcto interpretado como u64.
         let span = (hi.wrapping_sub(lo) as u64).wrapping_add(1);
         if span == 0 {
-            // Rango de ancho 2^64: cualquier valor sirve.
+            // Rango de width 2^64: cualquier valor sirve.
             return self.next_u64() as i64;
         }
         lo.wrapping_add((self.next_u64() % span) as i64)

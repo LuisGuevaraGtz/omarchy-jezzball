@@ -18,7 +18,7 @@ pub struct PowerUp {
     pub cell: (u16, u16),
 }
 
-/// Power-up temporal activo (SlowMotion/Freeze).
+/// Power-up temporal active (SlowMotion/Freeze).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ActivePowerUp {
     pub kind: PowerUpKind,

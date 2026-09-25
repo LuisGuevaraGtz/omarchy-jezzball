@@ -65,7 +65,7 @@ impl Ball {
     /// - Si el tipo es `Erratic`, cada `ERRATIC_INTERVAL` segundos rota su
     ///   velocidad ±30° usando el PRNG determinista del core.
     /// - Si `|vel| * dt >= 0.5` divide el paso en substeps para no atravesar
-    ///   celdas por alto.
+    ///   celdas por height.
     pub fn step(&mut self, grid: &Grid, rng: &mut Rng64, dt: f32) {
         if dt <= 0.0 {
             return;
@@ -107,11 +107,11 @@ impl Ball {
     /// `is_x = true` mueve (e rebota) el eje X.
     ///
     /// Sólo se consideran bloqueos que estén POR DELANTE del borde de avance
-    /// actual de la bola. Es la diferencia entre rebotar y quedarse pegado:
+    /// current de la bola. Es la diferencia entre rebotar y quedarse pegado:
     /// tras un rebote la bola queda apoyada justo contra la celda (su borde
     /// toca la frontera), y si el barrido siguiente volviera a mirar esa misma
     /// celda la daría por bloqueante otra vez, invirtiendo la velocidad cada
-    /// frame (vibración) o empujándola al otro lado (atravesar el muro).
+    /// frame (vibración) o empujándola al other lado (atravesar el muro).
     /// Lo mismo ocurre cuando un muro se consolida DETRÁS de la bola: no debe
     /// empujarla ni invertir su sentido, sólo frenar lo que tenga delante.
     fn move_axis(&mut self, grid: &Grid, is_x: bool, dt: f32) {
@@ -124,7 +124,7 @@ impl Ball {
         let along = current + velocity * dt;
 
         // Borde de ataque: el lado de la bola que avanza, antes y después.
-        // Todo bloqueo que no esté estrictamente por delante del borde actual
+        // Todo bloqueo que no esté estrictamente por delante del borde current
         // se ignora (ya lo hemos dejado atrás o estamos apoyados en él).
         let (lead_now, lead_next) = if velocity > 0.0 {
             (current + self.radius, along + self.radius)
@@ -136,11 +136,11 @@ impl Ball {
         //
         // Se encoge por EPS en ambos extremos a propósito. Tras rebotar, la
         // bola queda apoyada con su borde EXACTAMENTE sobre una frontera de
-        // celda (p. ej. x + radio == 20.0 en una arena de 20 de ancho). Sin
+        // celda (p. ej. x + radio == 20.0 en una arena de 20 de width). Sin
         // este encogimiento, `floor()` de ese borde devuelve la celda de más
         // allá del muro —fuera de la rejilla, o el propio muro— y el eje
         // PERPENDICULAR la interpreta como bloqueo: la bola rebota también en
-        // el otro eje y sale despedida por donde vino, como si hubiera
+        // el other eje y sale despedida por donde vino, como si hubiera
         // chocado en una esquina estando en mitad de una pared plana.
         // Encogiendo el rango sólo se consideran las celdas que la bola
         // solapa DE VERDAD, no las que toca de forma tangente.

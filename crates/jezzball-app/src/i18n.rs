@@ -1,8 +1,8 @@
 //! Internacionalización.
 //!
-//! Todos los textos visibles viven en ficheros de idioma
-//! (`assets/i18n/<código>.ron`), nunca escritos dentro de la lógica. Añadir un
-//! idioma nuevo es añadir un fichero: no se toca ni el motor ni las pantallas.
+//! Todos los texts visible viven en ficheros de language
+//! (`assets/i18n/<código>.ron`), nunca escritos inside de la lógica. Añadir un
+//! language nuevo es añadir un fichero: no se toca ni el motor ni las pantallas.
 //!
 //! Decisiones:
 //!
@@ -10,89 +10,89 @@
 //!   debe funcionar aunque se copie el ejecutable suelto, sin depender de que
 //!   `assets/` esté instalado; los ficheros siguen siendo editables en el
 //!   repositorio, que es lo que importa para mantenerlos y traducirlos.
-//! * **Clave ausente = se devuelve la clave**. Nunca se panica ni se deja un
+//! * **Clave ausente = se devuelve la key**. Nunca se panica ni se deja un
 //!   hueco en blanco: una traducción incompleta degrada a texto visible, y el
 //!   test de cobertura obliga a completarla.
-//! * El idioma se resuelve una vez al arrancar y se guarda en `OnceLock`.
+//! * El language se resuelve una vez al arrancar y se guarda en `OnceLock`.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
 /// Idiomas incluidos. Para añadir uno: crear `assets/i18n/<código>.ron`,
 /// añadir la entrada aquí y listo.
-pub const CATALOGOS: &[(&str, &str)] = &[
+pub const CATALOGS: &[(&str, &str)] = &[
     ("es", include_str!("../../../assets/i18n/es.ron")),
     ("en", include_str!("../../../assets/i18n/en.ron")),
 ];
 
 /// Idioma por defecto si no se reconoce ninguno del entorno.
-pub const IDIOMA_POR_DEFECTO: &str = "es";
+pub const DEFAULT_LANGUAGE: &str = "es";
 
-static ACTIVO: OnceLock<Catalogo> = OnceLock::new();
+static ACTIVO: OnceLock<Catalog> = OnceLock::new();
 
-/// Catálogo de textos de un idioma.
+/// Catálogo de texts de un language.
 #[derive(Debug, Clone)]
-pub struct Catalogo {
-    /// Código del idioma cargado ("es", "en"...). Lo consultan los tests de
+pub struct Catalog {
+    /// Código del language cargado ("es", "en"...). Lo consultan los tests de
     /// cobertura y es útil para diagnóstico.
     #[allow(dead_code)]
-    pub codigo: String,
-    textos: HashMap<String, String>,
+    pub code: String,
+    texts: HashMap<String, String>,
 }
 
-impl Catalogo {
-    /// Texto de una clave. Si falta, devuelve la propia clave: visible y
+impl Catalog {
+    /// Texto de una key. Si falta, devuelve la propia key: visible y
     /// rastreable, en lugar de un hueco vacío o un panic.
     ///
     /// El juego usa `t()`, que devuelve `&'static str`; este método existe
     /// para consultar un catálogo concreto (comparar idiomas en los tests).
     #[allow(dead_code)]
-    pub fn get<'a>(&'a self, clave: &'a str) -> &'a str {
-        self.textos.get(clave).map(|s| s.as_str()).unwrap_or(clave)
+    pub fn get<'a>(&'a self, key: &'a str) -> &'a str {
+        self.texts.get(key).map(|s| s.as_str()).unwrap_or(key)
     }
 
     #[allow(dead_code)]
-    pub fn claves(&self) -> impl Iterator<Item = &String> {
-        self.textos.keys()
+    pub fn keys(&self) -> impl Iterator<Item = &String> {
+        self.texts.keys()
     }
 
     #[allow(dead_code)]
     pub fn len(&self) -> usize {
-        self.textos.len()
+        self.texts.len()
     }
 
     #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
-        self.textos.is_empty()
+        self.texts.is_empty()
     }
 }
 
-/// Parsea un catálogo RON (`{"clave": "texto", ...}`).
-pub fn parsear(codigo: &str, fuente: &str) -> Option<Catalogo> {
-    let textos: HashMap<String, String> = ron::from_str(fuente).ok()?;
-    Some(Catalogo {
-        codigo: codigo.to_string(),
-        textos,
+/// Parsea un catálogo RON (`{"key": "texto", ...}`).
+pub fn parse(code: &str, fuente: &str) -> Option<Catalog> {
+    let texts: HashMap<String, String> = ron::from_str(fuente).ok()?;
+    Some(Catalog {
+        code: code.to_string(),
+        texts,
     })
 }
 
-/// Busca el catálogo de un código de idioma concreto.
-pub fn catalogo_de(codigo: &str) -> Option<Catalogo> {
-    CATALOGOS
+/// Busca el catálogo de un código de language concreto.
+pub fn catalog_for(code: &str) -> Option<Catalog> {
+    CATALOGS
         .iter()
-        .find(|(c, _)| *c == codigo)
-        .and_then(|(c, fuente)| parsear(c, fuente))
+        .find(|(c, _)| *c == code)
+        .and_then(|(c, fuente)| parse(c, fuente))
 }
 
-/// Resuelve el idioma a partir del entorno, en orden de prioridad:
+/// Resuelve el language a partir del entorno, en orden de prioridad:
 ///
 /// 1. `OMARCHY_JEZZBALL_LANG` — escotilla explícita del juego.
 /// 2. `LC_ALL`, `LC_MESSAGES`, `LANG` — configuración estándar de POSIX.
-/// 3. `IDIOMA_POR_DEFECTO`.
+/// 3. `DEFAULT_LANGUAGE`.
 ///
 /// De `es_MX.UTF-8` se queda con `es`. Función pura para poder testearla sin
 /// tocar el entorno del proceso.
-pub fn resolver_codigo(vars: &[(&str, Option<String>)]) -> String {
+pub fn resolve_code(vars: &[(&str, Option<String>)]) -> String {
     for (_, valor) in vars {
         let Some(v) = valor else { continue };
         let v = v.trim();
@@ -100,51 +100,51 @@ pub fn resolver_codigo(vars: &[(&str, Option<String>)]) -> String {
             continue;
         }
         // "es_MX.UTF-8" -> "es"
-        let codigo: String = v
+        let code: String = v
             .split(['_', '.', '@'])
             .next()
             .unwrap_or("")
             .to_ascii_lowercase();
-        if CATALOGOS.iter().any(|(c, _)| *c == codigo) {
-            return codigo;
+        if CATALOGS.iter().any(|(c, _)| *c == code) {
+            return code;
         }
     }
-    IDIOMA_POR_DEFECTO.to_string()
+    DEFAULT_LANGUAGE.to_string()
 }
 
-/// Lee el entorno real y resuelve el idioma.
-fn codigo_del_entorno() -> String {
+/// Lee el entorno real y resuelve el language.
+fn code_from_env() -> String {
     let vars: Vec<(&str, Option<String>)> =
         ["OMARCHY_JEZZBALL_LANG", "LC_ALL", "LC_MESSAGES", "LANG"]
             .iter()
             .map(|k| (*k, std::env::var(k).ok()))
             .collect();
-    resolver_codigo(&vars)
+    resolve_code(&vars)
 }
 
-/// Catálogo activo, resuelto una sola vez.
-pub fn activo() -> &'static Catalogo {
+/// Catálogo active, resuelto una sola vez.
+pub fn active() -> &'static Catalog {
     ACTIVO.get_or_init(|| {
-        let codigo = codigo_del_entorno();
-        catalogo_de(&codigo)
-            .or_else(|| catalogo_de(IDIOMA_POR_DEFECTO))
-            .unwrap_or_else(|| Catalogo {
-                codigo: "vacio".to_string(),
-                textos: HashMap::new(),
+        let code = code_from_env();
+        catalog_for(&code)
+            .or_else(|| catalog_for(DEFAULT_LANGUAGE))
+            .unwrap_or_else(|| Catalog {
+                code: "vacio".to_string(),
+                texts: HashMap::new(),
             })
     })
 }
 
-/// Traduce una clave con el catálogo activo.
+/// Traduce una key con el catálogo active.
 ///
 /// Devuelve `&'static str` porque el catálogo vive en un `OnceLock` durante
-/// toda la ejecución; si la clave falta, se devuelve la propia clave (que es
+/// toda la ejecución; si la key falta, se devuelve la propia key (que es
 /// un literal del código, también `'static`).
-pub fn t(clave: &'static str) -> &'static str {
-    let cat: &'static Catalogo = activo();
-    match cat.textos.get(clave) {
+pub fn t(key: &'static str) -> &'static str {
+    let cat: &'static Catalog = active();
+    match cat.texts.get(key) {
         Some(s) => s.as_str(),
-        None => clave,
+        None => key,
     }
 }
 
@@ -153,72 +153,72 @@ mod tests {
     use super::*;
 
     #[test]
-    fn todos_los_catalogos_parsean() {
-        for (codigo, fuente) in CATALOGOS {
-            let cat = parsear(codigo, fuente)
-                .unwrap_or_else(|| panic!("el catalogo '{codigo}' no parsea"));
-            assert!(!cat.is_empty(), "el catalogo '{codigo}' esta vacio");
+    fn every_catalog_parses() {
+        for (code, fuente) in CATALOGS {
+            let cat =
+                parse(code, fuente).unwrap_or_else(|| panic!("el catalogo '{code}' no parsea"));
+            assert!(!cat.is_empty(), "el catalogo '{code}' esta vacio");
         }
     }
 
     #[test]
-    fn todos_los_idiomas_tienen_las_mismas_claves() {
-        // Una traduccion incompleta deja texto en el idioma equivocado (o la
-        // clave cruda) delante del jugador. Se compara contra el idioma de
-        // referencia para que no pase inadvertido.
-        let referencia = catalogo_de(IDIOMA_POR_DEFECTO).expect("catalogo de referencia");
-        for (codigo, _) in CATALOGOS {
-            if *codigo == IDIOMA_POR_DEFECTO {
+    fn every_language_has_the_same_keys() {
+        // Una traduccion incompleta deja texto en el language equivocado (o la
+        // key cruda) delante del jugador. Se compara contra el language de
+        // reference para que no pase inadvertido.
+        let reference = catalog_for(DEFAULT_LANGUAGE).expect("catalogo de reference");
+        for (code, _) in CATALOGS {
+            if *code == DEFAULT_LANGUAGE {
                 continue;
             }
-            let otro = catalogo_de(codigo).expect("catalogo");
-            let faltan: Vec<&String> = referencia
-                .claves()
-                .filter(|k| otro.get(k) == k.as_str())
+            let other = catalog_for(code).expect("catalogo");
+            let missing: Vec<&String> = reference
+                .keys()
+                .filter(|k| other.get(k) == k.as_str())
                 .collect();
             assert!(
-                faltan.is_empty(),
-                "al idioma '{codigo}' le faltan {} claves: {:?}",
-                faltan.len(),
-                &faltan[..faltan.len().min(10)]
+                missing.is_empty(),
+                "al language '{code}' le missing {} keys: {:?}",
+                missing.len(),
+                &missing[..missing.len().min(10)]
             );
-            let sobran: Vec<&String> = otro
-                .claves()
-                .filter(|k| referencia.get(k) == k.as_str())
+            let extra: Vec<&String> = other
+                .keys()
+                .filter(|k| reference.get(k) == k.as_str())
                 .collect();
             assert!(
-                sobran.is_empty(),
-                "el idioma '{codigo}' tiene claves que no existen en '{IDIOMA_POR_DEFECTO}': {:?}",
-                &sobran[..sobran.len().min(10)]
+                extra.is_empty(),
+                "el language '{code}' tiene keys que no existen en '{DEFAULT_LANGUAGE}': {:?}",
+                &extra[..extra.len().min(10)]
             );
         }
     }
 
     #[test]
-    fn clave_desconocida_devuelve_la_propia_clave() {
-        let cat = catalogo_de("es").unwrap();
-        assert_eq!(cat.get("no.existe.esta.clave"), "no.existe.esta.clave");
+    fn unknown_key_returns_the_key_itself() {
+        let cat = catalog_for("es").unwrap();
+        assert_eq!(cat.get("no.existe.esta.key"), "no.existe.esta.key");
     }
 
     #[test]
-    fn resuelve_el_idioma_del_entorno() {
+    fn resolves_the_language_from_the_env() {
         let v = |s: &str| vec![("LANG", Some(s.to_string()))];
-        assert_eq!(resolver_codigo(&v("es_MX.UTF-8")), "es");
-        assert_eq!(resolver_codigo(&v("en_US.UTF-8")), "en");
-        assert_eq!(resolver_codigo(&v("en")), "en");
+        assert_eq!(resolve_code(&v("es_MX.UTF-8")), "es");
+        assert_eq!(resolve_code(&v("en_US.UTF-8")), "en");
+        assert_eq!(resolve_code(&v("en")), "en");
         // Idioma sin catalogo -> por defecto.
-        assert_eq!(resolver_codigo(&v("fr_FR.UTF-8")), IDIOMA_POR_DEFECTO);
+        assert_eq!(resolve_code(&v("fr_FR.UTF-8")), DEFAULT_LANGUAGE);
         // "C"/"POSIX" no son idiomas reales.
-        assert_eq!(resolver_codigo(&v("C")), IDIOMA_POR_DEFECTO);
-        assert_eq!(resolver_codigo(&[]), IDIOMA_POR_DEFECTO);
+        assert_eq!(resolve_code(&v("C")), DEFAULT_LANGUAGE);
+        assert_eq!(resolve_code(&[]), DEFAULT_LANGUAGE);
     }
 
     #[test]
-    fn la_escotilla_del_juego_gana_al_locale_del_sistema() {
+    fn the_game_override_wins_over_the_system_locale() {
         let vars = vec![
             ("OMARCHY_JEZZBALL_LANG", Some("en".to_string())),
             ("LANG", Some("es_MX.UTF-8".to_string())),
         ];
-        assert_eq!(resolver_codigo(&vars), "en");
+        assert_eq!(resolve_code(&vars), "en");
     }
 }

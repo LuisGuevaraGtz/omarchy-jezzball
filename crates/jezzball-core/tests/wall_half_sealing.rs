@@ -85,15 +85,15 @@ fn la_mitad_anclada_en_la_pared_es_inmune() {
     }
 
     // Y no debe figurar como vulnerable.
-    let vulnerables = st.builders[0].vulnerable_cells(&st.arena.grid);
+    let vulnerable = st.builders[0].vulnerable_cells(&st.arena.grid);
     for y in 0..2u16 {
         assert!(
-            !vulnerables.contains(&(10, y)),
+            !vulnerable.contains(&(10, y)),
             "la celda (10, {y}) sigue siendo vulnerable pese a estar anclada"
         );
     }
     assert!(
-        !vulnerables.is_empty(),
+        !vulnerable.is_empty(),
         "la mitad que aun crece deberia ser vulnerable"
     );
 }
@@ -147,7 +147,7 @@ fn al_golpear_la_mitad_viva_sobrevive_la_anclada() {
 /// Cuando ambos frentes llegan a su límite, el muro se consolida y parte el
 /// área como siempre (no rompemos el comportamiento existente).
 #[test]
-fn con_ambas_mitades_ancladas_el_muro_parte_el_area() {
+fn with_both_halves_anchored_the_wall_splits_the_area() {
     // Las dos bolas viven a la derecha; el muro vertical en la columna 8
     // debe cerrar la franja izquierda.
     let st = GameState::new(spec(
@@ -205,7 +205,7 @@ fn con_ambas_mitades_ancladas_el_muro_parte_el_area() {
 
 /// Un muro horizontal se comporta igual (la regla no depende del eje).
 #[test]
-fn la_regla_vale_para_muros_horizontales() {
+fn the_rule_holds_for_horizontal_walls() {
     let st = GameState::new(spec(40, 30, vec![bola(30.0, 25.0, 0.5, 0.5)], 6.0));
     let (st, _) = step(
         &st,

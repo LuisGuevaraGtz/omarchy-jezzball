@@ -2,7 +2,7 @@
 //!
 //! Es el corazón del JezzBall: al consolidarse un muro, las regiones sin bola
 //! se cierran. Un fallo aquí se nota inmediatamente al jugar (área que no se
-//! cierra, o que se cierra con una bola dentro).
+//! cierra, o que se cierra con una bola inside).
 
 use jezzball_core::grid::Cell;
 use jezzball_core::level::{
@@ -68,7 +68,7 @@ fn hasta_consolidar(mut st: GameState, max_frames: usize) -> (GameState, bool) {
 
 /// Una región sin bolas se cierra por completo; la que tiene bola, no.
 #[test]
-fn cierra_solo_la_region_sin_bolas() {
+fn closes_only_the_region_without_balls() {
     // Arena 40x20. Las dos bolas viven en la MITAD DERECHA (x > 20).
     let spec = spec_con(
         40,
@@ -115,14 +115,14 @@ fn cierra_solo_la_region_sin_bolas() {
     }
     assert!(
         der_abiertas > 200,
-        "la mitad derecha se cerro con bolas dentro: solo {der_abiertas} abiertas"
+        "la mitad derecha se cerro con bolas inside: solo {der_abiertas} abiertas"
     );
 }
 
-/// Ninguna bola puede acabar dentro de una celda cerrada. Es la invariante
+/// Ninguna bola puede acabar inside de una celda cerrada. Es la invariante
 /// más importante del cierre: si se rompe, la bola queda enterrada.
 #[test]
-fn ninguna_bola_queda_dentro_de_celda_cerrada() {
+fn no_ball_ends_up_inside_a_closed_cell() {
     let spec = spec_con(
         40,
         24,

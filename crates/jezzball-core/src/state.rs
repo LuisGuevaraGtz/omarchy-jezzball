@@ -6,7 +6,7 @@
 //!
 //! Orden de orquestación impuesto por el contrato (comentado en cada paso):
 //!   a) aplicar input del jugador
-//!   b) power-ups temporizados sobre dt (SlowMotion escala, Freeze anula)
+//!   b) power-ups temporizados sobre dt (SlowMotion scale, Freeze anula)
 //!   c) integrar bolas con substeps (rebote por ejes separados)
 //!   d) avanzar los frentes de los builders
 //!   e) impacto bola <-> muro en construcción (escudo o vida)
@@ -192,7 +192,7 @@ pub fn step(state: &GameState, input: PlayerInput, dt: f32) -> (GameState, Vec<G
     destroy_builders_from_cells(&mut s, &mover_cells, &mut events);
 
     // b) Power-ups temporizados: aquí decidimos el `dt` efectivo de las bolas.
-    //    SlowMotion lo escala a ×0.5; Freeze lo anula. Los frentes de muro
+    //    SlowMotion lo scale a ×0.5; Freeze lo anula. Los frentes de muro
     //    usan siempre el `dt` real.
     let ball_dt = advance_timed_powerups(&mut s, dt);
 
@@ -259,7 +259,7 @@ fn spawn_balls(spawns: &[crate::level::BallSpawn], grid: &Grid) -> Vec<Ball> {
 /// `materialize_maze` reproduce el algoritmo pero con OTRO generador de
 /// números aleatorios (`Rng64`, xorshift). Dos RNG distintos => dos
 /// laberintos distintos => un spawn que el generador creía abierto puede
-/// caer dentro de un muro `Solid` (o fuera de la arena). En vez de replicar
+/// caer inside de un muro `Solid` (o fuera de la arena). En vez de replicar
 /// el RNG de Python (que acoplaría el motor a un script externo y seguiría
 /// rompiéndose al cambiar cualquiera de los dos), el motor defiende el
 /// invariante: si el spawn no cae en una celda `Open`, se busca en anchura
@@ -360,7 +360,7 @@ fn start_wall(s: &mut GameState, cell: (u16, u16), axis: WallAxis, events: &mut 
     events.push(GameEvent::WallStarted);
 }
 
-/// Usa un power-up del inventario si está disponible (ARCHITECTURE.md §9).
+/// Usa un power-up del inventario si está available (ARCHITECTURE.md §9).
 fn use_powerup(s: &mut GameState, kind: PowerUpKind, events: &mut Vec<GameEvent>) {
     // Modo Original: sin power-ups (un solo camino de código con guardas).
     if s.level.purist {
@@ -521,8 +521,8 @@ fn destroy_builders_from_cells(
     s.builders.retain(|builder| {
         // Igual que con las bolas: un Mover sólo puede romper las mitades que
         // siguen creciendo, no la que ya se selló contra la pared.
-        let vulnerables = builder.vulnerable_cells(&s.arena.grid);
-        let hit = vulnerables.iter().any(|c| occupied.contains(c));
+        let vulnerable = builder.vulnerable_cells(&s.arena.grid);
+        let hit = vulnerable.iter().any(|c| occupied.contains(c));
         if hit {
             events.push(GameEvent::WallBlocked);
         }
@@ -533,13 +533,13 @@ fn destroy_builders_from_cells(
 /// Sella las mitades de muro que ya alcanzaron su límite.
 ///
 /// Regla del JezzBall original: cuando un frente toca una pared (o un muro
-/// previo), esa mitad "se convierte" y deja de estar en riesgo. Aquí se
+/// prev), esa mitad "se convierte" y deja de estar en riesgo. Aquí se
 /// vuelca a la rejilla como `Filled` y se marca `*_sealed`, de modo que
 /// `vulnerable_cells` deja de incluirla y una bola que la toque no cuesta
-/// nada — igual que cualquier otro muro ya consolidado.
+/// nada — igual que cualquier other muro ya consolidado.
 fn seal_finished_halves(s: &mut GameState) {
     // Una mitad no se sella sobre la celda que ocupa una bola: la encerraría
-    // dentro del muro. En esa situación se espera al frame siguiente (la bola
+    // inside del muro. En esa situación se espera al frame siguiente (la bola
     // se habrá movido, o habrá roto el frente en `wall_impacts`).
     let ocupadas: Vec<(u16, u16)> = s
         .balls
@@ -592,7 +592,7 @@ fn wall_impacts(s: &mut GameState, events: &mut Vec<GameEvent>) {
         }
         let mut shielded = s.builders[bi].shielded;
         for ball in &s.balls {
-            // AABB barrido entre posiciones previa y actual (anti-túnel).
+            // AABB barrido entre posiciones previa y current (anti-túnel).
             let min_x = ball.prev.x.min(ball.pos.x) - ball.radius;
             let max_x = ball.prev.x.max(ball.pos.x) + ball.radius;
             let min_y = ball.prev.y.min(ball.pos.y) - ball.radius;

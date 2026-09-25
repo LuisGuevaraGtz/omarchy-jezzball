@@ -52,7 +52,7 @@ fn frente_lo_no_atraviesa_obstaculo_con_paso_grande() {
 
 /// Un frente jamás debe cubrir una celda que no sea transitable para muros.
 #[test]
-fn las_celdas_cubiertas_son_siempre_validas() {
+fn covered_cells_are_always_valid() {
     let mut g = Grid::new(30, 30);
     // Un tablero con obstáculos dispersos.
     for i in 0..30 {
@@ -84,7 +84,7 @@ fn las_celdas_cubiertas_son_siempre_validas() {
 /// Un muro en una arena totalmente abierta debe llegar a ambos bordes y
 /// cubrir la fila completa.
 #[test]
-fn muro_en_arena_abierta_cubre_toda_la_linea() {
+fn wall_in_open_arena_covers_the_whole_line() {
     let g = Grid::new(20, 12);
     let mut b = WallBuilder::new(WallAxis::Vertical, (10, 6), 25.0, false);
     for _ in 0..600 {

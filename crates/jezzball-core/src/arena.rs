@@ -279,7 +279,7 @@ fn materialize_maze(
 
     // Vértices del laberinto en coordenadas impares: (2i+1, 2j+1). El
     // número de vértices por dimensión es `w/2` (división entera): la cota
-    // `(w+1).div_ceil(2)` producía un vértice extra en arenas de ancho/alto
+    // `(w+1).div_ceil(2)` producía un vértice extra en arenas de width/height
     // par cuyo centro `2i+1 >= w` escribía fuera de la rejilla (pánico en
     // `Grid::set` al construir los niveles Maze 52/55/58 de Enhanced).
     let cols = wu / 2;

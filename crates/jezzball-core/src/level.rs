@@ -8,7 +8,7 @@
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LevelSpec {
-    pub id: u16,      // 1-based, único dentro del modo
+    pub id: u16,      // 1-based, único inside del modo
     pub name: String, // corto, mostrable en HUD
     pub world: u8,    // 0 = Original; 1..=6 = mundos Enhanced
     pub kind: LevelKind,
@@ -46,8 +46,8 @@ pub struct ArenaSpec {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ArenaShape {
     Rect,                     // rectángulo estándar
-    Wide,                     // ratio ancho
-    Tall,                     // ratio alto
+    Wide,                     // ratio width
+    Tall,                     // ratio height
     Irregular { notch: u16 }, // esquinas recortadas de `notch` celdas
     Circle,                   // elipse inscrita; fuera = Solid
     Maze { density: u8 },     // 0..=100, corredores generados por `seed`

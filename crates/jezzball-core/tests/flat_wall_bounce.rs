@@ -84,7 +84,7 @@ fn pared_horizontal_inferior_invierte_solo_vy() {
 
 /// Muro INTERIOR consolidado (no el borde de la arena): mismo criterio.
 #[test]
-fn muro_interior_vertical_invierte_solo_vx() {
+fn inner_vertical_wall_flips_only_vx() {
     let mut g = arena();
     for y in 0..20 {
         g.set(14, y, Cell::Filled);

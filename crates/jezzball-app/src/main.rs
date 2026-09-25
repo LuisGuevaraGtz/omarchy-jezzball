@@ -24,21 +24,21 @@ mod theme;
 /// INESTABLE ("The Wayland implementation is currently unstable"), así que
 /// preferimos X11 —que bajo Hyprland funciona vía XWayland— y dejamos Wayland
 /// como alternativa para sistemas sin XWayland instalado. Lo contrario
-/// (Wayland primero) suena más puro pero apuesta el arranque del juego a un
+/// (Wayland first) suena más puro pero apuesta el arranque del juego a un
 /// backend que sus propios autores marcan como inestable.
 ///
 /// Se puede forzar con la variable `OMARCHY_JEZZBALL_BACKEND`:
 ///   `x11`, `wayland`, `x11-first` (por defecto) o `wayland-first`.
 ///
 /// Aquí también atendemos `--help`: `#[macroquad::main]` llama a esta función
-/// y abre la ventana ANTES de ejecutar el cuerpo de `main`, así que imprimir
+/// y abre la ventana ANTES de ejecutar el body de `main`, así que imprimir
 /// la ayuda desde `main` exigiría un servidor gráfico. Un `--help` que solo
 /// funciona con pantalla no es ayuda; por eso salimos aquí mismo.
 fn window_conf() -> Conf {
     // El hook se instala AQUÍ, no en `main`: `#[macroquad::main]` llama a esta
-    // función y abre la ventana ANTES de ejecutar el cuerpo de `main`, así que
+    // función y abre la ventana ANTES de ejecutar el body de `main`, así que
     // un fallo al crear la ventana (el caso más común: no hay servidor
-    // gráfico disponible) ocurriría sin hook y sin dejar rastro en disco.
+    // gráfico available) ocurriría sin hook y sin dejar rastro en disco.
     instalar_hook_de_panico();
 
     if std::env::args().skip(1).any(|a| a == "--help" || a == "-h") {
@@ -60,7 +60,7 @@ fn window_conf() -> Conf {
     }
 }
 
-/// Backend de ventana según `OMARCHY_JEZZBALL_BACKEND`, con X11 primero por
+/// Backend de ventana según `OMARCHY_JEZZBALL_BACKEND`, con X11 first por
 /// defecto (ver la nota de `window_conf`).
 fn linux_backend_from_env() -> miniquad::conf::LinuxBackend {
     use miniquad::conf::LinuxBackend as B;
@@ -175,12 +175,12 @@ fn parse_args() -> (Option<Mode>, Option<u16>, bool) {
 #[macroquad::main(window_conf)]
 async fn main() {
     // `--help` ya se atendió en `window_conf` (ver nota allí): la macro de
-    // macroquad abre la ventana ANTES de ejecutar este cuerpo, así que la
+    // macroquad abre la ventana ANTES de ejecutar este body, así que la
     // ayuda no puede imprimirse aquí sin exigir un servidor gráfico.
     let (mode, level, _help) = parse_args();
 
     // El hook de panic ya se instaló en `window_conf` (se ejecuta antes que
-    // este cuerpo). Aquí sólo protegemos el bucle de juego.
+    // este body). Aquí sólo protegemos el bucle de juego.
 
     let mut app = App::new();
     crate::screens::launch(&mut app, mode, level);
@@ -188,7 +188,7 @@ async fn main() {
     loop {
         let dt = get_frame_time().min(1.0 / 30.0);
 
-        // Un panic dentro de `update` no debe cerrar el juego en seco: se
+        // Un panic inside de `update` no debe cerrar el juego en seco: se
         // guarda la partida y se sale de forma ordenada.
         let tick = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             update(&mut app, dt);
@@ -221,6 +221,6 @@ Usa: omarchy-jezzball [--mode original|enhanced] [--level N] [--help]
 
 Controles en partida: flechas/k/j navegar, enter/espacio elegir,
 espacio pausa, R reiniciar, TAB eje, 1..5 power-ups, F HUD compacto,
-Q salir, ESC menu; raton: boton izq = eje actual, boton der = opuesto."
+Q salir, ESC menu; raton: boton izq = eje current, boton der = opuesto."
     );
 }

@@ -142,9 +142,9 @@ pub struct App {
     /// niveles la lista se salía de la pantalla y no se veía la selección.
     pub list_top: usize,
     /// Filas de lista que caben en pantalla. Lo refresca el bucle de render
-    /// (unico sitio que conoce el alto real de la ventana) y lo consume la
+    /// (unico sitio que conoce el height real de la ventana) y lo consume la
     /// logica de desplazamiento, que asi no depende de macroquad.
-    pub filas_visibles: usize,
+    pub visible_rows: usize,
 }
 
 impl App {
@@ -158,7 +158,7 @@ impl App {
             }
             eprintln!(
                 "Define OMARCHY_JEZZBALL_ASSETS con el directorio que contiene 'levels/' \
-                 para indicar la ruta a mano."
+                 para indicar la path a mano."
             );
         }
         let save = load_save();
@@ -198,7 +198,7 @@ impl App {
             results_wait: RESULTS_WAIT,
             help_page: 0,
             list_top: 0,
-            filas_visibles: 12,
+            visible_rows: 12,
         };
         open_menu(&mut app);
         app
@@ -255,7 +255,7 @@ fn load_levels() -> (Levels, Vec<PathBuf>) {
     (levels, dirs)
 }
 
-/// Directorio del binario activo (`std::env::current_exe()`), o `None` si el
+/// Directorio del binario active (`std::env::current_exe()`), o `None` si el
 /// SO no lo puede resolver (nunca panic).
 fn current_exe_dir() -> Option<PathBuf> {
     std::env::current_exe()
@@ -296,12 +296,12 @@ fn level_candidates(
     out.push(PathBuf::from("/usr/share/omarchy-jezzball/levels"));
     out.push(PathBuf::from("assets/levels"));
     // Con ~/.local (install.sh) los candidatos 3 y 4 convergen en la misma
-    // ruta: se coleapsa para que el diagnóstico no repita directorios.
+    // path: se coleapsa para que el diagnóstico no repita directorios.
     out.dedup();
     out
 }
 
-/// Colapsa `.` y `..` redundantes de una ruta (puro, nunca hace I/O).
+/// Colapsa `.` y `..` redundantes de una path (puro, nunca hace I/O).
 fn normalize_path(p: &Path) -> PathBuf {
     use std::path::Component;
     let mut out = PathBuf::new();
@@ -421,10 +421,10 @@ fn open_selector(app: &mut App, mode: Mode) {
     app.menu_items = items;
     // Arrancar en el primer nivel jugable, no en el 1 si ya está superado:
     // con 61 niveles, abrir siempre arriba obliga a bajar decenas de veces.
-    let primero = app.menu_items.iter().position(|i| i.enabled).unwrap_or(0);
-    app.select = primero;
+    let first = app.menu_items.iter().position(|i| i.enabled).unwrap_or(0);
+    app.select = first;
     app.list_top = 0;
-    ajustar_ventana(app);
+    adjust_scroll_window(app);
     app.nav = NavRepeat::default();
 }
 
@@ -447,38 +447,38 @@ fn nav_menu(app: &mut App, dt: f32) {
                 guard += 1;
             }
             app.select = sel.clamp(0, n as i64 - 1) as usize;
-            ajustar_ventana(app);
+            adjust_scroll_window(app);
         }
     }
 }
 
-/// Filas de lista visibles, para la lógica de desplazamiento.
+/// Filas de lista visible, para la lógica de desplazamiento.
 ///
 /// No puede preguntarle al render: `screen_height()` de macroquad panica si no
 /// hay ventana, y eso hacía imposible testear el scroll. El render usa esta
 /// misma función, así que ambos cuentan lo mismo.
-pub fn filas_visibles_para(alto: f32, escala: f32) -> usize {
-    let row = 30.0 * escala;
-    let disponible = (alto - 170.0 * escala - 20.0 * escala - 24.0 * escala).max(row);
-    ((disponible / row).floor() as usize).max(1)
+pub fn visible_rows_for(height: f32, scale: f32) -> usize {
+    let row = 30.0 * scale;
+    let available = (height - 170.0 * scale - 20.0 * scale - 24.0 * scale).max(row);
+    ((available / row).floor() as usize).max(1)
 }
 
-/// Mantiene `list_top` de forma que `select` quede siempre dentro de la
+/// Mantiene `list_top` de forma que `select` quede siempre inside de la
 /// ventana visible de la lista. Sin esto, con 61 niveles el jugador movía la
 /// selección fuera de la pantalla y seguía viendo los primeros niveles.
-fn ajustar_ventana(app: &mut App) {
-    let visibles = app.filas_visibles;
+fn adjust_scroll_window(app: &mut App) {
+    let visible = app.visible_rows;
     let n = app.menu_items.len();
-    if n <= visibles {
+    if n <= visible {
         app.list_top = 0;
         return;
     }
     if app.select < app.list_top {
         app.list_top = app.select;
-    } else if app.select >= app.list_top + visibles {
-        app.list_top = app.select + 1 - visibles;
+    } else if app.select >= app.list_top + visible {
+        app.list_top = app.select + 1 - visible;
     }
-    app.list_top = app.list_top.min(n - visibles);
+    app.list_top = app.list_top.min(n - visible);
 }
 
 /// Progreso persistido por modo, para el menú.
@@ -506,7 +506,7 @@ fn is_unlocked(app: &App, mode: Mode, idx: u16) -> bool {
     if app.levels.list(mode).is_empty() {
         return false;
     }
-    // En Original (purist, 10 niveles) la progresión es estricta: nivel previo
+    // En Original (purist, 10 niveles) la progresión es estricta: nivel prev
     // completado, salvo que el modo ya se haya terminado (rejugar libre).
     if mode == Mode::Original {
         if original_mode_completed(app) {
@@ -645,10 +645,10 @@ pub fn launch(app: &mut App, mode: Option<Mode>, level: Option<u16>) {
 pub fn update(app: &mut App, dt: f32) {
     app.frame = crate::input::sample_frame();
     app.mouse_pos = (app.frame.mouse.x, app.frame.mouse.y);
-    // El alto de la ventana puede cambiar (redimensionar, pantalla completa),
-    // así que la cuenta de filas visibles se refresca cada frame aquí, donde
+    // El height de la ventana puede cambiar (redimensionar, pantalla completa),
+    // así que la cuenta de filas visible se refresca cada frame aquí, donde
     // sí hay ventana, y la lógica de scroll la consume sin tocar macroquad.
-    app.filas_visibles = crate::render::menu::filas_visibles();
+    app.visible_rows = crate::render::menu::visible_rows();
 
     if app.quit_confirm {
         update_quit_confirm(app);
@@ -697,18 +697,18 @@ fn update_menu(app: &mut App, dt: f32) {
     }
 }
 
-/// Páginas de la ayuda. El contenido vive en los catálogos de idioma
-/// (`assets/i18n/*.ron`), no aquí: añadir un idioma no toca este código.
+/// Páginas de la ayuda. El contents vive en los catálogos de language
+/// (`assets/i18n/*.ron`), no aquí: añadir un language no toca este código.
 pub const HELP_PAGES: usize = 4;
 
-/// Título y cuerpo de una página de ayuda, traducidos.
+/// Título y body de una página de ayuda, traducidos.
 /// Las líneas que empiezan por "# " son subtítulos y el render las resalta.
 pub fn help_page(n: usize) -> (&'static str, Vec<&'static str>) {
     let (kt, kc) = match n {
-        0 => ("ayuda.p1.titulo", "ayuda.p1.cuerpo"),
-        1 => ("ayuda.p2.titulo", "ayuda.p2.cuerpo"),
-        2 => ("ayuda.p3.titulo", "ayuda.p3.cuerpo"),
-        _ => ("ayuda.p4.titulo", "ayuda.p4.cuerpo"),
+        0 => ("ayuda.p1.title", "ayuda.p1.body"),
+        1 => ("ayuda.p2.title", "ayuda.p2.body"),
+        2 => ("ayuda.p3.title", "ayuda.p3.body"),
+        _ => ("ayuda.p4.title", "ayuda.p4.body"),
     };
     (crate::i18n::t(kt), crate::i18n::t(kc).lines().collect())
 }
@@ -843,7 +843,7 @@ fn update_playing(app: &mut App, dt: f32) {
         let left = app.frame.mouse.left;
         let right = app.frame.mouse.right;
         if (left || right) && !app.state.builders.is_empty() {
-            // Con el muro en construcción el ratón no puede disparar otro.
+            // Con el muro en construcción el ratón no puede disparar other.
         } else if left || right {
             let max_builders = if app.state.pending_double_wall { 2 } else { 1 };
             if app.state.builders.len() < max_builders {
@@ -1102,7 +1102,7 @@ mod tests {
             [
                 (
                     id: 1,
-                    name: "primero",
+                    name: "first",
                     world: 0,
                     kind: Standard,
                     arena: (w: 16, h: 16, shape: Rect, obstacles: []),
@@ -1126,7 +1126,7 @@ mod tests {
     }
 
     #[test]
-    fn los_assets_reales_se_parsean() {
+    fn the_real_assets_parse() {
         // Ruta relativa al workspace (los assets viven fuera del crate).
         let base = |name: &str| {
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -1150,7 +1150,7 @@ mod tests {
     /// Barrido sobre los 70 assets reales: ningún spawn de bola debe caer en
     /// una celda que no sea `Open` tras construir la partida.
     #[test]
-    fn ningun_spawn_de_los_assets_reales_cae_en_celda_no_abierta() {
+    fn no_spawn_in_the_real_assets_lands_on_a_non_open_cell() {
         use jezzball_core::grid::Cell;
         use jezzball_core::state::GameState;
 
@@ -1189,7 +1189,7 @@ mod tests {
     }
 
     #[test]
-    fn desbloqueo_original_estricto() {
+    fn original_unlocking_is_strict() {
         let mut app = App::new();
         app.levels.original = (1..=10).map(|i| sample_level(i, true)).collect();
         app.levels.enhanced.clear();
@@ -1203,7 +1203,7 @@ mod tests {
     }
 
     #[test]
-    fn enhanced_reconoce_puerta_original() {
+    fn enhanced_honours_the_original_gate() {
         let mut app = App::new();
         app.levels.original = (1..=10).map(|i| sample_level(i, true)).collect();
         app.levels.enhanced = (1..=2).map(|i| sample_level(i, false)).collect();
@@ -1228,7 +1228,7 @@ mod tests {
     }
 
     #[test]
-    fn enhanced_bloqueado_en_el_menu_hasta_terminar_original() {
+    fn enhanced_is_locked_in_the_menu_until_original_is_finished() {
         let mut app = App::new();
         app.levels.original = (1..=10).map(|i| sample_level(i, true)).collect();
         app.levels.enhanced = (1..=5).map(|i| sample_level(i, false)).collect();
@@ -1249,9 +1249,9 @@ mod tests {
     }
 
     #[test]
-    fn la_ventana_de_lista_sigue_a_la_seleccion() {
+    fn the_list_window_follows_the_selection() {
         // Regresion: con 61 niveles la lista se dibujaba entera desde el
-        // primero, asi que al seleccionar uno bajo, el jugador seguia viendo
+        // first, asi que al seleccionar uno bajo, el jugador seguia viendo
         // el principio de la lista y no sabia que tenia elegido.
         let mut app = App::new();
         app.menu_items = (0..61)
@@ -1262,49 +1262,49 @@ mod tests {
             .collect();
         app.list_top = 0;
 
-        app.filas_visibles = filas_visibles_para(1000.0, 1.4);
-        let visibles = app.filas_visibles;
+        app.visible_rows = visible_rows_for(1000.0, 1.4);
+        let visible = app.visible_rows;
 
-        // Seleccion dentro de la primera ventana: no hace falta desplazar.
+        // Seleccion inside de la primera ventana: no hace falta desplazar.
         app.select = 0;
-        ajustar_ventana(&mut app);
+        adjust_scroll_window(&mut app);
         assert_eq!(app.list_top, 0);
 
         // Seleccion muy por debajo: la ventana debe alcanzarla.
         app.select = 55;
-        ajustar_ventana(&mut app);
+        adjust_scroll_window(&mut app);
         assert!(
-            app.select >= app.list_top && app.select < app.list_top + visibles,
+            app.select >= app.list_top && app.select < app.list_top + visible,
             "la seleccion {} quedo fuera de la ventana [{}, {})",
             app.select,
             app.list_top,
-            app.list_top + visibles
+            app.list_top + visible
         );
 
-        // Y al volver arriba, otra vez dentro.
+        // Y al volver arriba, otra vez inside.
         app.select = 2;
-        ajustar_ventana(&mut app);
+        adjust_scroll_window(&mut app);
         assert!(
-            app.select >= app.list_top && app.select < app.list_top + visibles,
+            app.select >= app.list_top && app.select < app.list_top + visible,
             "al subir, la seleccion volvio a quedar fuera de la ventana"
         );
     }
 
     #[test]
-    fn la_ayuda_tiene_todas_las_paginas_con_contenido() {
+    fn every_help_page_has_content() {
         for n in 0..HELP_PAGES {
-            let (titulo, lineas) = help_page(n);
-            assert!(!titulo.is_empty(), "la pagina {n} no tiene titulo");
+            let (title, lines) = help_page(n);
+            assert!(!title.is_empty(), "la pagina {n} no tiene title");
             assert!(
-                lineas.iter().any(|l| !l.trim().is_empty()),
-                "la pagina {n} no tiene contenido"
+                lines.iter().any(|l| !l.trim().is_empty()),
+                "la pagina {n} no tiene contents"
             );
         }
     }
 
     #[test]
-    fn orden_de_candidatos_seis_rutas_documentadas() {
-        // El orden de resolución debe ser exactamente el documentado: primero
+    fn candidate_order_matches_the_six_documented_paths() {
+        // El orden de resolución debe ser exactamente el documentado: first
         // la escotilla de entorno, luego las relativas al binario, luego XDG,
         // luego /usr/share, y por último el CWD.
         let dirs = level_candidates(
@@ -1330,7 +1330,7 @@ mod tests {
         // install.sh deja el binario en ~/.local/bin y los niveles en
         // ~/.local/share/omarchy-jezzball/levels. El candidato 3 (relativo al
         // exe, `bin/../share`) y el 4 (XDG_DATA_HOME) coinciden tras colapsar
-        // `..`, así que se deduplican: el diagnóstico no repite la ruta.
+        // `..`, así que se deduplican: el diagnóstico no repite la path.
         let dirs = level_candidates(
             Some(Path::new("/home/user/.local/bin")),
             Path::new("/home/user/.local/share"),
@@ -1352,7 +1352,7 @@ mod tests {
     }
 
     #[test]
-    fn ningun_candidato_contiene_el_segmento_assets_equivocado() {
+    fn no_candidate_contains_the_wrong_assets_segment() {
         // Regresión del bug 2: la app NUNCA debe buscar en
         // `<...>/omarchy-jezzball/assets/levels`. Barrido de configuraciones
         // (con y sin override, exe en binarios, pacman, etc.).
@@ -1380,7 +1380,7 @@ mod tests {
                 let s = d.to_string_lossy();
                 assert!(
                     !s.contains("omarchy-jezzball/assets/levels"),
-                    "candidato con la ruta equivocada del bug 2: {s}"
+                    "candidato con la path equivocada del bug 2: {s}"
                 );
                 checked += 1;
             }
@@ -1389,7 +1389,7 @@ mod tests {
     }
 
     #[test]
-    fn assets_reales_via_exe_dir_simulado_apuntando_al_repo() {
+    fn real_assets_via_simulated_exe_dir_pointing_at_the_repo() {
         // Candidato 2 (`<dir exe>/assets/levels`) con el exe "vivido" en la
         // raíz del repo: debe cargar los 70 niveles reales sin tocar el SO.
         let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -1400,7 +1400,7 @@ mod tests {
     }
 
     #[test]
-    fn assets_reales_via_variable_de_entorno_simulada() {
+    fn real_assets_via_simulated_env_var() {
         // `$OMARCHY_JEZZBALL_ASSETS` = carpeta `assets/` del repo: el
         // candidato 1 (escotilla de desarrollo/tests) debe encontrarla.
         let assets = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets");
@@ -1444,7 +1444,7 @@ mod tests {
         app.levels.original = (1..=10).map(|i| sample_level(i, true)).collect();
         app.levels.enhanced = (1..=60).map(|i| sample_level(i, false)).collect();
 
-        // Índices dentro, en los bordes y muy fuera de rango.
+        // Índices inside, en los bordes y muy fuera de rango.
         let hostile = [
             0u16,
             1,
@@ -1511,7 +1511,7 @@ mod tests {
     /// estrellas, desbloqueo del siguiente mundo, fin de modo) con estados
     /// de partida extremos, buscando desbordamientos e índices inválidos.
     #[test]
-    fn fuzz_progresion_completando_niveles_no_panica() {
+    fn fuzz_progression_completing_levels_does_not_panic() {
         for mode in [Mode::Original, Mode::Enhanced] {
             let mut app = App::new();
             app.levels.original = (1..=10).map(|i| sample_level(i, true)).collect();

@@ -114,7 +114,7 @@ fn spawn_sobre_solid_se_reubica_a_la_abierta_mas_cercana() {
 /// Arena degenerada: si no existe ninguna celda `Open`, la bola se descarta
 /// en vez de provocar un estado inválido.
 #[test]
-fn arena_sin_celdas_abiertas_descarta_la_bola() {
+fn arena_with_no_open_cells_discards_the_ball() {
     let s = GameState::new(spec(
         12,
         8,

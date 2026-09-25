@@ -2,7 +2,7 @@
 //!
 //! Un `WallBuilder` es el muro EN CONSTRUCCIÓN: crece en AMBAS direcciones
 //! desde su celda de origen a la vez (un frente hacia coordenadas decrecientes
-//! `lo`, otro hacia crecientes `hi`), a `speed` celdas por segundo y por
+//! `lo`, other hacia crecientes `hi`), a `speed` celdas por segundo y por
 //! frente. Cada frente se detiene de forma independiente al tocar
 //! `Filled`/`Solid`/`NoSplit` o el borde. Solo cuando `lo_done && hi_done`
 //! está listo para consolidarse.
@@ -143,7 +143,7 @@ impl WallBuilder {
     }
 
     /// Avanza los dos frentes `dt` segundos. Un frente que ya terminó no se
-    /// mueve. Este avance es puro contra la rejilla actual.
+    /// mueve. Este avance es puro contra la rejilla current.
     pub fn advance(&mut self, grid: &Grid, dt: f32) {
         let max_coord = self.axis.max_coord(grid.w, grid.h);
 

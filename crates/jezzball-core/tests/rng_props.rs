@@ -39,7 +39,7 @@ fn rangos_extremos_no_panican() {
     assert_eq!(rng.range_i64(i64::MAX, i64::MAX), i64::MAX);
 }
 
-/// Los valores devueltos SIEMPRE caen dentro del rango pedido.
+/// Los valores devueltos SIEMPRE caen inside del rango pedido.
 #[test]
 fn siempre_dentro_del_rango() {
     let mut rng = Rng64::new(2024);

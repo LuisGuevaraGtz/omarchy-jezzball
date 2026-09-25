@@ -2,7 +2,7 @@
 //!
 //! La capa pura (`UiKey`, `Frame`, `NavRepeat`) no toca macroquad y es
 //! testeable sin ventana. Solo `sample_frame` consulta el estado real del
-//! teclado/ratón y se ejecuta dentro del bucle de render.
+//! teclado/ratón y se ejecuta inside del bucle de render.
 
 use macroquad::input::{
     is_key_down, is_key_pressed, is_mouse_button_pressed, mouse_position, KeyCode, MouseButton,
@@ -82,7 +82,7 @@ pub const NAV_UP: [UiKey; 3] = [UiKey::Up, UiKey::K, UiKey::H];
 /// Teclas de navegación "abajo" (flechas + `j`/`l`).
 pub const NAV_DOWN: [UiKey; 3] = [UiKey::Down, UiKey::J, UiKey::L];
 
-/// Estado del ratón en el frame actual.
+/// Estado del ratón en el frame current.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MouseFrame {
     pub x: f32,
@@ -123,7 +123,7 @@ impl Frame {
     }
 }
 
-/// Consulta el teclado y el ratón de macroquad. Solo se invoca dentro del
+/// Consulta el teclado y el ratón de macroquad. Solo se invoca inside del
 /// bucle de render (con ventana ya creada).
 pub fn sample_frame() -> Frame {
     let pressed_codes = [
@@ -265,7 +265,7 @@ mod tests {
     }
 
     #[test]
-    fn mapeo_de_teclas_claves() {
+    fn key_mapping_is_correct() {
         assert_eq!(ui_key_from(KeyCode::Space), Some(UiKey::Space));
         assert_eq!(ui_key_from(KeyCode::Escape), Some(UiKey::Escape));
         assert_eq!(ui_key_from(KeyCode::Tab), Some(UiKey::Tab));
@@ -278,7 +278,7 @@ mod tests {
     }
 
     #[test]
-    fn digitos() {
+    fn digits() {
         assert_eq!(UiKey::from_digit(1), Some(UiKey::Digit1));
         assert_eq!(UiKey::from_digit(5), Some(UiKey::Digit5));
         assert_eq!(UiKey::from_digit(6), None);
@@ -296,7 +296,7 @@ mod tests {
         assert_eq!(nav.input(&f2, &NAV_UP, &NAV_DOWN, 0.1), None);
         // Pasados los 0.3 acumulados, repite.
         assert_eq!(nav.input(&f2, &NAV_UP, &NAV_DOWN, 0.1), Some(-1));
-        // Y vuelve a necesitar otro hueco de repetición.
+        // Y vuelve a necesitar other hueco de repetición.
         assert_eq!(nav.input(&f2, &NAV_UP, &NAV_DOWN, 0.05), None);
     }
 
