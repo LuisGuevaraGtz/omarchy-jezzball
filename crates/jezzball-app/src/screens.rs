@@ -146,6 +146,10 @@ impl App {
             for c in &candidates {
                 eprintln!("  {}", c.display());
             }
+            eprintln!(
+                "Define OMARCHY_JEZZBALL_ASSETS con el directorio que contiene 'levels/' \
+                 para indicar la ruta a mano."
+            );
         }
         let save = load_save();
         let mut app = App {

@@ -7,11 +7,23 @@ edition = "2021"
 version = "0.1.0"
 license = "MIT"
 
-# Un desbordamiento de enteros es SIEMPRE un bug de lógica, no una
-# optimización aceptable. Por defecto Rust lo comprueba en debug y lo envuelve
-# en silencio en release, lo que hace que el juego se comporte distinto según
-# cómo se compile (y que un bug reproducible con `cargo run` desaparezca en el
-# binario publicado). Preferimos el mismo comportamiento en ambos: el coste es
-# despreciable para este juego y el fallo se detecta en vez de corromper estado.
+# Un desbordamiento de enteros es siempre un bug de lógica, así que lo
+# queremos detectar — pero NO a costa de cerrarle el juego al jugador.
+#
+# Con `overflow-checks = true` en release, cualquier desbordamiento que antes
+# pasaba inadvertido (un contador raro, una etiqueta del HUD) aborta el
+# proceso. Eso convierte un defecto cosmético en una partida perdida, y es
+# exactamente lo que le pasó a este juego al publicarlo.
+#
+# Reparto: los tests y el perfil de depuración SÍ comprueban overflow (ahí es
+# donde se cazan los bugs, y la CI ejecuta `cargo test`), mientras el binario
+# que se distribuye prioriza seguir en pie. El perfil `release-checked` queda
+# disponible para depurar un fallo concreto en condiciones de release:
+#   cargo build --profile release-checked
 [profile.release]
+overflow-checks = false
+
+[profile.release-checked]
+inherits = "release"
 overflow-checks = true
+debug = true
