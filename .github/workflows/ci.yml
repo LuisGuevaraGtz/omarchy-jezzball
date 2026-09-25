@@ -49,3 +49,56 @@ jobs:
       # para detectar que el binario arranca y no panica antes de tiempo.
       - name: Humo (--help sin display)
         run: ./target/release/omarchy-jezzball --help
+
+      # Prueba de arranque REAL con pantalla virtual.
+      #
+      # Existe porque `cargo test` y `--help` NO detectan un binario que no
+      # abre ventana: dos regresiones de arranque (un backend de ventana mal
+      # elegido y un `overflow-checks` que abortaba el proceso) pasaron ambas
+      # comprobaciones y sólo se vieron al jugar. Xvfb arranca el juego de
+      # verdad, lo deja correr unos segundos y falla si el proceso muere o si
+      # deja un crash.log.
+      - name: Dependencias de pantalla virtual
+        run: sudo apt-get install -y --no-install-recommends xvfb
+
+      - name: Arranque real bajo Xvfb
+        run: |
+          set -euo pipefail
+          rm -f "$HOME/.local/state/omarchy-jezzball/crash.log"
+          xvfb-run -a --server-args="-screen 0 1024x768x24" \
+            ./target/release/omarchy-jezzball &
+          PID=$!
+          sleep 8
+          if ! kill -0 "$PID" 2>/dev/null; then
+            echo "ERROR: el juego murio durante el arranque."
+            cat "$HOME/.local/state/omarchy-jezzball/crash.log" 2>/dev/null || true
+            exit 1
+          fi
+          kill "$PID" 2>/dev/null || true
+          wait "$PID" 2>/dev/null || true
+          if [ -s "$HOME/.local/state/omarchy-jezzball/crash.log" ]; then
+            echo "ERROR: el juego registro un fallo durante el arranque:"
+            cat "$HOME/.local/state/omarchy-jezzball/crash.log"
+            exit 1
+          fi
+          echo "OK: el juego arranco y se mantuvo en pie."
+
+      # El mismo arranque con los dos modos, que es como lo lanza el .desktop.
+      - name: Arranque por modo (--mode)
+        run: |
+          set -euo pipefail
+          for m in original enhanced; do
+            rm -f "$HOME/.local/state/omarchy-jezzball/crash.log"
+            xvfb-run -a --server-args="-screen 0 1024x768x24" \
+              ./target/release/omarchy-jezzball --mode "$m" &
+            PID=$!
+            sleep 6
+            if ! kill -0 "$PID" 2>/dev/null; then
+              echo "ERROR: --mode $m murio al arrancar."
+              cat "$HOME/.local/state/omarchy-jezzball/crash.log" 2>/dev/null || true
+              exit 1
+            fi
+            kill "$PID" 2>/dev/null || true
+            wait "$PID" 2>/dev/null || true
+            echo "OK: --mode $m arranco."
+          done

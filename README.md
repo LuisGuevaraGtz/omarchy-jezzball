@@ -146,6 +146,44 @@ Contrato §11. Sin red, sin cuentas, escritura atómica
   (normalmente `~/.config/omarchy-jezzball/config.ron`).
 - Override de tema: `~/.config/omarchy-jezzball/theme.ron` (ver theming).
 
+## Si el juego no arranca o se cierra
+
+Cada fallo interno se registra en disco, además de imprimirse por stderr:
+
+```
+~/.local/state/omarchy-jezzball/crash.log
+```
+
+Ese fichero es lo único necesario para diagnosticar un problema: contiene la
+línea exacta del fallo. Si abres una incidencia, adjúntalo.
+
+**Ventana que no abre.** El juego usa el backend X11 de miniquad por defecto
+(bajo Hyprland funciona vía XWayland, que es lo habitual). El backend nativo
+de Wayland de miniquad está marcado como inestable por sus propios autores,
+así que sólo se usa si X11 no está disponible. Puedes forzarlo:
+
+```bash
+OMARCHY_JEZZBALL_BACKEND=wayland  omarchy-jezzball   # sólo Wayland
+OMARCHY_JEZZBALL_BACKEND=x11      omarchy-jezzball   # sólo X11
+OMARCHY_JEZZBALL_BACKEND=wayland-first omarchy-jezzball
+```
+
+**"No hay niveles disponibles".** El juego no encontró los `.ron`. Las rutas
+que probó se listan por stderr al arrancar. Puedes indicarla a mano:
+
+```bash
+OMARCHY_JEZZBALL_ASSETS=/ruta/que/contiene/levels omarchy-jezzball
+```
+
+**Depurar un fallo con comprobaciones extra.** El perfil `release-checked`
+compila optimizado pero con detección de desbordamientos y símbolos de
+depuración:
+
+```bash
+cargo build --profile release-checked
+./target/release-checked/omarchy-jezzball
+```
+
 ## Theming
 
 El juego no trae paleta propia: deriva sus 9 roles de color del tema activo
