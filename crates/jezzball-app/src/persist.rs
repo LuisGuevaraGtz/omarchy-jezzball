@@ -1,9 +1,9 @@
-//! Persistencia en disco (ARCHITECTURE.md §11).
+//! On-disk persistence (ARCHITECTURE.md §11).
 //!
-//! Guardado en `$XDG_DATA_HOME/omarchy-jezzball/save.ron` (fallback
-//! `~/.local/share/omarchy-jezzball/save.ron`) con escritura ATÓMICA:
-//! first a `save.ron.tmp` y luego `rename`. Cero `unwrap()`/`expect()` en
-//! rutas de I/O: todo falla y se degrada a un `SaveData` trimmed, nunca panic.
+//! Saved to `$XDG_DATA_HOME/omarchy-jezzball/save.ron` (fallback
+//! `~/.local/share/omarchy-jezzball/save.ron`) with ATOMIC writes:
+//! first to `save.ron.tmp` and then `rename`. Zero `unwrap()`/`expect()` on
+//! I/O paths: everything can fail and degrades to a trimmed `SaveData`, never a panic.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -12,11 +12,11 @@ use std::path::{Path, PathBuf};
 use jezzball_core::level::Mode;
 use serde::{Deserialize, Serialize};
 
-/// Versión del formato de guardado. Un fichero con versión distinta se
-/// considera incompatible: se respalda y se empieza trimmed.
+/// Version of the save format. A file with a different version is
+/// considered incompatible: it is backed up and we start trimmed.
 pub const SAVE_VERSION: u32 = 1;
 
-/// Récord de un nivel concreto en un modo.
+/// Record for a specific level in a mode.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub struct LevelRecord {
     pub best_score: u32,
@@ -36,7 +36,7 @@ impl Default for LevelRecord {
     }
 }
 
-/// Todo el progreso persistido del juego.
+/// All the game's persisted progress.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct SaveData {
     pub version: u32,
@@ -57,22 +57,22 @@ impl Default for SaveData {
 }
 
 impl SaveData {
-    /// Registro de un nivel, si existe.
+    /// A level's record, if it exists.
     pub fn record(&self, mode: Mode, id: u16) -> Option<&LevelRecord> {
         self.map(mode).get(&id)
     }
 
-    /// Registro de un nivel, creándolo si no existe (mutable).
+    /// A level's record, creating it if it does not exist (mutable).
     pub fn record_for(&mut self, mode: Mode, id: u16) -> &mut LevelRecord {
         self.map_mut(mode).entry(id).or_default()
     }
 
-    /// Nº de niveles completados en un modo.
+    /// Number of levels completed in a mode.
     pub fn completed_count(&self, mode: Mode) -> usize {
         self.map(mode).values().filter(|r| r.completed).count()
     }
 
-    /// Total de estrellas acumuladas en un modo.
+    /// Total stars accumulated in a mode.
     pub fn total_stars(&self, mode: Mode) -> u32 {
         self.map(mode).values().map(|r| u32::from(r.stars)).sum()
     }
@@ -92,8 +92,8 @@ impl SaveData {
     }
 }
 
-/// Resuelve una variable XDG a una path absoluta, o `None` si no está o no es
-/// absoluta.
+/// Resolves an XDG variable to an absolute path, or `None` if it is unset or not
+/// absolute.
 pub fn xdg_dir(var: &str) -> Option<PathBuf> {
     let raw = std::env::var_os(var)?;
     let p = PathBuf::from(raw);
@@ -104,7 +104,7 @@ pub fn xdg_dir(var: &str) -> Option<PathBuf> {
     }
 }
 
-/// Directorio home del usuario (best-effort).
+/// The user's home directory (best-effort).
 pub fn home_dir() -> PathBuf {
     match std::env::var_os("HOME") {
         Some(h) => {
@@ -118,18 +118,18 @@ pub fn home_dir() -> PathBuf {
     }
 }
 
-/// Directorio de datos del usuario (`$XDG_DATA_HOME`, o `~/.local/share`).
+/// The user's data directory (`$XDG_DATA_HOME`, or `~/.local/share`).
 ///
-/// En compilaciones de TEST se redirige a un directorio temporal inside del
-/// propio repo: un test que construya la aplicación completa no debe leer ni
-/// —sobre todo— ESCRIBIR la partida real del usuario. (Ocurrió: un fuzz de
-/// progresión dejó `u32::MAX` en los récords de una partida de verdad.)
+/// In TEST builds it is redirected to a temporary directory inside the
+/// repo itself: a test that builds the whole application must not read nor
+/// —above all— WRITE the user's real save file. (It happened: a progression
+/// fuzz left `u32::MAX` in the records of a real save file.)
 #[cfg(not(test))]
 pub fn data_home_dir() -> PathBuf {
     xdg_dir("XDG_DATA_HOME").unwrap_or_else(|| home_dir().join(".local/share"))
 }
 
-/// Variante de test: directorio temporal aislado, nunca la partida real.
+/// Test variant: an isolated temporary directory, never the real save file.
 #[cfg(test)]
 pub fn data_home_dir() -> PathBuf {
     std::env::temp_dir().join("omarchy-jezzball-test-data")
@@ -143,37 +143,37 @@ pub fn state_home_dir() -> PathBuf {
     xdg_dir("XDG_STATE_HOME").unwrap_or_else(|| home_dir().join(".local/state"))
 }
 
-/// Ruta real del fichero de guardado.
+/// Real path of the save file.
 pub fn save_file_path() -> PathBuf {
     save_file_path_in(&data_home_dir())
 }
 
-/// Ruta del guardado relativa a un `data_home` (útil para tests).
+/// Path of the save file relative to a `data_home` (useful for tests).
 pub fn save_file_path_in(data_home: &Path) -> PathBuf {
     data_home.join("omarchy-jezzball").join("save.ron")
 }
 
-/// Parsea y valida el contents de un guardado. `Err` si el RON no es válido o
-/// la versión es incompatible.
+/// Parses and validates the contents of a save file. `Err` if the RON is invalid or
+/// the version is incompatible.
 pub fn parse_save(content: &str) -> Result<SaveData, String> {
-    let data: SaveData = ron::from_str(content).map_err(|e| format!("RON inválido: {e}"))?;
+    let data: SaveData = ron::from_str(content).map_err(|e| format!("invalid RON: {e}"))?;
     if data.version != SAVE_VERSION {
         return Err(format!(
-            "versión {} incompatible (esperada {SAVE_VERSION})",
+            "incompatible version {} (expected {SAVE_VERSION})",
             data.version
         ));
     }
     Ok(data)
 }
 
-/// Carga el guardado desde la path por defecto XDG.
+/// Loads the save file from the default XDG path.
 pub fn load_save() -> SaveData {
     load_save_at(&save_file_path())
 }
 
-/// Carga un guardado de la path indicada. Si el fichero no existe, devuelve un
-/// `SaveData` trimmed. Si existe pero está corrupto o es de otra versión, hace
-/// backup a `.ron.bak` y devuelve uno trimmed. Nunca panic.
+/// Loads a save file from the given path. If the file does not exist, it returns a
+/// trimmed `SaveData`. If it exists but is corrupt or from another version, it makes
+/// a backup to `.ron.bak` and returns a trimmed one. Never panics.
 pub fn load_save_at(path: &Path) -> SaveData {
     let Ok(content) = fs::read_to_string(path) else {
         return SaveData::default();
@@ -187,7 +187,7 @@ pub fn load_save_at(path: &Path) -> SaveData {
     }
 }
 
-/// Copia el fichero corrupto a `.ron.bak` (best-effort, sin errores).
+/// Copies the corrupt file to `.ron.bak` (best-effort, no errors).
 fn backup_file(path: &Path) {
     if let Ok(content) = fs::read_to_string(path) {
         let bak = path.with_extension("ron.bak");
@@ -195,13 +195,13 @@ fn backup_file(path: &Path) {
     }
 }
 
-/// Guarda el progreso en la path XDG por defecto. Devuelve `true` si todo OK.
+/// Saves the progress to the default XDG path. Returns `true` if everything is OK.
 pub fn save_save(data: &SaveData) -> bool {
     save_save_at(data, &save_file_path())
 }
 
-/// Escritura atómica: `save.ron.tmp` + `rename`. Devuelve `false` si algo
-/// falla, sin panic.
+/// Atomic write: `save.ron.tmp` + `rename`. Returns `false` if anything
+/// fails, without panicking.
 pub fn save_save_at(data: &SaveData, path: &Path) -> bool {
     let Ok(content) = ron::to_string(data) else {
         return false;
@@ -266,7 +266,7 @@ mod tests {
     }
 
     #[test]
-    fn fichero_inexistente_devuelve_limpio() {
+    fn missing_file_returns_a_clean_save() {
         let root = tmp_root("missing");
         let p = save_file_path_in(&root);
         assert_eq!(load_save_at(&p).version, SAVE_VERSION);
@@ -274,14 +274,14 @@ mod tests {
     }
 
     #[test]
-    fn guardar_y_cargar_atomico() {
+    fn saving_and_loading_is_atomic() {
         let root = tmp_root("atomic");
         let p = save_file_path_in(&root);
         assert!(save_save_at(&sample(), &p), "guarda correctamente");
-        assert!(p.exists(), "fichero final presente");
+        assert!(p.exists(), "final file present");
         let loaded = load_save_at(&p);
         assert_eq!(loaded, sample());
-        // No deben quedar temporales.
+        // No temporary files must be left behind.
         let tmp = p.with_extension("ron.tmp");
         assert!(!tmp.exists(), "el temporal se renombra, no se queda");
     }

@@ -1,12 +1,12 @@
-//! Reproducción del rebote "como si fuera esquina" en una pared PLANA.
+//! Reproduction of the "as if it were a corner" bounce on a FLAT wall.
 //!
-//! Síntoma reportado al jugar: la bola choca contra el centro de una pared
-//! (no en una esquina) y se vuelve exactamente por donde vino, en lugar de
-//! reflejarse. Tras varios rebotes así, entra en un ciclo cerrado.
+//! Symptom reported while playing: the ball hits the middle of a wall (not a
+//! corner) and goes back exactly the way it came, instead of reflecting.
+//! After several bounces like that, it enters a closed cycle.
 //!
-//! Un rebote correcto contra una pared vertical invierte SOLO `vx`; contra
-//! una horizontal, SOLO `vy`. Invertir ambas es el rebote de esquina, y sólo
-//! debe ocurrir cuando la bola realmente llega a una esquina.
+//! A correct bounce off a vertical wall flips ONLY `vx`; off a horizontal one,
+//! ONLY `vy`. Flipping both is the corner bounce, and it should only happen
+//! when the ball really reaches a corner.
 
 use jezzball_core::ball::Ball;
 use jezzball_core::grid::{Cell, Grid};
@@ -15,74 +15,83 @@ use jezzball_core::rng::Rng64;
 
 const DT: f32 = 1.0 / 60.0;
 
-/// Arena 20x20 con bordes implícitos (fuera de la rejilla no es transitable).
+/// 20x20 arena with implicit borders (outside the grid is not traversable).
 fn arena() -> Grid {
     Grid::new(20, 20)
 }
 
-/// Avanza hasta detectar el primer cambio de signo en algún eje y devuelve
-/// `(cambio_en_x, cambio_en_y)` de ESE frame concreto.
-fn primer_rebote(b: &mut Ball, g: &Grid, max_frames: usize) -> (bool, bool) {
+/// Advances until the first sign change on either axis is detected and returns
+/// `(change_in_x, change_in_y)` for THAT specific frame.
+fn first_bounce(b: &mut Ball, g: &Grid, max_frames: usize) -> (bool, bool) {
     let mut rng = Rng64::new(1);
     for _ in 0..max_frames {
-        let vx_antes = b.vel.x;
-        let vy_antes = b.vel.y;
+        let vx_before = b.vel.x;
+        let vy_before = b.vel.y;
         b.step(g, &mut rng, DT);
-        let cambio_x = vx_antes.signum() != b.vel.x.signum();
-        let cambio_y = vy_antes.signum() != b.vel.y.signum();
-        if cambio_x || cambio_y {
-            return (cambio_x, cambio_y);
+        let changed_x = vx_before.signum() != b.vel.x.signum();
+        let changed_y = vy_before.signum() != b.vel.y.signum();
+        if changed_x || changed_y {
+            return (changed_x, changed_y);
         }
     }
-    panic!("la bola no reboto en {max_frames} frames");
+    panic!("the ball did not bounce within {max_frames} frames");
 }
 
-/// PARED DERECHA (vertical): debe invertir sólo `vx`.
+/// RIGHT WALL (vertical): must flip only `vx`.
 #[test]
-fn pared_vertical_derecha_invierte_solo_vx() {
+fn right_vertical_wall_flips_only_vx() {
     let g = arena();
-    // Diagonal pura hacia la derecha y abajo, lejos de las esquinas.
+    // Pure diagonal towards the right and down, away from the corners.
     let mut b = Ball::new(0, 15.0, 10.0, 8.0, 8.0, BallKind::Normal, 1.0);
-    let (cx, cy) = primer_rebote(&mut b, &g, 600);
-    assert!(cx, "no invirtio vx al chocar con la pared derecha");
+    let (cx, cy) = first_bounce(&mut b, &g, 600);
+    assert!(cx, "it did not flip vx when hitting the right wall");
     assert!(
         !cy,
-        "INVIRTIO TAMBIEN vy: rebote de esquina en una pared plana \
-         (la bola se vuelve por donde vino)"
+        "IT ALSO FLIPPED vy: corner-style bounce on a flat wall \
+         (the ball goes back the way it came)"
     );
 }
 
-/// PARED IZQUIERDA.
+/// LEFT WALL.
 #[test]
-fn pared_vertical_izquierda_invierte_solo_vx() {
+fn left_vertical_wall_flips_only_vx() {
     let g = arena();
     let mut b = Ball::new(0, 5.0, 10.0, -8.0, 8.0, BallKind::Normal, 1.0);
-    let (cx, cy) = primer_rebote(&mut b, &g, 600);
-    assert!(cx, "no invirtio vx al chocar con la pared izquierda");
-    assert!(!cy, "INVIRTIO TAMBIEN vy: rebote de esquina en pared plana");
+    let (cx, cy) = first_bounce(&mut b, &g, 600);
+    assert!(cx, "it did not flip vx when hitting the left wall");
+    assert!(
+        !cy,
+        "IT ALSO FLIPPED vy: corner-style bounce on a flat wall"
+    );
 }
 
-/// PARED SUPERIOR (horizontal): debe invertir sólo `vy`.
+/// TOP WALL (horizontal): must flip only `vy`.
 #[test]
-fn pared_horizontal_superior_invierte_solo_vy() {
+fn top_horizontal_wall_flips_only_vy() {
     let g = arena();
     let mut b = Ball::new(0, 10.0, 5.0, 8.0, -8.0, BallKind::Normal, 1.0);
-    let (cx, cy) = primer_rebote(&mut b, &g, 600);
-    assert!(cy, "no invirtio vy al chocar con la pared superior");
-    assert!(!cx, "INVIRTIO TAMBIEN vx: rebote de esquina en pared plana");
+    let (cx, cy) = first_bounce(&mut b, &g, 600);
+    assert!(cy, "it did not flip vy when hitting the top wall");
+    assert!(
+        !cx,
+        "IT ALSO FLIPPED vx: corner-style bounce on a flat wall"
+    );
 }
 
-/// PARED INFERIOR.
+/// BOTTOM WALL.
 #[test]
-fn pared_horizontal_inferior_invierte_solo_vy() {
+fn bottom_horizontal_wall_flips_only_vy() {
     let g = arena();
     let mut b = Ball::new(0, 10.0, 15.0, 8.0, 8.0, BallKind::Normal, 1.0);
-    let (cx, cy) = primer_rebote(&mut b, &g, 600);
-    assert!(cy, "no invirtio vy al chocar con la pared inferior");
-    assert!(!cx, "INVIRTIO TAMBIEN vx: rebote de esquina en pared plana");
+    let (cx, cy) = first_bounce(&mut b, &g, 600);
+    assert!(cy, "it did not flip vy when hitting the bottom wall");
+    assert!(
+        !cx,
+        "IT ALSO FLIPPED vx: corner-style bounce on a flat wall"
+    );
 }
 
-/// Muro INTERIOR consolidado (no el borde de la arena): mismo criterio.
+/// Consolidated INNER wall (not the arena border): same criterion.
 #[test]
 fn inner_vertical_wall_flips_only_vx() {
     let mut g = arena();
@@ -90,47 +99,47 @@ fn inner_vertical_wall_flips_only_vx() {
         g.set(14, y, Cell::Filled);
     }
     let mut b = Ball::new(0, 10.0, 6.0, 8.0, 8.0, BallKind::Normal, 1.0);
-    let (cx, cy) = primer_rebote(&mut b, &g, 600);
-    assert!(cx, "no invirtio vx al chocar con el muro interior");
-    assert!(!cy, "INVIRTIO TAMBIEN vy contra un muro interior plano");
+    let (cx, cy) = first_bounce(&mut b, &g, 600);
+    assert!(cx, "it did not flip vx when hitting the inner wall");
+    assert!(!cy, "IT ALSO FLIPPED vy against a flat inner wall");
 }
 
-/// La bola NO debe ciclarse en una trayectoria pobre con una salida normal.
+/// The ball must NOT cycle into a poor trajectory given a normal start.
 ///
-/// Matiz importante: una diagonal de 45° EXACTA lanzada desde el centro de
-/// una caja cuadrada recorre siempre la misma línea. Eso es geometría, no un
-/// fallo: reflejar una diagonal en paredes ortogonales devuelve otra diagonal,
-/// y con esa simetría perfecta la órbita se cierra. Por eso los niveles no
-/// colocan las bolas en posiciones simétricas (ver `tools/gen_levels.py`).
+/// Important nuance: an EXACT 45° diagonal launched from the centre of a
+/// square box always traces the same line. That is geometry, not a bug:
+/// reflecting a diagonal off orthogonal walls yields another diagonal, and
+/// with that perfect symmetry the orbit closes. That is why the levels do not
+/// place the balls at symmetric positions (see `tools/gen_levels.py`).
 ///
-/// Lo que sí sería un fallo es que la bola se plegara sobre sus pasos desde
-/// una posición cualquiera, que es lo que ocurría cuando el rebote contra una
-/// pared plana invertía las dos componentes.
+/// What WOULD be a bug is the ball folding back on its own steps from an
+/// arbitrary position, which is what happened when a bounce off a flat wall
+/// flipped both components.
 #[test]
-fn trayectoria_no_se_cicla_sobre_si_misma() {
+fn the_trajectory_does_not_loop_back_on_itself() {
     let g = arena();
     let mut rng = Rng64::new(5);
-    // Punto de partida no simétrico, como los de los niveles reales.
+    // Non-symmetric starting point, like the ones in the real levels.
     let mut b = Ball::new(0, 7.3, 11.8, 9.0, 9.0, BallKind::Normal, 1.0);
 
-    let mut visitadas = std::collections::HashSet::new();
+    let mut visited = std::collections::HashSet::new();
     for _ in 0..1800 {
         b.step(&g, &mut rng, DT);
-        visitadas.insert((b.pos.x.floor() as i32, b.pos.y.floor() as i32));
+        visited.insert((b.pos.x.floor() as i32, b.pos.y.floor() as i32));
     }
 
     assert!(
-        visitadas.len() > 40,
-        "la bola se ciclo: solo visito {} celdas distintas en 30 segundos",
-        visitadas.len()
+        visited.len() > 40,
+        "the ball cycled: it only visited {} distinct cells in 30 seconds",
+        visited.len()
     );
 }
 
-/// Con una diagonal pura, cada rebote debe cambiar UNA sola componente.
-/// Este test recorre una partida larga y verifica que NUNCA se invierten las
-/// dos a la vez salvo que la bola esté de verdad en una esquina.
+/// With a pure diagonal, each bounce must change only ONE component.
+/// This test runs through a long game and verifies that both are NEVER
+/// flipped at once unless the ball is really in a corner.
 #[test]
-fn nunca_invierte_ambos_ejes_fuera_de_una_esquina() {
+fn never_flips_both_axes_outside_a_corner() {
     let g = arena();
     let mut rng = Rng64::new(11);
     let mut b = Ball::new(0, 6.7, 13.2, 8.0, 8.0, BallKind::Normal, 1.0);
@@ -143,12 +152,12 @@ fn nunca_invierte_ambos_ejes_fuera_de_una_esquina() {
         let cx = vx0.signum() != b.vel.x.signum();
         let cy = vy0.signum() != b.vel.y.signum();
         if cx && cy {
-            // Sólo es aceptable si toca dos paredes a la vez (esquina real).
-            let en_pared_x = b.pos.x - r <= 0.05 || b.pos.x + r >= 20.0 - 0.05;
-            let en_pared_y = b.pos.y - r <= 0.05 || b.pos.y + r >= 20.0 - 0.05;
+            // Only acceptable if it touches two walls at once (a real corner).
+            let on_wall_x = b.pos.x - r <= 0.05 || b.pos.x + r >= 20.0 - 0.05;
+            let on_wall_y = b.pos.y - r <= 0.05 || b.pos.y + r >= 20.0 - 0.05;
             assert!(
-                en_pared_x && en_pared_y,
-                "frame {frame}: invirtio AMBOS ejes sin estar en una esquina \
+                on_wall_x && on_wall_y,
+                "frame {frame}: it flipped BOTH axes without being in a corner \
                  (pos = {:.3}, {:.3})",
                 b.pos.x,
                 b.pos.y

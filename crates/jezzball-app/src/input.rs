@@ -1,14 +1,14 @@
-//! Mapeo teclado/ratón → acciones del juego y del menú.
+//! Keyboard/mouse mapping → game and menu actions.
 //!
-//! La capa pura (`UiKey`, `Frame`, `NavRepeat`) no toca macroquad y es
-//! testeable sin ventana. Solo `sample_frame` consulta el estado real del
-//! teclado/ratón y se ejecuta inside del bucle de render.
+//! The pure layer (`UiKey`, `Frame`, `NavRepeat`) does not touch macroquad and is
+//! testable without a window. Only `sample_frame` queries the real state of the
+//! keyboard/mouse and runs inside the render loop.
 
 use macroquad::input::{
     is_key_down, is_key_pressed, is_mouse_button_pressed, mouse_position, KeyCode, MouseButton,
 };
 
-/// Teclas que importan para el juego y los menús, desacopladas de macroquad.
+/// Keys that matter for the game and the menus, decoupled from macroquad.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UiKey {
     Up,
@@ -35,7 +35,7 @@ pub enum UiKey {
 }
 
 impl UiKey {
-    /// La tecla de dígito `1..=5`, o `None` fuera de rango.
+    /// The digit key `1..=5`, or `None` if out of range.
     pub fn from_digit(n: usize) -> Option<UiKey> {
         match n {
             1 => Some(UiKey::Digit1),
@@ -48,7 +48,7 @@ impl UiKey {
     }
 }
 
-/// Traduce un `KeyCode` de macroquad a `UiKey` (función pura).
+/// Translates a macroquad `KeyCode` into a `UiKey` (pure function).
 pub fn ui_key_from(code: KeyCode) -> Option<UiKey> {
     use KeyCode::*;
     Some(match code {
@@ -77,12 +77,12 @@ pub fn ui_key_from(code: KeyCode) -> Option<UiKey> {
     })
 }
 
-/// Teclas de navegación "arriba" (flechas + `k`/`h`).
+/// "Up" navigation keys (arrows + `k`/`h`).
 pub const NAV_UP: [UiKey; 3] = [UiKey::Up, UiKey::K, UiKey::H];
-/// Teclas de navegación "abajo" (flechas + `j`/`l`).
+/// "Down" navigation keys (arrows + `j`/`l`).
 pub const NAV_DOWN: [UiKey; 3] = [UiKey::Down, UiKey::J, UiKey::L];
 
-/// Estado del ratón en el frame current.
+/// Mouse state in the current frame.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MouseFrame {
     pub x: f32,
@@ -91,12 +91,12 @@ pub struct MouseFrame {
     pub right: bool,
 }
 
-/// Snapshot de entrada de un frame, construido por `sample_frame`.
+/// Input snapshot of a frame, built by `sample_frame`.
 #[derive(Clone, Debug, Default)]
 pub struct Frame {
-    /// Teclas que bajaron en este frame (evento de un solo uso).
+    /// Keys that went down in this frame (single-use event).
     pub pressed: Vec<UiKey>,
-    /// Teclas de navegación actualmente mantenidas (para auto-repeat).
+    /// Navigation keys currently held down (for auto-repeat).
     pub held: Vec<UiKey>,
     pub mouse: MouseFrame,
 }
@@ -114,7 +114,7 @@ impl Frame {
         self.held.contains(&key)
     }
 
-    /// Índice (0..=4) de la primera tecla de power-up (1..=5) pulsada este frame.
+    /// Index (0..=4) of the first power-up key (1..=5) pressed this frame.
     pub fn digit(&self) -> Option<usize> {
         (1..=5).find_map(|d| {
             let k = UiKey::from_digit(d)?;
@@ -123,8 +123,8 @@ impl Frame {
     }
 }
 
-/// Consulta el teclado y el ratón de macroquad. Solo se invoca inside del
-/// bucle de render (con ventana ya creada).
+/// Queries macroquad's keyboard and mouse. It is only invoked inside the
+/// render loop (with the window already created).
 pub fn sample_frame() -> Frame {
     let pressed_codes = [
         KeyCode::Up,
@@ -199,11 +199,11 @@ pub fn sample_frame() -> Frame {
     }
 }
 
-/// Auto-repeat sencillo para navegar menús con teclas mantenidas: la primera
-/// pulsación dispara al momento y después se repite con `cooldown`.
+/// Simple auto-repeat for navigating menus with held keys: the first
+/// press fires immediately and afterwards it repeats with `cooldown`.
 ///
-/// Devuelve `Some(-1)` para subir, `Some(1)` para bajar y `None` si no hay
-/// que moverse este frame.
+/// It returns `Some(-1)` to move up, `Some(1)` to move down and `None` if there is
+/// no movement this frame.
 #[derive(Clone, Copy, Debug)]
 pub struct NavRepeat {
     last: i8,
@@ -220,12 +220,12 @@ impl Default for NavRepeat {
 }
 
 impl NavRepeat {
-    /// Periodo de espera antes de la primera repetición al mantener una tecla.
+    /// Waiting period before the first repetition when holding a key down.
     const FIRST_REPEAT: f32 = 0.3;
-    /// Periodo entre repeticiones consecutivas.
+    /// Period between consecutive repetitions.
     const REPEAT_GAP: f32 = 0.12;
 
-    /// Tolerancia de coma flotante para decidir si el contador expiró.
+    /// Floating-point tolerance for deciding whether the counter expired.
     const EPS: f32 = 1e-4;
 
     pub fn input(&mut self, frame: &Frame, up: &[UiKey], down: &[UiKey], dt: f32) -> Option<i8> {
@@ -287,21 +287,21 @@ mod tests {
     #[test]
     fn nav_repeat_primer_pulso_y_auto_repeat() {
         let mut nav = NavRepeat::default();
-        // Primer pulso (tecla recién pulsada): mueve al momento.
+        // First pulse (key just pressed): moves immediately.
         let f = frame_with(&[UiKey::Up], &[]);
         assert_eq!(nav.input(&f, &NAV_UP, &NAV_DOWN, 0.1), Some(-1));
-        // Mantener la tecla: espera el retraso de primera repetición (0.3).
+        // Holding the key down: it waits for the first-repeat delay (0.3).
         let f2 = frame_with(&[], &[UiKey::Up]);
         assert_eq!(nav.input(&f2, &NAV_UP, &NAV_DOWN, 0.1), None);
         assert_eq!(nav.input(&f2, &NAV_UP, &NAV_DOWN, 0.1), None);
-        // Pasados los 0.3 acumulados, repite.
+        // Once the accumulated 0.3 have passed, it repeats.
         assert_eq!(nav.input(&f2, &NAV_UP, &NAV_DOWN, 0.1), Some(-1));
-        // Y vuelve a necesitar other hueco de repetición.
+        // And it needs another repetition gap again.
         assert_eq!(nav.input(&f2, &NAV_UP, &NAV_DOWN, 0.05), None);
     }
 
     #[test]
-    fn nav_repeat_cambio_de_direccion() {
+    fn nav_repeat_on_direction_change() {
         let mut nav = NavRepeat::default();
         assert_eq!(
             nav.input(&frame_with(&[], &[]), &NAV_UP, &NAV_DOWN, 0.1),
@@ -311,7 +311,7 @@ mod tests {
             nav.input(&frame_with(&[UiKey::J], &[]), &NAV_UP, &NAV_DOWN, 0.1),
             Some(1)
         );
-        // Cambiar a arriba dispara al instante (nueva dirección).
+        // Switching to up fires instantly (new direction).
         assert_eq!(
             nav.input(&frame_with(&[UiKey::K], &[]), &NAV_UP, &NAV_DOWN, 0.1),
             Some(-1)

@@ -1,35 +1,34 @@
 #!/usr/bin/env python3
 """
-Generador de niveles para Omarchy-Jezzball.
+Level generator for Omarchy-Jezzball.
 
-Uso:
+Usage:
     python3 tools/gen_levels.py
 
-Genera (y REGENERA, sobrescribiendo) los dos ficheros de datos de niveles:
-    assets/levels/original.ron   (10 niveles, modo Original)
-    assets/levels/enhanced.ron   (60 niveles, 6 mundos x 10)
+Generates (and REGENERATES, overwriting) the two level data files:
+    assets/levels/original.ron   (10 levels, Original mode)
+    assets/levels/enhanced.ron   (60 levels, 6 worlds x 10)
 
-Las reglas de generacion viven en docs/LEVEL_SCHEMA.md (normativo). Este
-script aplica TODAS las validaciones obligatorias y aborta con `exit 1`
-(on issues) si algo no pasa. Es deterministico: para la misma version de
-Python genera exactamente los mismos ficheros (todo RNG va sembrado con la
-seed del nivel).
+The generation rules live in docs/LEVEL_SCHEMA.md (normative). This script
+applies EVERY mandatory validation and aborts with `exit 1` (on issues) if
+anything fails. It is deterministic: for the same version of Python it
+produces exactly the same files (every RNG is seeded from the level seed).
 
 ArenaShape::Maze { density }
-    Se genera un laberinto determinista recursive-backtracker sobre la
-    rejilla entera (corredores de 1 celda, muros de 1 celda, borde exterior
-    solido), sembrado con la seed del nivel. `density` (0..=100) abre
-    muros adicionales de forma aleatoria sembrada (crea bucles y corredores
-    mas anchos). Cualquier spawn de bola se coloca SIEMPRE en el centro de
-    una celda abierta DEL LABERINTO DE ESTE SCRIPT. Nota: jezzball-core NO
-    reproduce este laberinto: materializa el Maze con su propio PRNG
-    (Rng64) y el resultado solo es ORIENTATIVO. El motor defiende el
-    invariante de que toda bola nace en una celda Open: si un spawn cae
-    donde no corresponde, lo reubica a la celda abierta mas cercana (o
-    descarta la bola si la arena no tiene ninguna). Por eso generar aqui un
-    laberinto distinto nunca produce bolas atrapadas en muros.
+    A deterministic recursive-backtracker maze is generated over the whole
+    grid (1-cell corridors, 1-cell walls, solid outer border), seeded from
+    the level seed. `density` (0..=100) knocks out additional walls using
+    seeded randomness (creating loops and wider corridors). Every ball spawn
+    is ALWAYS placed at the centre of an open cell OF THE MAZE BUILT BY THIS
+    SCRIPT. Note: jezzball-core does NOT reproduce this maze: it materializes
+    the Maze with its own PRNG (Rng64), so the result here is only
+    INDICATIVE. The engine upholds the invariant that every ball starts on an
+    Open cell: if a spawn lands somewhere it should not, the engine relocates
+    it to the nearest open cell (or discards the ball if the arena has none).
+    That is why generating a different maze here can never produce balls
+    trapped inside walls.
 
-Sin dependencias externas: solo stdlib de Python 3.
+No external dependencies: Python 3 stdlib only.
 """
 
 import math
@@ -37,12 +36,12 @@ import random
 import sys
 
 # ---------------------------------------------------------------------------
-# Formato RON / f32
+# RON / f32 formatting
 # ---------------------------------------------------------------------------
 
 
 def fmt(v):
-    """Formatea un f32 como RON valido: SIEMPRE con punto decimal."""
+    """Format an f32 as valid RON: ALWAYS with a decimal point."""
     v = round(float(v), 2)
     s = f"{v:.2f}".rstrip("0").rstrip(".")
     if "." not in s:
@@ -125,11 +124,11 @@ def render_spec(sp):
 
 
 # ---------------------------------------------------------------------------
-# Laberinto determinista (ArenaShape::Maze)
+# Deterministic maze (ArenaShape::Maze)
 # ---------------------------------------------------------------------------
 
 def maze_open_cells(w, h, seed, density):
-    """Celda (x, y) -> bool. Recursive backtracker + apertura por density."""
+    """Cell (x, y) -> bool. Recursive backtracker + density-driven openings."""
     open_cells = set()
     if w < 3 or h < 3:
         return open_cells
@@ -166,7 +165,7 @@ def maze_open_cells(w, h, seed, density):
 
 
 # ---------------------------------------------------------------------------
-# Obstaculos
+# Obstacles
 # ---------------------------------------------------------------------------
 
 def rect_overlaps(obstacles, x, y, bw, bh, ext=2):
@@ -247,7 +246,7 @@ def gen_obstacles(n_blocks, n_movers, n_nosplit, w, h, shape, notch, seed):
 
 
 # ---------------------------------------------------------------------------
-# Spawns de bolas
+# Ball spawns
 # ---------------------------------------------------------------------------
 
 BASE_RADIUS = {"Normal": 0.45, "Fast": 0.45, "Erratic": 0.45,
@@ -289,14 +288,14 @@ def candidate_cells(w, h, shape, notch, maze_den, maze_seed, obstacles,
 
 
 def _es_simetrica(p, w, h):
-    """True si el spawn cae en una simetria que produce una orbita cerrada.
+    """True if the spawn sits on a symmetry that produces a closed orbit.
 
-    Con velocidades en diagonal pura (45 grados) y paredes ortogonales, el
-    rebote devuelve siempre otra diagonal. Si ademas el punto de partida es
-    simetrico respecto al centro o a la diagonal principal de la arena, la
-    trayectoria se cierra sobre si misma: la bola recorre eternamente la
-    misma linea y el nivel se vuelve degenerado (el jugador la ve 'ciclada').
-    Desplazamos esos spawns un poco para romper la resonancia.
+    With pure diagonal velocities (45 degrees) and orthogonal walls, a bounce
+    always yields another diagonal. If the starting point is also symmetric
+    about the arena centre or its main diagonal, the trajectory closes on
+    itself: the ball retraces the same line forever and the level degenerates
+    (the player sees it 'cycling'). We nudge those spawns slightly to break
+    the resonance.
     """
     x, y = p
     return abs(x - w / 2.0) < 0.01 or abs(y - h / 2.0) < 0.01 or abs(x - y) < 0.01
@@ -313,15 +312,15 @@ def place_spawns(count, w, h, shape, notch, maze_den, maze_seed, obstacles,
         for p in cells:
             if len(picked) >= count:
                 break
-            # Evita posiciones que generan orbitas cerradas (ver _es_simetrica).
+            # Skip positions that produce closed orbits (see _es_simetrica).
             if _es_simetrica(p, w, h):
                 continue
             if all(math.hypot(p[0] - q[0], p[1] - q[1]) >= min_dist for q in picked):
                 picked.append(p)
         if len(picked) == count:
             return picked
-    # Segunda vuelta sin el filtro de simetria: mas vale un nivel con una
-    # orbita fea que un nivel imposible de generar.
+    # Second pass without the symmetry filter: better a level with one ugly
+    # orbit than a level that cannot be generated at all.
     for _attempt in range(40):
         rng.shuffle(cells)
         picked = []
@@ -332,7 +331,7 @@ def place_spawns(count, w, h, shape, notch, maze_den, maze_seed, obstacles,
                 picked.append(p)
         if len(picked) == count:
             return picked
-    raise RuntimeError(f"no caben {count} bolas en arena {w}x{h} shape={shape}")
+    raise RuntimeError(f"cannot fit {count} balls in a {w}x{h} arena shape={shape}")
 
 
 KMULT = {"Normal": 1.0, "Fast": 1.6, "Erratic": 1.0, "Splitter": 1.0,
@@ -340,29 +339,30 @@ KMULT = {"Normal": 1.0, "Fast": 1.6, "Erratic": 1.0, "Splitter": 1.0,
 
 
 def gen_velocities(compo, speed, seed, bump=1.0):
-    """Velocidades iniciales en DIAGONAL PURA (45 grados).
+    """Initial velocities on a PURE DIAGONAL (45 degrees).
 
-    En el JezzBall original todas las bolas se mueven a 45 grados: |vx| == |vy|.
-    Eso no es un detalle estetico, es lo que hace el juego legible y justo —
-    el jugador puede predecir la trayectoria y el rebote de un vistazo, y con
-    la resolucion por ejes separados el rebote devuelve siempre otra diagonal.
-    Angulos arbitrarios producian trayectorias erraticas imposibles de anticipar.
+    In the original JezzBall every ball moves at 45 degrees: |vx| == |vy|.
+    That is not a cosmetic detail, it is what makes the game readable and fair
+    — the player can predict the trajectory and the bounce at a glance, and
+    with per-axis collision resolution a bounce always yields another
+    diagonal. Arbitrary angles produced erratic paths nobody could anticipate.
 
-    Lo unico que varia por bola es el CUADRANTE (los cuatro signos) y la
-    rapidez segun su tipo. Se reparten los cuadrantes para que dos bolas del
-    mismo nivel no salgan siempre en la misma direccion.
+    The only things that vary per ball are the QUADRANT (the four sign
+    combinations) and the speed implied by its kind. Quadrants are spread out
+    so two balls in the same level do not always set off in the same
+    direction.
     """
     rng = random.Random(seed ^ 0x9E37)
-    # Los cuatro cuadrantes diagonales, barajados de forma determinista.
+    # The four diagonal quadrants, shuffled deterministically.
     quadrants = [(1.0, 1.0), (1.0, -1.0), (-1.0, 1.0), (-1.0, -1.0)]
     rng.shuffle(quadrants)
     out = []
     for i, kind in enumerate(compo):
         base = speed * KMULT[kind] * bump
-        # Componente de una diagonal pura: base / sqrt(2) en cada eje, de modo
-        # que el MODULO de la velocidad sigue siendo `base`.
+        # Component of a pure diagonal: base / sqrt(2) on each axis, so the
+        # MAGNITUDE of the velocity is still `base`.
         comp = round(base / math.sqrt(2.0), 2)
-        # Nunca cero: una componente nula degenera en movimiento recto.
+        # Never zero: a null component degenerates into straight-line motion.
         if comp == 0.0:
             comp = 0.4
         sx, sy = quadrants[i % len(quadrants)]
@@ -371,7 +371,7 @@ def gen_velocities(compo, speed, seed, bump=1.0):
 
 
 # ---------------------------------------------------------------------------
-# Datos de niveles: nombres
+# Level data: names
 # ---------------------------------------------------------------------------
 
 ORIG_NAMES = [
@@ -431,7 +431,7 @@ W6_NAMES = [
 
 
 # ---------------------------------------------------------------------------
-# Niveles Original (10)
+# Original levels (10)
 # ---------------------------------------------------------------------------
 
 def build_original():
@@ -453,7 +453,7 @@ def build_original():
 
 
 # ---------------------------------------------------------------------------
-# Niveles Enhanced (60)
+# Enhanced levels (60)
 # ---------------------------------------------------------------------------
 
 SHAPES = {
@@ -493,7 +493,7 @@ OBSTACLES = {
         6: (3, 1, 1), 7: (4, 2, 0), 8: (0, 0, 0), 9: (4, 2, 1), 10: (6, 3, 1)},
 }
 
-# world -> lista por mundo de (id: [composicion])
+# world -> per-world list of (id: [composition])
 COMPOS = {
     1: {1: ["N", "N"], 2: ["N", "N", "N"], 3: ["N", "N", "N"],
         4: ["N", "N", "N", "N"], 5: ["N", "N", "N", "N"],
@@ -576,7 +576,7 @@ TIME_LIMITS = {
 }
 
 OBJECTIVES = {
-    # M1 Clasico
+    # W1 Classic
     1: [("ClearRatio", 0.80)],
     2: [("ClearRatio", 0.80)],
     3: [("MinScore", 1500)],
@@ -587,7 +587,7 @@ OBJECTIVES = {
     8: [("ClearRatio", 0.82), ("UnderTime", 70.0)],
     9: [("NoLivesLost", None), ("MinScore", 2500)],
     10: [("NoLivesLost", None), ("MinScore", 3000)],
-    # M2 Velocidad
+    # W2 Speed
     11: [("ClearRatio", 0.80), ("UnderTime", 90.0)],
     12: [("UnderTime", 65.0), ("MinScore", 2500)],
     13: [("ClearRatio", 0.82), ("NoLivesLost", None)],
@@ -598,7 +598,7 @@ OBJECTIVES = {
     18: [("MinScore", 4000), ("NoLivesLost", None)],
     19: [("ClearRatio", 0.82), ("UnderTime", 85.0)],
     20: [("UnderTime", 85.0), ("MinScore", 4000), ("ClearRatio", 0.80)],
-    # M3 Obstaculos
+    # W3 Obstacles
     21: [("ClearRatio", 0.80), ("MinScore", 2500)],
     22: [("ClearRatio", 0.80), ("UnderTime", 90.0)],
     23: [("MinScore", 3000)],
@@ -609,7 +609,7 @@ OBJECTIVES = {
     28: [("MinScore", 3500), ("ClearRatio", 0.78)],
     29: [("UnderTime", 80.0), ("MinScore", 3500)],
     30: [("NoLivesLost", None), ("ClearRatio", 0.75), ("UnderTime", 75.0)],
-    # M4 Bolas especiales
+    # W4 Special balls
     31: [("ClearRatio", 0.82), ("MinScore", 2500)],
     32: [("UnderTime", 85.0), ("NoLivesLost", None)],
     33: [("ClearRatio", 0.80), ("MinScore", 3000)],
@@ -620,7 +620,7 @@ OBJECTIVES = {
     38: [("KeepCombo", 4), ("MinScore", 3500)],
     39: [("NoLivesLost", None), ("UnderTime", 85.0)],
     40: [("UnderTime", 80.0), ("MinScore", 4000), ("ClearRatio", 0.78)],
-    # M5 Power-ups
+    # W5 Power-ups
     41: [("MinScore", 3000), ("UnderTime", 80.0)],
     42: [("ClearRatio", 0.82), ("KeepCombo", 3)],
     43: [("NoPowerUps", None), ("MinScore", 3000)],
@@ -631,7 +631,7 @@ OBJECTIVES = {
     48: [("MinScore", 4000), ("ClearRatio", 0.80)],
     49: [("NoPowerUps", None), ("UnderTime", 65.0)],
     50: [("MinScore", 4500), ("ClearRatio", 0.78), ("NoLivesLost", None)],
-    # M6 Retos avanzados
+    # W6 Advanced challenges
     51: [("UnderTime", 70.0), ("MinScore", 4000), ("ClearRatio", 0.82)],
     52: [("NoLivesLost", None), ("UnderTime", 65.0), ("MinScore", 4000)],
     53: [("ClearRatio", 0.85), ("KeepCombo", 4), ("MinScore", 4500)],
@@ -726,7 +726,7 @@ def build_enhanced():
 
 
 # ---------------------------------------------------------------------------
-# Validacion
+# Validation
 # ---------------------------------------------------------------------------
 
 def dist_to_rect(px, py, rx, ry, rw, rh):
@@ -752,34 +752,34 @@ def validate(levels, tag):
     for sp in levels:
         lid = sp["id"]
         if lid in seen:
-            issues.append(f"id {lid} duplicado")
+            issues.append(f"duplicate id {lid}")
         seen.add(lid)
         if lid != prev + 1:
-            issues.append(f"{tag}: ids no consecutivos (esperaba {prev + 1}, hay {lid})")
+            issues.append(f"{tag}: non-consecutive ids (expected {prev + 1}, found {lid})")
         prev = lid
         if len(sp["name"]) > 22:
-            issues.append(f"{tag}/{lid}: nombre '{sp['name']}' >22 chars")
+            issues.append(f"{tag}/{lid}: name '{sp['name']}' >22 chars")
         if sp["kind"] not in kinds_ok:
-            issues.append(f"{tag}/{lid}: kind invalido {sp['kind']}")
+            issues.append(f"{tag}/{lid}: invalid kind {sp['kind']}")
         if sp["purist"] and (sp["objectives"] or sp["powerups"]):
-            issues.append(f"{tag}/{lid}: purist con objectives/powerups")
+            issues.append(f"{tag}/{lid}: purist with objectives/powerups")
         if sp["purist"] and sp["kind"] != "Standard":
-            issues.append(f"{tag}/{lid}: purist pero kind {sp['kind']}")
+            issues.append(f"{tag}/{lid}: purist but kind {sp['kind']}")
         if sp["target"] < 0.60 or sp["target"] > 0.85:
-            issues.append(f"{tag}/{lid}: target_ratio {sp['target']} fuera de 0.60..0.85")
+            issues.append(f"{tag}/{lid}: target_ratio {sp['target']} outside 0.60..0.85")
         if not (1 <= sp["lives"] <= 5):
-            issues.append(f"{tag}/{lid}: lives {sp['lives']} fuera de 1..5")
+            issues.append(f"{tag}/{lid}: lives {sp['lives']} outside 1..5")
         if sp["wspeed"] < 18.0 or sp["wspeed"] > 30.0:
-            issues.append(f"{tag}/{lid}: wall_speed {sp['wspeed']} fuera de 18..30")
+            issues.append(f"{tag}/{lid}: wall_speed {sp['wspeed']} outside 18..30")
         if len(sp["obstacles"]) > 0 and sp["shape"] == "Rect" and sp["purist"]:
-            issues.append(f"{tag}/{lid}: purist con obstaculos")
+            issues.append(f"{tag}/{lid}: purist with obstacles")
         objs = sp["objectives"]
         if len(objs) > 3:
-            issues.append(f"{tag}/{lid}: {len(objs)} objetivos (>3)")
+            issues.append(f"{tag}/{lid}: {len(objs)} objectives (>3)")
         for o in objs:
             oname, oval = o
             if oname == "NoPowerUps" and not sp["powerups"]:
-                issues.append(f"{tag}/{lid}: NoPowerUps con powerups_enabled=false")
+                issues.append(f"{tag}/{lid}: NoPowerUps with powerups_enabled=false")
             if oname == "ClearRatio" and oval <= sp["target"]:
                 issues.append(f"{tag}/{lid}: ClearRatio({oval}) <= target {sp['target']}")
             if oname == "UnderTime":
@@ -788,65 +788,65 @@ def validate(levels, tag):
                     if oval >= limit:
                         issues.append(f"{tag}/{lid}: UnderTime({oval}) >= time_limit {limit}")
                 if not (20.0 <= oval <= 150.0):
-                    issues.append(f"{tag}/{lid}: UnderTime {oval} no alcanzable")
+                    issues.append(f"{tag}/{lid}: UnderTime {oval} is unreachable")
         if sp["kind"] == "SpeedRun" and sp["time"] == "None":
-            issues.append(f"{tag}/{lid}: SpeedRun sin time_limit")
+            issues.append(f"{tag}/{lid}: SpeedRun with no time_limit")
         if sp["time"] != "None" and sp["purist"]:
-            issues.append(f"{tag}/{lid}: purist con time_limit")
-        # bolas
+            issues.append(f"{tag}/{lid}: purist with time_limit")
+        # balls
         if len(sp["balls"]) == 0:
-            issues.append(f"{tag}/{lid}: sin bolas")
+            issues.append(f"{tag}/{lid}: no balls")
         maze_open = None
         if sp["shape"] == "Maze":
             maze_open = maze_open_cells(sp["w"], sp["h"], sp["seed"], sp["maze_density"])
         for bi, b in enumerate(sp["balls"]):
             bx, by = b["x"], b["y"]
             if b["vx"] == 0.0 or b["vy"] == 0.0:
-                issues.append(f"{tag}/{lid}/ball{bi}: vx o vy == 0")
+                issues.append(f"{tag}/{lid}/ball{bi}: vx or vy == 0")
             if bx < 3.0 or by < 3.0 or bx > sp["w"] - 3.0 or by > sp["h"] - 3.0:
-                issues.append(f"{tag}/{lid}/ball{bi}: spawn fuera de margen 3")
+                issues.append(f"{tag}/{lid}/ball{bi}: spawn outside the margin of 3")
             if sp["shape"] == "Circle":
                 cx, cy = sp["w"] / 2.0, sp["h"] / 2.0
                 r = ((bx - cx) / (sp["w"] / 2.0)) ** 2 + \
                     ((by - cy) / (sp["h"] / 2.0)) ** 2
                 if r >= 0.7:
-                    issues.append(f"{tag}/{lid}/ball{bi}: fuera de elipse ({r:.3f})")
+                    issues.append(f"{tag}/{lid}/ball{bi}: outside the ellipse ({r:.3f})")
             if sp["shape"] == "Irregular":
                 n = sp["notch"]
                 if ((bx < n and by < n) or (bx > sp["w"] - n and by < n) or
                         (bx < n and by > sp["h"] - n) or
                         (bx > sp["w"] - n and by > sp["h"] - n)):
-                    issues.append(f"{tag}/{lid}/ball{bi}: en esquina recortada")
+                    issues.append(f"{tag}/{lid}/ball{bi}: in a notched corner")
             if sp["shape"] == "Maze":
                 cell = (int(bx), int(by))
                 if cell not in maze_open:
-                    issues.append(f"{tag}/{lid}/ball{bi}: spawn sobre pared de laberinto")
+                    issues.append(f"{tag}/{lid}/ball{bi}: spawn on a maze wall")
             rad = ball_radius(b)
             for o in sp["obstacles"]:
                 d = dist_to_rect(bx, by, o["x"], o["y"], o["w"], o["h"])
                 if d < rad - 0.05:
                     issues.append(
-                        f"{tag}/{lid}/ball{bi}: dentro/solapando obstaculo {o['type']}")
+                        f"{tag}/{lid}/ball{bi}: inside/overlapping obstacle {o['type']}")
         for i in range(len(sp["balls"])):
             for j in range(i + 1, len(sp["balls"])):
                 d = math.hypot(sp["balls"][i]["x"] - sp["balls"][j]["x"],
                                sp["balls"][i]["y"] - sp["balls"][j]["y"])
                 if d < 5.0:
-                    issues.append(f"{tag}/{lid}: bolas {i},{j} a {d:.2f} celdas (<5)")
+                    issues.append(f"{tag}/{lid}: balls {i},{j} are {d:.2f} cells apart (<5)")
         names_by_mundo.setdefault(sp["world"], 0)
         names_by_mundo[sp["world"]] += 1
     if issues:
-        print(f"[VALIDACION {tag}] {len(issues)} problema(s):")
+        print(f"[VALIDATION {tag}] {len(issues)} problem(s):")
         for line in issues:
             print("  -", line)
         return False
-    print(f"[VALIDACION {tag}] OK: {len(levels)} niveles, "
-          f"{len(seen)} ids unicos consecutivos.")
+    print(f"[VALIDATION {tag}] OK: {len(levels)} levels, "
+          f"{len(seen)} unique consecutive ids.")
     return True
 
 
 # ---------------------------------------------------------------------------
-# Escritura
+# Writing
 # ---------------------------------------------------------------------------
 
 def write_ron(path, levels, header):
@@ -868,32 +868,32 @@ def main():
     ok = validate(enhanced, "enhanced.ron") and ok
 
     if not ok:
-        print("ERROR: validaciones fallidas, no se escriben los ficheros.")
+        print("ERROR: validations failed, no files were written.")
         sys.exit(1)
 
-    h_orig = """// Niveles del modo Original (curva clasica del JezzBall).
-// world 0, purist, sin power-ups, sin objetivos, sin obstaculos.
-// Reglas: docs/LEVEL_SCHEMA.md
+    h_orig = """// Original mode levels (the classic JezzBall curve).
+// world 0, purist, no power-ups, no objectives, no obstacles.
+// Rules: docs/LEVEL_SCHEMA.md
 """
-    h_enh = """// Niveles del modo Enhanced: 6 mundos x 10 niveles.
-// M1 Clasico (1-10) | M2 Velocidad (11-20) | M3 Obstaculos (21-30)
-// M4 Bolas especiales (31-40) | M5 Power-ups (41-50) | M6 Retos (51-60).
-// Nivel 5 de cada mundo = SpeedRun; nivel 10 = Boss/Chaos.
-// Reglas: docs/LEVEL_SCHEMA.md
+    h_enh = """// Enhanced mode levels: 6 worlds x 10 levels.
+// W1 Classic (1-10) | W2 Speed (11-20) | W3 Obstacles (21-30)
+// W4 Special balls (31-40) | W5 Power-ups (41-50) | W6 Challenges (51-60).
+// Level 5 of each world = SpeedRun; level 10 = Boss/Chaos.
+// Rules: docs/LEVEL_SCHEMA.md
 """
     write_ron("assets/levels/original.ron", original, h_orig)
     write_ron("assets/levels/enhanced.ron", enhanced, h_enh)
 
     print()
-    print("Ficheros escritos: assets/levels/original.ron "
-          f"({len(original)} niveles) y "
-          f"assets/levels/enhanced.ron ({len(enhanced)} niveles)")
+    print("Files written: assets/levels/original.ron "
+          f"({len(original)} levels) and "
+          f"assets/levels/enhanced.ron ({len(enhanced)} levels)")
     stats = {}
     for sp in enhanced:
         stats.setdefault(sp["world"], [0, set()])[0] += 1
         stats[sp["world"]][1].add(sp["kind"])
     for w in sorted(stats):
-        print(f"  Mundo {w}: {stats[w][0]} niveles - kinds: {sorted(stats[w][1])}")
+        print(f"  World {w}: {stats[w][0]} levels - kinds: {sorted(stats[w][1])}")
 
 
 if __name__ == "__main__":

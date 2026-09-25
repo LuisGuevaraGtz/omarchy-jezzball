@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Renombra a inglés los identificadores en español del código Rust.
+"""Rename the Spanish identifiers in the Rust code to English.
 
-Se aplica sobre palabras completas (\\b) en todos los .rs versionados. El mapa
-es explícito a propósito: un renombrado por regex "creativo" es justo lo que
-rompe un refactor de este tamaño sin que los tests lo noten.
+It matches whole words (\\b) across every tracked .rs file. The map is
+explicit on purpose: a "creative" regex rename is exactly what breaks a
+refactor of this size without the tests noticing.
 
-Uso:  python3 tools/rename_to_english.py [--dry-run]
+Usage:  python3 tools/rename_to_english.py [--dry-run]
 """
 import re
 import subprocess
@@ -14,8 +14,8 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 
-# --- Identificadores de código (funciones, variables, campos, tipos) ---
-CODIGO = {
+# --- Code identifiers (functions, variables, fields, types) ---
+CODE = {
     # i18n
     "Catalogo": "Catalog",
     "CATALOGOS": "CATALOGS",
@@ -29,7 +29,7 @@ CODIGO = {
     "codigo": "code",
     "textos": "texts",
     "clave": "key",
-    # menús / listas
+    # menus / lists
     "ajustar_ventana": "adjust_scroll_window",
     "filas_visibles_para": "visible_rows_for",
     "filas_visibles": "visible_rows",
@@ -74,7 +74,7 @@ CODIGO = {
     "libres": "free_cells",
 }
 
-# --- Nombres de test (frases completas) ---
+# --- Test names (full phrases) ---
 TESTS = {
     "arena_sin_celdas_abiertas_descarta_la_bola":
         "arena_with_no_open_cells_discards_the_ball",
@@ -144,7 +144,75 @@ TESTS = {
         "candidate_order_matches_the_six_documented_paths",
 }
 
-MAPA = {**CODIGO, **TESTS}
+# --- Second pass: test names the first mapping missed ---
+TESTS_ROUND_2 = {
+    "al_golpear_la_mitad_viva_sobrevive_la_anclada":
+        "hitting_the_live_half_leaves_the_anchored_one_standing",
+    "la_mitad_anclada_en_la_pared_es_inmune":
+        "the_half_anchored_to_the_wall_is_immune",
+    "arena_minima_no_panica": "minimal_arena_does_not_panic",
+    "construir_arena_de_cualquier_tamano_no_panica":
+        "building_an_arena_of_any_size_does_not_panic",
+    "el_area_conquistada_es_monotona_y_valida":
+        "the_conquered_area_is_monotonic_and_valid",
+    "f32_en_rango_unitario": "f32_stays_in_the_unit_range",
+    "fichero_inexistente_devuelve_limpio": "missing_file_returns_a_clean_save",
+    "frente_hi_no_atraviesa_obstaculo_con_paso_grande":
+        "hi_front_does_not_cross_an_obstacle_with_a_large_step",
+    "frente_lo_no_atraviesa_obstaculo_con_paso_grande":
+        "lo_front_does_not_cross_an_obstacle_with_a_large_step",
+    "fuzz_indices_hostiles_no_panica": "fuzz_hostile_indices_does_not_panic",
+    "fuzz_launch_cli_no_panica": "fuzz_cli_launch_does_not_panic",
+    "guardar_y_cargar_atomico": "saving_and_loading_is_atomic",
+    "hasta_consolidar": "until_consolidated",
+    "instalacion_local_de_install_sh_converge_y_colapsa":
+        "local_install_sh_layout_converges_and_collapses",
+    "instalar_hook_de_panico": "install_panic_hook",
+    "misma_semilla_misma_secuencia": "same_seed_same_sequence",
+    "nav_repeat_cambio_de_direccion": "nav_repeat_on_direction_change",
+    "nombre_de_tema_busca_en_sistema_y_usuario":
+        "theme_name_is_looked_up_in_system_and_user_dirs",
+    "nombre_malicioso_no_viaja": "malicious_theme_name_cannot_traverse",
+    "nunca_invierte_ambos_ejes_fuera_de_una_esquina":
+        "never_flips_both_axes_outside_a_corner",
+    "override_con_hex_invalido_cae_al_paso_2":
+        "override_with_invalid_hex_falls_through_to_step_2",
+    "override_con_rol_faltante_cae_al_paso_2":
+        "override_with_a_missing_role_falls_through_to_step_2",
+    "override_de_usuario_gana": "user_override_wins",
+    "override_hex_sin_almohadilla_y_mayusculas":
+        "override_accepts_hex_without_hash_and_uppercase",
+    "parse_hex_funciona": "parse_hex_works",
+    "pasillo_estrecho_rebota_limpio": "narrow_corridor_bounces_cleanly",
+    "rangos_extremos_no_panican": "extreme_ranges_do_not_panic",
+    "rango_vacio_no_panica": "empty_range_does_not_panic",
+    "rebote_conserva_la_rapidez_y_avanza_de_verdad":
+        "bouncing_preserves_speed_and_actually_advances",
+    "rebote_en_esquina_mantiene_la_bola_dentro":
+        "corner_bounce_keeps_the_ball_inside",
+    "rebote_no_teletransporta_ni_atraviesa_el_muro":
+        "bouncing_neither_teleports_nor_crosses_the_wall",
+    "retro82_plano": "retro82_flat_palette",
+    "tokyo_night_plano": "tokyo_night_flat_palette",
+    "semillas_distintas_difieren": "different_seeds_differ",
+    "siempre_dentro_del_rango": "always_within_range",
+    "sin_ficheros_devuelve_fallback_sin_panic":
+        "with_no_files_it_returns_the_fallback_without_panicking",
+    "sin_ninguna_ruta_la_carga_devuelve_vacio_sin_panic":
+        "with_no_path_at_all_loading_returns_empty_without_panicking",
+    "spawn_sobre_solid_se_reubica_a_la_abierta_mas_cercana":
+        "spawn_on_solid_relocates_to_the_nearest_open_cell",
+    "trayectoria_no_se_cicla_sobre_si_misma":
+        "the_trajectory_does_not_loop_back_on_itself",
+    "desbloqueo_original_estricto": "original_unlocking_is_strict",
+    "bloque_exacto_de_theming_md_parsea": "exact_block_from_theming_md_parses",
+    # Spanish identifiers left inside the code
+    "ocupadas": "occupied",
+    "celdas": "cells",
+    "vulnerables": "vulnerable",
+}
+
+MAP = {**CODE, **TESTS, **TESTS_ROUND_2}
 
 
 def ficheros_rust():
@@ -157,21 +225,21 @@ def ficheros_rust():
 
 def main():
     dry = "--dry-run" in sys.argv
-    # Los nombres largos primero: evita que "clave" destroce
+    # Longest names first: this stops "clave" from mangling
     # "clave_desconocida_devuelve_la_propia_clave".
-    claves = sorted(MAPA, key=len, reverse=True)
+    claves = sorted(MAP, key=len, reverse=True)
     patron = re.compile(r"\b(" + "|".join(re.escape(k) for k in claves) + r")\b")
 
     total = 0
     for ruta in ficheros_rust():
         original = ruta.read_text(encoding="utf-8")
-        nuevo, n = patron.subn(lambda m: MAPA[m.group(1)], original)
+        nuevo, n = patron.subn(lambda m: MAP[m.group(1)], original)
         if n:
             total += n
             print(f"{n:5d}  {ruta.relative_to(RAIZ)}")
             if not dry:
                 ruta.write_text(nuevo, encoding="utf-8")
-    print(f"\n{'(simulacion) ' if dry else ''}{total} sustituciones")
+    print(f"\n{'(dry run) ' if dry else ''}{total} replacements")
 
 
 if __name__ == "__main__":

@@ -1,20 +1,21 @@
-//! `GameState` + `step()`: el corazón de la lógica pura (ARCHITECTURE.md §6).
+//! `GameState` + `step()`: the heart of the pure logic (ARCHITECTURE.md §6).
 //!
-//! `step` es PURA: no muta el estado recibido, clona y devuelve uno nuevo.
-//! Es determinista: mismo `state` + mismo `input` + mismo `dt` => mismo
-//! resultado (no hay `Instant::now()` ni fuentes externas de aleatoriedad).
+//! `step` is PURE: it does not mutate the state it receives, it clones and
+//! returns a new one. It is deterministic: same `state` + same `input` +
+//! same `dt` => same result (there is no `Instant::now()` nor any external
+//! source of randomness).
 //!
-//! Orden de orquestación impuesto por el contrato (comentado en cada paso):
-//!   a) aplicar input del jugador
-//!   b) power-ups temporizados sobre dt (SlowMotion scale, Freeze anula)
-//!   c) integrar bolas con substeps (rebote por ejes separados)
-//!   d) avanzar los frentes de los builders
-//!   e) impacto bola <-> muro en construcción (escudo o vida)
-//!   f) consolidar muros completados
-//!   g) flood fill 4-conexo + cierre de regiones + puntuación (sección 5)
-//!   h) ventana de combo (4 s, tope x8, reset al perder vida)
-//!   i) victoria / derrota / tiempo / objetivos y estrellas
-//!   j) emitir `Vec<GameEvent>`
+//! Orchestration order imposed by the contract (commented at each step):
+//!   a) apply the player's input
+//!   b) timed power-ups over dt (SlowMotion scales it, Freeze cancels it)
+//!   c) integrate balls with substeps (bounce on separate axes)
+//!   d) advance the fronts of the builders
+//!   e) ball <-> wall-under-construction impact (shield or life)
+//!   f) consolidate completed walls
+//!   g) 4-connected flood fill + region closing + scoring (section 5)
+//!   h) combo window (4 s, cap x8, reset on losing a life)
+//!   i) win / loss / time / objectives and stars
+//!   j) emit `Vec<GameEvent>`
 
 use std::collections::VecDeque;
 
@@ -28,7 +29,7 @@ use crate::rng::Rng64;
 use crate::score::{region_points, Combo};
 use crate::wall::{Wall, WallAxis, WallBuilder};
 
-/// Fase de ejecución de la partida.
+/// Execution phase of the game.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GamePhase {
     Running,
@@ -37,7 +38,7 @@ pub enum GamePhase {
     Lost,
 }
 
-/// Entrada del jugador: única superficie de mutación (ARCHITECTURE.md §6).
+/// Player input: the only mutation surface (ARCHITECTURE.md §6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlayerInput {
     None,
@@ -45,7 +46,7 @@ pub enum PlayerInput {
         cell: (u16, u16),
         axis: WallAxis,
     },
-    /// Alterna el eje por defecto del próximo muro (lo lee la capa de app).
+    /// Toggles the default axis of the next wall (read by the app layer).
     ToggleAxis,
     UsePowerUp(PowerUpKind),
     Pause,
@@ -53,7 +54,7 @@ pub enum PlayerInput {
     Restart,
 }
 
-/// Qué ha pasado, para que el render/audio reaccione (ARCHITECTURE.md §6).
+/// What has happened, so that render/audio can react (ARCHITECTURE.md §6).
 #[derive(Clone, Debug, PartialEq)]
 pub enum GameEvent {
     WallStarted,
@@ -68,15 +69,15 @@ pub enum GameEvent {
     GameOver,
 }
 
-/// Estado de un objetivo secundario (estrellas).
+/// State of a secondary objective (stars).
 #[derive(Clone, Debug, PartialEq)]
 pub struct ObjectiveProgress {
     pub objective: Objective,
     pub done: bool,
 }
 
-/// Estado completo de una partida. Deriva `Clone, Debug, PartialEq`
-/// (obligatorio por contrato) y todos sus campos son públicos.
+/// Complete state of a game. It derives `Clone, Debug, PartialEq`
+/// (mandatory by contract) and all of its fields are public.
 #[derive(Clone, Debug, PartialEq)]
 pub struct GameState {
     pub level: LevelSpec,
@@ -84,11 +85,11 @@ pub struct GameState {
     pub balls: Vec<Ball>,
     pub builders: Vec<WallBuilder>,
     pub phase: GamePhase,
-    /// Segundos transcurridos con la partida en marcha (Running).
+    /// Seconds elapsed with the game running (Running).
     pub elapsed: f32,
     pub score: u32,
     pub combo: Combo,
-    /// Máximo multiplicador alcanzado (objetivo `KeepCombo`).
+    /// Highest multiplier reached (`KeepCombo` objective).
     pub max_combo_reached: u8,
     pub lives: u8,
     pub powerups_active: Vec<ActivePowerUp>,
@@ -96,19 +97,19 @@ pub struct GameState {
     pub inventory: Vec<PowerUpKind>,
     pub pending_shield: bool,
     pub pending_double_wall: bool,
-    /// Nº de power-ups usados (objetivo `NoPowerUps`).
+    /// Number of power-ups used (`NoPowerUps` objective).
     pub powerups_used: u32,
-    /// Eje por defecto (lo alterna `ToggleAxis`).
+    /// Default axis (toggled by `ToggleAxis`).
     pub current_axis: WallAxis,
     pub objectives: Vec<ObjectiveProgress>,
     pub stars: u8,
-    /// Cuenta atrás hasta el próximo spawn de power-up.
+    /// Countdown until the next power-up spawn.
     pub next_powerup_in: f32,
     pub rng: Rng64,
 }
 
 impl GameState {
-    /// Construye una partida nueva a partir de un `LevelSpec`.
+    /// Builds a new game from a `LevelSpec`.
     pub fn new(level: LevelSpec) -> Self {
         let arena = Arena::from_spec(&level.arena, level.seed);
         let balls = spawn_balls(&level.balls, &arena.grid);
@@ -122,7 +123,7 @@ impl GameState {
             })
             .collect();
         let mut rng = Rng64::new(level.seed);
-        // Primer spawn de power-up: 30 ± 10 s, determinista.
+        // First power-up spawn: 30 +/- 10 s, deterministic.
         let next_powerup_in = 20.0 + rng.range_f32(0.0, 20.0);
         GameState {
             level,
@@ -150,13 +151,13 @@ impl GameState {
     }
 }
 
-/// La función central del proyecto (ARCHITECTURE.md §6).
+/// The central function of the project (ARCHITECTURE.md §6).
 pub fn step(state: &GameState, input: PlayerInput, dt: f32) -> (GameState, Vec<GameEvent>) {
-    // Clonamos para no mutar el estado recibido (firma pura).
+    // We clone so as not to mutate the state we received (pure signature).
     let mut s = state.clone();
     let mut events = Vec::new();
 
-    // Partida terminada: solo se puede reiniciar.
+    // Game over: the only thing left is to restart.
     if s.phase == GamePhase::Won || s.phase == GamePhase::Lost {
         if input == PlayerInput::Restart {
             return (GameState::new(s.level.clone()), events);
@@ -164,7 +165,7 @@ pub fn step(state: &GameState, input: PlayerInput, dt: f32) -> (GameState, Vec<G
         return (s, events);
     }
 
-    // Pausa: el reloj se detiene por completo.
+    // Paused: the clock stops completely.
     if s.phase == GamePhase::Paused {
         match input {
             PlayerInput::Resume => s.phase = GamePhase::Running,
@@ -174,7 +175,7 @@ pub fn step(state: &GameState, input: PlayerInput, dt: f32) -> (GameState, Vec<G
         return (s, events);
     }
 
-    // Corriendo:
+    // Running:
     match input {
         PlayerInput::Pause => {
             s.phase = GamePhase::Paused;
@@ -184,63 +185,62 @@ pub fn step(state: &GameState, input: PlayerInput, dt: f32) -> (GameState, Vec<G
         other => apply_input(&mut s, other, &mut events),
     }
 
-    // Movers (obstáculos móviles): actualizamos su ocupación ANTES de
-    // integrar bolas para que los rebotes vean la rejilla nueva. Destruyen
-    // muros en construcción SIN coste de vidas (decisión documentada; las
-    // vidas solo se pierden por impacto de bola, ARCHITECTURE.md §3).
+    // Movers (moving obstacles): we update their occupancy BEFORE
+    // integrating the balls so that the bounces see the new grid. They
+    // destroy walls under construction with NO cost in lives (documented
+    // decision; lives are only lost to ball impacts, ARCHITECTURE.md §3).
     let mover_cells = s.arena.update_movers(dt);
     destroy_builders_from_cells(&mut s, &mover_cells, &mut events);
 
-    // b) Power-ups temporizados: aquí decidimos el `dt` efectivo de las bolas.
-    //    SlowMotion lo scale a ×0.5; Freeze lo anula. Los frentes de muro
-    //    usan siempre el `dt` real.
+    // b) Timed power-ups: here we decide the effective `dt` of the balls.
+    //    SlowMotion scales it to x0.5; Freeze cancels it. Wall fronts always
+    //    use the real `dt`.
     let ball_dt = advance_timed_powerups(&mut s, dt);
 
-    // c) Integrar bolas con substeps si |vel| * dt >= 0.5 (rebote por ejes
-    //    separados contra la rejilla => rebote de 45° clásico).
+    // c) Integrate balls with substeps if |vel| * dt >= 0.5 (bounce on
+    //    separate axes against the grid => classic 45-degree bounce).
     for ball in &mut s.balls {
         ball.step(&s.arena.grid, &mut s.rng, ball_dt);
     }
 
-    // Recoger power-ups del suelo si una bola pisa su celda.
+    // Collect power-ups from the floor if a ball steps on their cell.
     collect_pickups(&mut s);
 
-    // d) Avanzar los frentes de los builders y spawnear power-ups.
+    // d) Advance the fronts of the builders and spawn power-ups.
     for builder in &mut s.builders {
         builder.advance(&s.arena.grid, dt);
     }
-    // e) Impacto bola <-> muro en construcción: escudo absorbe 1 impacto,
-    //    Heavy lo ignora; si no hay escudo => muro destruido + vida perdida.
-    //    Va ANTES del sellado: una bola que está tocando el frente debe
-    //    romperlo, no quedar encerrada por él.
+    // e) Ball <-> wall-under-construction impact: the shield absorbs 1
+    //    impact, Heavy ignores it; with no shield => wall destroyed + life
+    //    lost. This goes BEFORE the sealing: a ball that is touching the
+    //    front must break it, not end up enclosed by it.
     wall_impacts(&mut s, &mut events);
 
-    // Sellado por mitades (regla del JezzBall original): en cuanto un frente
-    // alcanza su límite, ESA mitad se vuelca a la rejilla como `Filled` y
-    // pasa a ser inmune. La otra mitad sigue creciendo y sigue siendo la
-    // única que puede costar una vida.
+    // Sealing by halves (rule from the original JezzBall): as soon as a front
+    // reaches its limit, THAT half is committed to the grid as `Filled` and
+    // becomes immune. The other half keeps growing and remains the only one
+    // that can cost a life.
     seal_finished_halves(&mut s);
     maybe_spawn_pickup(&mut s, dt, &mut events);
 
-    // f+g+h) Consolidar muros, partición (flood fill), puntuación y combo.
+    // f+g+h) Consolidate walls, partition (flood fill), scoring and combo.
     consolidate_walls(&mut s, &mut events);
 
-    // h) Ventana de combo: expira y vuelve a x1.
+    // h) Combo window: it expires and goes back to x1.
     if !s.level.purist && s.combo.tick(dt) {
         events.push(GameEvent::ComboReset);
     }
 
     s.elapsed += dt;
 
-    // i) Victoría / derrota / tiempo agotado / objetivos y estrellas.
+    // i) Win / loss / time out / objectives and stars.
     check_end(&mut s, &mut events);
 
     (s, events)
 }
 
-/// Crea las bolas de una partida a partir de sus `BallSpawn`, reubicando
-/// cualquier spawn que no caiga en una celda `Open` de la arena ya
-/// materializada.
+/// Creates the balls of a game from their `BallSpawn`s, relocating any spawn
+/// that does not land on an `Open` cell of the already materialized arena.
 fn spawn_balls(spawns: &[crate::level::BallSpawn], grid: &Grid) -> Vec<Ball> {
     spawns
         .iter()
@@ -249,24 +249,24 @@ fn spawn_balls(spawns: &[crate::level::BallSpawn], grid: &Grid) -> Vec<Ball> {
         .collect()
 }
 
-/// Crea una bola desde su `BallSpawn` y garantiza el invariante "toda bola
-/// nace en una celda `Open`".
+/// Creates a ball from its `BallSpawn` and guarantees the invariant "every
+/// ball is born on an `Open` cell".
 ///
-/// Por qué hace falta una defensa aquí: `tools/gen_levels.py` genera los
-/// niveles `ArenaShape::Maze` con un laberinto recursive-backtracker sembrado
-/// con el `random` de Python y coloca los spawns de bola en las celdas
-/// abiertas DE SU laberinto. En el motor, `Arena::from_spec` ->
-/// `materialize_maze` reproduce el algoritmo pero con OTRO generador de
-/// números aleatorios (`Rng64`, xorshift). Dos RNG distintos => dos
-/// laberintos distintos => un spawn que el generador creía abierto puede
-/// caer inside de un muro `Solid` (o fuera de la arena). En vez de replicar
-/// el RNG de Python (que acoplaría el motor a un script externo y seguiría
-/// rompiéndose al cambiar cualquiera de los dos), el motor defiende el
-/// invariante: si el spawn no cae en una celda `Open`, se busca en anchura
-/// desde la celda del spawn la primera celda `Open` que no sea `NoSplit` y
-/// ahí se reubica la bola, conservando su velocidad, su `kind` y su radio.
-/// Si no existe ninguna celda abierta en toda la arena (nivel degenerado),
-/// la bola se descarta en vez de provocar un estado inválido.
+/// Why a defence is needed here: `tools/gen_levels.py` generates the
+/// `ArenaShape::Maze` levels with a recursive-backtracker maze seeded with
+/// Python's `random` and places the ball spawns on the open cells OF ITS
+/// maze. In the engine, `Arena::from_spec` -> `materialize_maze` reproduces
+/// the algorithm but with ANOTHER random number generator (`Rng64`,
+/// xorshift). Two different RNGs => two different mazes => a spawn the
+/// generator believed to be open can land inside a `Solid` wall (or outside
+/// the arena). Instead of replicating Python's RNG (which would couple the
+/// engine to an external script and would keep breaking whenever either of
+/// the two changed), the engine defends the invariant: if the spawn does not
+/// land on an `Open` cell, a breadth-first search from the spawn's cell
+/// finds the first `Open` cell that is not `NoSplit` and the ball is
+/// relocated there, keeping its velocity, its `kind` and its radius. If
+/// there is no open cell at all in the whole arena (degenerate level), the
+/// ball is discarded instead of causing an invalid state.
 fn new_or_relocated_ball(id: u32, spawn: &crate::level::BallSpawn, grid: &Grid) -> Option<Ball> {
     let mut ball = Ball::new(
         id,
@@ -288,8 +288,8 @@ fn new_or_relocated_ball(id: u32, spawn: &crate::level::BallSpawn, grid: &Grid) 
     Some(ball)
 }
 
-/// Búsqueda en anchura desde la celda `(sx, sy)`: devuelve la primera celda
-/// `Open` que no sea `NoSplit`. `None` si no hay ninguna (arena degenerada).
+/// Breadth-first search from cell `(sx, sy)`: returns the first `Open` cell
+/// that is not `NoSplit`. `None` if there is none (degenerate arena).
 fn nearest_open_cell(grid: &Grid, sx: i64, sy: i64) -> Option<(u16, u16)> {
     let start = (
         sx.clamp(0, grid.w as i64 - 1) as u16,
@@ -317,7 +317,8 @@ fn nearest_open_cell(grid: &Grid, sx: i64, sy: i64) -> Option<(u16, u16)> {
     None
 }
 
-/// a) Aplicar la entrada del jugador (sin Pause/Resume/Restart, ya tratados).
+/// a) Apply the player's input (without Pause/Resume/Restart, already
+/// handled).
 fn apply_input(s: &mut GameState, input: PlayerInput, events: &mut Vec<GameEvent>) {
     match input {
         PlayerInput::None | PlayerInput::Pause | PlayerInput::Resume | PlayerInput::Restart => {}
@@ -332,9 +333,9 @@ fn apply_input(s: &mut GameState, input: PlayerInput, events: &mut Vec<GameEvent
     }
 }
 
-/// Inicia un muro (`PlayerInput::StartWall`).
+/// Starts a wall (`PlayerInput::StartWall`).
 fn start_wall(s: &mut GameState, cell: (u16, u16), axis: WallAxis, events: &mut Vec<GameEvent>) {
-    // Fuera de la arena o sobre una celda no abierta -> bloqueado.
+    // Outside the arena or on a non-open cell -> blocked.
     if cell.0 >= s.arena.grid.w || cell.1 >= s.arena.grid.h {
         events.push(GameEvent::WallBlocked);
         return;
@@ -343,11 +344,11 @@ fn start_wall(s: &mut GameState, cell: (u16, u16), axis: WallAxis, events: &mut 
         events.push(GameEvent::WallBlocked);
         return;
     }
-    // Un solo builder a la vez, salvo con el power-up Muro Doble (2).
+    // A single builder at a time, except with the Double Wall power-up (2).
     let max_builders = if s.pending_double_wall { 2 } else { 1 };
     if s.builders.len() >= max_builders {
-        // Se ignora silenciosamente (decisión documentada: no se emite evento
-        // porque no es un fallo del muro en sí, es un input no válido).
+        // Silently ignored (documented decision: no event is emitted because
+        // it is not a failure of the wall itself, it is an invalid input).
         return;
     }
     let shielded = s.pending_shield;
@@ -360,9 +361,10 @@ fn start_wall(s: &mut GameState, cell: (u16, u16), axis: WallAxis, events: &mut 
     events.push(GameEvent::WallStarted);
 }
 
-/// Usa un power-up del inventario si está available (ARCHITECTURE.md §9).
+/// Uses a power-up from the inventory if it is available
+/// (ARCHITECTURE.md §9).
 fn use_powerup(s: &mut GameState, kind: PowerUpKind, events: &mut Vec<GameEvent>) {
-    // Modo Original: sin power-ups (un solo camino de código con guardas).
+    // Original mode: no power-ups (a single code path with guards).
     if s.level.purist {
         return;
     }
@@ -381,7 +383,7 @@ fn use_powerup(s: &mut GameState, kind: PowerUpKind, events: &mut Vec<GameEvent>
         }
         PowerUpKind::DoubleWall => {
             if s.pending_double_wall {
-                s.inventory.push(kind); // ya estaba pendiente: no se consume
+                s.inventory.push(kind); // already pending: it is not consumed
                 false
             } else {
                 s.pending_double_wall = true;
@@ -404,7 +406,7 @@ fn use_powerup(s: &mut GameState, kind: PowerUpKind, events: &mut Vec<GameEvent>
                 events.push(GameEvent::BallLost);
                 true
             } else {
-                s.inventory.push(kind); // no puede quedar la arena sin bolas
+                s.inventory.push(kind); // the arena cannot be left with no balls
                 false
             }
         }
@@ -414,7 +416,7 @@ fn use_powerup(s: &mut GameState, kind: PowerUpKind, events: &mut Vec<GameEvent>
     }
 }
 
-/// Índice de la bola más lenta (para `RemoveBall`).
+/// Index of the slowest ball (for `RemoveBall`).
 fn slowest_ball_index(balls: &[Ball]) -> usize {
     let mut best = 0;
     let mut best_speed = f32::MAX;
@@ -428,7 +430,7 @@ fn slowest_ball_index(balls: &[Ball]) -> usize {
     best
 }
 
-/// b) Avanza los power-ups temporizados y devuelve el `dt` efectivo de bolas.
+/// b) Advances the timed power-ups and returns the effective `dt` for balls.
 fn advance_timed_powerups(s: &mut GameState, dt: f32) -> f32 {
     let mut ball_dt = dt;
     for active in &mut s.powerups_active {
@@ -443,7 +445,7 @@ fn advance_timed_powerups(s: &mut GameState, dt: f32) -> f32 {
     ball_dt
 }
 
-/// Celda en la que está el centro de la bola.
+/// Cell the centre of the ball is in.
 fn ball_cell(ball: &Ball, grid: &Grid) -> Option<(u16, u16)> {
     let x = ball.pos.x.floor() as i64;
     let y = ball.pos.y.floor() as i64;
@@ -454,8 +456,8 @@ fn ball_cell(ball: &Ball, grid: &Grid) -> Option<(u16, u16)> {
     }
 }
 
-/// Recoge power-ups del suelo cuando una bola pisa su celda (llenando el
-/// inventario hasta `INVENTORY_MAX`).
+/// Collects power-ups from the floor when a ball steps on their cell
+/// (filling the inventory up to `INVENTORY_MAX`).
 fn collect_pickups(s: &mut GameState) {
     if s.pickups.is_empty() {
         return;
@@ -476,7 +478,8 @@ fn collect_pickups(s: &mut GameState) {
     }
 }
 
-/// d) Spawnea un power-up recogible cada 30 ± 10 s (máx `PICKUP_MAX` en arena).
+/// d) Spawns a collectible power-up every 30 +/- 10 s (max `PICKUP_MAX` in
+/// the arena).
 fn maybe_spawn_pickup(s: &mut GameState, dt: f32, events: &mut Vec<GameEvent>) {
     s.next_powerup_in -= dt;
     if !s.level.powerups_enabled || s.level.purist {
@@ -496,7 +499,7 @@ fn maybe_spawn_pickup(s: &mut GameState, dt: f32, events: &mut Vec<GameEvent>) {
     s.next_powerup_in = 20.0 + s.rng.range_f32(0.0, 20.0);
 }
 
-/// Celda aleatoria abierta (y no `NoSplit`) para un spawn de power-up.
+/// Random open (and non-`NoSplit`) cell for a power-up spawn.
 fn random_open_cell(s: &mut GameState) -> Option<(u16, u16)> {
     for _ in 0..128 {
         let x = s.rng.range_i64(0, s.arena.grid.w as i64 - 1) as u16;
@@ -508,8 +511,8 @@ fn random_open_cell(s: &mut GameState) -> Option<(u16, u16)> {
     None
 }
 
-/// Destruye builders rozados por celdas ocupadas (aquí: por `Mover`).
-/// No cuesta vidas.
+/// Destroys builders brushed by occupied cells (here: by a `Mover`).
+/// It costs no lives.
 fn destroy_builders_from_cells(
     s: &mut GameState,
     occupied: &[(u16, u16)],
@@ -519,8 +522,8 @@ fn destroy_builders_from_cells(
         return;
     }
     s.builders.retain(|builder| {
-        // Igual que con las bolas: un Mover sólo puede romper las mitades que
-        // siguen creciendo, no la que ya se selló contra la pared.
+        // Same as with the balls: a Mover can only break the halves that are
+        // still growing, not the one that already sealed against the wall.
         let vulnerable = builder.vulnerable_cells(&s.arena.grid);
         let hit = vulnerable.iter().any(|c| occupied.contains(c));
         if hit {
@@ -530,18 +533,18 @@ fn destroy_builders_from_cells(
     });
 }
 
-/// Sella las mitades de muro que ya alcanzaron su límite.
+/// Seals the wall halves that have already reached their limit.
 ///
-/// Regla del JezzBall original: cuando un frente toca una pared (o un muro
-/// prev), esa mitad "se convierte" y deja de estar en riesgo. Aquí se
-/// vuelca a la rejilla como `Filled` y se marca `*_sealed`, de modo que
-/// `vulnerable_cells` deja de incluirla y una bola que la toque no cuesta
-/// nada — igual que cualquier other muro ya consolidado.
+/// Rule from the original JezzBall: when a front touches a wall (or a
+/// previous wall), that half "sets" and is no longer at risk. Here it is
+/// committed to the grid as `Filled` and marked `*_sealed`, so that
+/// `vulnerable_cells` stops including it and a ball touching it costs
+/// nothing — just like any other already consolidated wall.
 fn seal_finished_halves(s: &mut GameState) {
-    // Una mitad no se sella sobre la celda que ocupa una bola: la encerraría
-    // inside del muro. En esa situación se espera al frame siguiente (la bola
-    // se habrá movido, o habrá roto el frente en `wall_impacts`).
-    let ocupadas: Vec<(u16, u16)> = s
+    // A half does not seal over the cell a ball occupies: it would enclose it
+    // inside the wall. In that situation we wait for the next frame (the ball
+    // will have moved, or will have broken the front in `wall_impacts`).
+    let occupied: Vec<(u16, u16)> = s
         .balls
         .iter()
         .filter_map(|b| ball_cell(b, &s.arena.grid))
@@ -549,9 +552,9 @@ fn seal_finished_halves(s: &mut GameState) {
 
     for builder in &mut s.builders {
         if builder.lo_done && !builder.lo_sealed {
-            let celdas = builder.lo_cells();
-            if !celdas.iter().any(|c| ocupadas.contains(c)) {
-                for (cx, cy) in celdas {
+            let cells = builder.lo_cells();
+            if !cells.iter().any(|c| occupied.contains(c)) {
+                for (cx, cy) in cells {
                     if s.arena.grid.is_open(cx, cy) {
                         s.arena.grid.set(cx, cy, Cell::Filled);
                     }
@@ -560,9 +563,9 @@ fn seal_finished_halves(s: &mut GameState) {
             }
         }
         if builder.hi_done && !builder.hi_sealed {
-            let celdas = builder.hi_cells();
-            if !celdas.iter().any(|c| ocupadas.contains(c)) {
-                for (cx, cy) in celdas {
+            let cells = builder.hi_cells();
+            if !cells.iter().any(|c| occupied.contains(c)) {
+                for (cx, cy) in cells {
                     if s.arena.grid.is_open(cx, cy) {
                         s.arena.grid.set(cx, cy, Cell::Filled);
                     }
@@ -573,7 +576,7 @@ fn seal_finished_halves(s: &mut GameState) {
     }
 }
 
-/// e) Impacto bola <-> muro en construcción.
+/// e) Ball <-> wall-under-construction impact.
 fn wall_impacts(s: &mut GameState, events: &mut Vec<GameEvent>) {
     if s.builders.is_empty() {
         return;
@@ -584,15 +587,17 @@ fn wall_impacts(s: &mut GameState, events: &mut Vec<GameEvent>) {
         if *d {
             continue;
         }
-        // Sólo las mitades VIVAS están en riesgo: la que ya tocó pared se
-        // sellló y se comporta como muro normal (regla del original).
+        // Only the LIVE halves are at risk: the one that already touched a
+        // wall has sealed and behaves like a normal wall (rule from the
+        // original).
         let cells = s.builders[bi].vulnerable_cells(&s.arena.grid);
         if cells.is_empty() {
             continue;
         }
         let mut shielded = s.builders[bi].shielded;
         for ball in &s.balls {
-            // AABB barrido entre posiciones previa y current (anti-túnel).
+            // Swept AABB between the previous and current positions
+            // (anti-tunnelling).
             let min_x = ball.prev.x.min(ball.pos.x) - ball.radius;
             let max_x = ball.prev.x.max(ball.pos.x) + ball.radius;
             let min_y = ball.prev.y.min(ball.pos.y) - ball.radius;
@@ -604,7 +609,7 @@ fn wall_impacts(s: &mut GameState, events: &mut Vec<GameEvent>) {
             });
             if overlap {
                 if shielded && !ball.kind.ignores_shield() {
-                    // El escudo absorbe exactamente este impacto.
+                    // The shield absorbs exactly this impact.
                     shielded = false;
                 } else {
                     *d = true;
@@ -615,12 +620,13 @@ fn wall_impacts(s: &mut GameState, events: &mut Vec<GameEvent>) {
         s.builders[bi].shielded = shielded;
     }
 
-    // Aplicar destrucciones. La mitad ya sellada NO se borra: sus celdas
-    // quedaron `Filled` en la rejilla y siguen ahí, igual que en el original.
+    // Apply the destructions. The already sealed half is NOT erased: its
+    // cells were left `Filled` in the grid and stay there, just like in the
+    // original.
     let mut keep: Vec<WallBuilder> = Vec::new();
     for (bi, builder) in s.builders.drain(..).enumerate() {
         if destroyed[bi] {
-            // Sólo se retiran las celdas de las mitades que seguían vivas.
+            // Only the cells of the halves that were still alive are removed.
             if !builder.lo_sealed {
                 for (cx, cy) in builder.lo_cells() {
                     if s.arena.grid.get(cx, cy) == Cell::Filled {
@@ -650,7 +656,7 @@ fn wall_impacts(s: &mut GameState, events: &mut Vec<GameEvent>) {
     s.builders = keep;
 }
 
-/// f+g+h) Consolidar muros hechos, cerrar regiones, puntuar y subir combo.
+/// f+g+h) Consolidate finished walls, close regions, score and raise combo.
 fn consolidate_walls(s: &mut GameState, events: &mut Vec<GameEvent>) {
     let mut ready = Vec::new();
     let mut active = Vec::new();
@@ -664,7 +670,7 @@ fn consolidate_walls(s: &mut GameState, events: &mut Vec<GameEvent>) {
     s.builders = active;
 
     for builder in ready {
-        // f) El muro se consolida: sus celdas pasan a `Filled`.
+        // f) The wall consolidates: its cells become `Filled`.
         let cells = builder.cells();
         for (cx, cy) in &cells {
             if s.arena.grid.is_open(*cx, *cy) {
@@ -672,13 +678,13 @@ fn consolidate_walls(s: &mut GameState, events: &mut Vec<GameEvent>) {
             }
         }
 
-        // Riesgo y velocidad para la fórmula de puntuación (§5).
+        // Risk and speed for the scoring formula (§5).
         let balls_near = count_balls_near(s, &cells);
         let max_speed = max_ball_speed(s);
         let open_before = s.arena.grid.open_count() as u32;
 
-        // g) Partición: flood fill 4-conexo, cerrar regiones sin bola,
-        //    puntuar cada una y dividir splitters.
+        // g) Partition: 4-connected flood fill, close the regions with no
+        //    ball, score each one and split the splitters.
         let (points, cells_closed) = partition_and_score(s, open_before, balls_near, max_speed);
         s.score += points;
 
@@ -693,7 +699,8 @@ fn consolidate_walls(s: &mut GameState, events: &mut Vec<GameEvent>) {
             cells: wall.cells,
         });
 
-        // h) Cada muro consolidado sin perder vida sube el combo (x8 tope).
+        // h) Every wall consolidated without losing a life raises the combo
+        //    (x8 cap).
         if !s.level.purist {
             s.combo.bump();
             s.max_combo_reached = s.max_combo_reached.max(s.combo.multiplier);
@@ -702,7 +709,7 @@ fn consolidate_walls(s: &mut GameState, events: &mut Vec<GameEvent>) {
     }
 }
 
-/// Bolas a menos de 4 celdas del segmento del muro al consolidar (§5).
+/// Balls less than 4 cells away from the wall segment on consolidation (§5).
 fn count_balls_near(s: &GameState, cells: &[(u16, u16)]) -> u32 {
     let mut min_x = f32::MAX;
     let mut min_y = f32::MAX;
@@ -727,7 +734,7 @@ fn count_balls_near(s: &GameState, cells: &[(u16, u16)]) -> u32 {
     near
 }
 
-/// Velocidad máxima entre todas las bolas (§5 formula `speed_b`).
+/// Maximum speed among all the balls (§5, `speed_b` formula).
 fn max_ball_speed(s: &GameState) -> f32 {
     let mut max: f32 = 0.0;
     for ball in &s.balls {
@@ -736,9 +743,9 @@ fn max_ball_speed(s: &GameState) -> f32 {
     max
 }
 
-/// g) Flood fill 4-conexo y cierre de regiones sin bola.
+/// g) 4-connected flood fill and closing of the regions with no ball.
 ///
-/// Devuelve `(puntos, celdas_cerradas)` para el evento `WallCompleted`.
+/// Returns `(points, closed_cells)` for the `WallCompleted` event.
 fn partition_and_score(
     s: &mut GameState,
     open_before: u32,
@@ -756,12 +763,13 @@ fn partition_and_score(
                 .any(|b| ball_cell(b, &s.arena.grid) == Some(cell))
         });
         if any_ball {
-            // Región con bola(s): no se cierra. Si solo hay Splitters, se
-            // dividen en 2 Normal (región encerrada con espacio, §8).
+            // Region with ball(s): it is not closed. If it only holds
+            // Splitters, they split into 2 Normal ones (enclosed region with
+            // room, §8).
             split_splitters_in_region(s, &region);
             continue;
         }
-        // Región vacía -> cerrada: todas sus celdas a `Filled` y se puntúa.
+        // Empty region -> closed: all of its cells to `Filled` and it scores.
         let n = region.len() as u32;
         for &(cx, cy) in &region {
             s.arena.grid.set(cx, cy, Cell::Filled);
@@ -773,8 +781,9 @@ fn partition_and_score(
     (points, cells_closed)
 }
 
-/// `BallKind::Splitter`: al quedar "encerrada" su región (solo splitters en
-/// ella), se divide en 2 bolas `Normal` si hay sitio (>= 2 celdas abiertas).
+/// `BallKind::Splitter`: when its region becomes "enclosed" (only splitters
+/// in it), it splits into 2 `Normal` balls if there is room (>= 2 open
+/// cells).
 fn split_splitters_in_region(s: &mut GameState, region: &[(u16, u16)]) {
     let in_region: Vec<usize> = s
         .balls
@@ -801,8 +810,9 @@ fn split_splitters_in_region(s: &mut GameState, region: &[(u16, u16)]) {
         if speed <= 0.0 {
             continue;
         }
-        // Las dos nuevas Normal nacen muy juntas (se separan por la velocidad)
-        // y van ligeramente rotadas para no viajar en paralelo exacto.
+        // The two new Normal balls are born very close together (they are
+        // separated by their velocity) and go slightly rotated so they do not
+        // travel exactly in parallel.
         let pos_a = base + Vec2::new(-0.05, 0.0);
         let dir_a = dir.rotate(-0.35);
         let dir_b = dir.rotate(0.35);
@@ -831,20 +841,20 @@ fn split_splitters_in_region(s: &mut GameState, region: &[(u16, u16)]) {
     }
 }
 
-/// i) Evaluar fin de partida, tiempo, objetivos y estrellas.
+/// i) Evaluate end of game, time, objectives and stars.
 fn check_end(s: &mut GameState, events: &mut Vec<GameEvent>) {
     if s.phase != GamePhase::Running {
         return;
     }
 
-    // Derrota por vidas agotadas o arena sin bolas.
+    // Loss due to running out of lives or to an arena with no balls.
     if s.lives == 0 || s.balls.is_empty() {
         s.phase = GamePhase::Lost;
         events.push(GameEvent::GameOver);
         return;
     }
 
-    // Tiempo agotado.
+    // Time out.
     if let Some(limit) = s.level.time_limit {
         if s.elapsed >= limit {
             s.phase = GamePhase::Lost;
@@ -853,7 +863,7 @@ fn check_end(s: &mut GameState, events: &mut Vec<GameEvent>) {
         }
     }
 
-    // Victoría por área rellenada.
+    // Win by filled area.
     let ratio = s.arena.grid.filled_ratio();
     if ratio >= s.level.target_ratio {
         let stars = compute_stars(s);
@@ -863,8 +873,8 @@ fn check_end(s: &mut GameState, events: &mut Vec<GameEvent>) {
     }
 }
 
-/// Estrellas: 1 por objetivo cumplido (máx 3). En modo Original (purist) no
-/// hay objetivos y el número de estrellas es 0.
+/// Stars: 1 per objective achieved (max 3). In Original mode (purist) there
+/// are no objectives and the number of stars is 0.
 fn compute_stars(s: &mut GameState) -> u8 {
     if s.level.purist {
         return 0;

@@ -45,6 +45,16 @@
     "hud.puntos": "Puntos",
     "hud.objetivos": "OBJETIVOS ",
     "hud.pausa": "PAUSA",
+    "hud.overlay_lento": "LENTO",
+    "hud.overlay_congelado": "CONGELADO",
+    "hud.puntos_etq": "  PUNTOS {}",
+    "hud.area_etq": "  AREA {}%",
+    "hud.vidas_etq": "  VIDAS {}",
+    "hud.modo_etq": "MODO ",
+    "hud.tiempo_etq": "  TIEMPO {}",
+    "hud.restante_etq": "  RESTANTE {}",
+    "hud.estrellas_etq": "  ESTRELLAS {}",
+    "hud.max_etq": "  MAX x{}",
 
     // --- Power-ups activos ---
     "powerup.lento": "LENTO {:.0}s",

@@ -1,18 +1,18 @@
-# Para un proyecto Rust binario: se IGNORA /target.
-# NOTA: Cargo.lock NO se ignora. Esto es un binario final, así que el
-# lockfile se versiona a propósito para builds reproducibles (--locked/--frozen).
+# For a Rust binary project: /target IS ignored.
+# NOTE: Cargo.lock is NOT ignored. This is a final binary, so the lockfile is
+# committed on purpose for reproducible builds (--locked/--frozen).
 
 # --- Rust / Cargo ---
 /target/
-# Ficheros de depuración de rustc que a veces caen en la raíz.
+# rustc debug files that sometimes land in the root.
 *.pdb
 
-# --- Temporales genéricos ---
+# --- Generic temporaries ---
 *.tmp
 *.bak
 *~
 
-# --- Editores e IDEs ---
+# --- Editors and IDEs ---
 .vscode/
 .idea/
 *.swp
@@ -20,11 +20,11 @@
 *.swn
 .DS_Store
 
-# --- Ficheros internos de coordinación entre workers ---
-# (contratos reales: docs/ARCHITECTURE.md y docs/LEVEL_SCHEMA.md;
-#  los .task-*.md son notas de trabajo y no se versionan).
+# --- Internal coordination notes ---
+# (the real contracts are docs/ARCHITECTURE.md and docs/LEVEL_SCHEMA.md;
+#  the .task-*.md files are working notes and are not versioned).
 docs/.task-*.md
 
-# --- Configuracion local del agente / toolchain ---
+# --- Local agent / toolchain configuration ---
 .hermes.md
 .probe/

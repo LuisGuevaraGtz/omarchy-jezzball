@@ -1,12 +1,12 @@
-//! Crate de lógica pura de Omarchy-Jezzball (ARCHITECTURE.md §1).
+//! Pure-logic crate of Omarchy-Jezzball (ARCHITECTURE.md §1).
 //!
-//! Comentarios y documentación en español; nombres de tipos y funciones en inglés.
-//! Reglas duras:
-//! - Sin `macroquad`, `std::fs`, `std::time`, `rand` ni dependencias del SO.
-//! - El tiempo entra siempre como `dt: f32`.
-//! - La aleatoriedad es un PRNG determinista propio (`rng::Rng64`), sembrado
-//!   desde `LevelSpec::seed`. Mismo seed => misma partida.
-//! - Sin `unsafe`. Sin `unwrap()` fuera de tests.
+//! Comments, documentation, type names and function names are all in English.
+//! Hard rules:
+//! - No `macroquad`, `std::fs`, `std::time`, `rand` or OS dependencies.
+//! - Time always comes in as `dt: f32`.
+//! - Randomness is our own deterministic PRNG (`rng::Rng64`), seeded from
+//!   `LevelSpec::seed`. Same seed => same game.
+//! - No `unsafe`. No `unwrap()` outside tests.
 
 pub mod arena;
 pub mod ball;

@@ -1,21 +1,21 @@
-//! La arena: rejilla materializada a partir de un `ArenaSpec`.
+//! The arena: grid materialized from an `ArenaSpec`.
 //!
-//! `ArenaShape::Circle` y `ArenaShape::Maze` se materializan A CELDAS
-//! `Solid` aquí mismo, en el constructor, usando el seed del nivel para el
-//! laberinto. El resto del motor no sabe nada de la forma: solo trabaja con
-//! `grid`. Los `Obstacle::Block` son `Solid` estáticos, los `NoSplit` se
-//! marcan en la rejilla y los `Mover` se desplazan ocupando celdas `Solid`
-//! mientras los atraviesan (ARCHITECTURE.md §2 y LEVEL_SCHEMA.md).
+//! `ArenaShape::Circle` and `ArenaShape::Maze` are materialized INTO `Solid`
+//! CELLS right here, in the constructor, using the level's seed for the maze.
+//! The rest of the engine knows nothing about the shape: it only works with
+//! `grid`. `Obstacle::Block`s are static `Solid`s, the `NoSplit`s are marked
+//! on the grid and the `Mover`s travel around occupying `Solid` cells as they
+//! pass through them (ARCHITECTURE.md §2 and LEVEL_SCHEMA.md).
 
 use crate::grid::{Cell, Grid};
 use crate::level::{ArenaShape, ArenaSpec, Obstacle};
 use crate::rng::Rng64;
 
-/// Obstáculo móvil (`Obstacle::Mover`): se desplaza en línea recta, rebota
-/// en los bordes de la arena y ocupa celdas `Solid` mientras lo atraviesa.
-/// Si roza un muro en construcción lo destruye SIN coste de vidas
-/// (decisión de diseño documentada: perder vidas es exclusivo de los
-/// impactos de bola, ARCHITECTURE.md §3).
+/// Moving obstacle (`Obstacle::Mover`): it travels in a straight line,
+/// bounces off the arena borders and occupies `Solid` cells as it goes
+/// through them. If it brushes a wall under construction it destroys it with
+/// NO cost in lives (documented design decision: losing lives is exclusive to
+/// ball impacts, ARCHITECTURE.md §3).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Mover {
     pub x: f32,
@@ -27,19 +27,19 @@ pub struct Mover {
     last_cells: Vec<(u16, u16)>,
 }
 
-/// Arena lista para simular. `grid` es la fuente de verdad de ocupación.
+/// Arena ready to simulate. `grid` is the source of truth for occupancy.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Arena {
     pub grid: Grid,
     pub shape: ArenaShape,
     movers: Vec<Mover>,
-    /// Celdas que son `Solid` por la forma o por un `Block`: nunca se
-    /// restauran a `Open` al pasar un `Mover`.
+    /// Cells that are `Solid` because of the shape or because of a `Block`:
+    /// they are never restored to `Open` when a `Mover` passes by.
     static_solid: Vec<(u16, u16)>,
 }
 
 impl Arena {
-    /// Materializa la forma y los obstáculos de un `ArenaSpec`.
+    /// Materializes the shape and the obstacles of an `ArenaSpec`.
     pub fn from_spec(spec: &ArenaSpec, seed: u64) -> Arena {
         let mut grid = Grid::new(spec.w, spec.h);
         let mut static_solid = Vec::new();
@@ -88,15 +88,16 @@ impl Arena {
         }
     }
 
-    /// Avanza los `Mover`, rebota en los bordes y rasteriza sus celdas a
-    /// `Solid`. Devuelve la lista de celdas que ocupan este frame (para que
-    /// `state` destruya muros en construcción al ser rozados).
+    /// Advances the `Mover`s, bounces them off the borders and rasterizes
+    /// their cells to `Solid`. Returns the list of cells they occupy this
+    /// frame (so that `state` can destroy walls under construction when they
+    /// are brushed).
     pub fn update_movers(&mut self, dt: f32) -> Vec<(u16, u16)> {
         if self.movers.is_empty() {
             return Vec::new();
         }
 
-        // 1) Avanzar y rebotar; calcular las celdas que ocuparán.
+        // 1) Advance and bounce; compute the cells they will occupy.
         let mut new_cells: Vec<Vec<(u16, u16)>> = Vec::with_capacity(self.movers.len());
         for m in &mut self.movers {
             m.x += m.vx * dt;
@@ -120,14 +121,14 @@ impl Arena {
             new_cells.push(mover_cells(m, self.grid.w, self.grid.h));
         }
 
-        // 2) Unión de la ocupación nueva (para no borrar celdas compartidas).
+        // 2) Union of the new occupancy (so shared cells are not cleared).
         let mut occupied = Vec::new();
         for cells in &new_cells {
             occupied.extend(cells.iter().copied());
         }
 
-        // 3) Restaurar a `Open` las celdas viejas que ya no están ocupadas,
-        //    salvo las pertenecientes a la forma o a un `Block` estático.
+        // 3) Restore to `Open` the old cells that are no longer occupied,
+        //    except those belonging to the shape or to a static `Block`.
         let old_cells: Vec<Vec<(u16, u16)>> = self
             .movers
             .iter_mut()
@@ -143,14 +144,15 @@ impl Arena {
             }
         }
 
-        // 4) Pintar la ocupación nueva como `Solid` (sin tocar sólidos estáticos).
+        // 4) Paint the new occupancy as `Solid` (without touching static
+        //    solids).
         for (cx, cy) in &occupied {
             if !self.static_solid.contains(&(*cx, *cy)) {
                 self.grid.set(*cx, *cy, Cell::Solid);
             }
         }
 
-        // 5) Recordar las celdas actuales por mover.
+        // 5) Remember the current cells per mover.
         for (i, m) in self.movers.iter_mut().enumerate() {
             m.last_cells = new_cells[i].clone();
         }
@@ -158,7 +160,7 @@ impl Arena {
         occupied
     }
 
-    /// Celdas ocupadas ahora mismo por algún `Mover`.
+    /// Cells occupied right now by some `Mover`.
     pub fn mover_cells_now(&self) -> Vec<(u16, u16)> {
         let mut out = Vec::new();
         for m in &self.movers {
@@ -168,7 +170,7 @@ impl Arena {
     }
 }
 
-/// Celdas que cubre el rectángulo del `Mover`, recortadas a la arena.
+/// Cells covered by the `Mover`'s rectangle, clipped to the arena.
 fn mover_cells(m: &Mover, gw: u16, gh: u16) -> Vec<(u16, u16)> {
     let x0 = m.x.floor() as i64;
     let y0 = m.y.floor() as i64;
@@ -208,7 +210,7 @@ fn mark_no_split(grid: &mut Grid, x: u16, y: u16, w: u16, h: u16) {
     }
 }
 
-/// `Irregular { notch }`: recorta `notch` celdas diagonales en cada esquina.
+/// `Irregular { notch }`: cuts `notch` diagonal cells off each corner.
 fn materialize_notches(
     grid: &mut Grid,
     static_solid: &mut Vec<(u16, u16)>,
@@ -233,7 +235,7 @@ fn materialize_notches(
     }
 }
 
-/// `Circle`: elipse inscrita; todo lo que quede fuera es `Solid`.
+/// `Circle`: inscribed ellipse; everything left outside is `Solid`.
 fn materialize_circle(grid: &mut Grid, static_solid: &mut Vec<(u16, u16)>, w: u16, h: u16) {
     let cx = (w - 1) as f32 / 2.0;
     let cy = (h - 1) as f32 / 2.0;
@@ -250,9 +252,10 @@ fn materialize_circle(grid: &mut Grid, static_solid: &mut Vec<(u16, u16)>, w: u1
     }
 }
 
-/// `Maze { density }`: laberinto (DFS con backtracking) generado con el PRNG
-/// determinista sembrado desde `LevelSpec::seed`. `density` (0..=100) abre
-/// pasadizos extra: más bucles y menos callejones cuanto mayor sea.
+/// `Maze { density }`: maze (DFS with backtracking) generated with the
+/// deterministic PRNG seeded from `LevelSpec::seed`. `density` (0..=100)
+/// opens extra passages: the higher it is, the more loops and the fewer dead
+/// ends.
 fn materialize_maze(
     grid: &mut Grid,
     static_solid: &mut Vec<(u16, u16)>,
@@ -264,12 +267,12 @@ fn materialize_maze(
     let wu = w as usize;
     let hu = h as usize;
 
-    // Arenas menores de 3 celdas no admiten laberinto: se dejan sólidas.
+    // Arenas smaller than 3 cells cannot hold a maze: they are left solid.
     if wu < 3 || hu < 3 {
         return;
     }
 
-    // Todas las celdas inician como `Solid`; el DFS va abriendo pasajes.
+    // Every cell starts as `Solid`; the DFS goes on opening passages.
     for y in 0..hu {
         for x in 0..wu {
             grid.set(x as u16, y as u16, Cell::Solid);
@@ -277,11 +280,11 @@ fn materialize_maze(
         }
     }
 
-    // Vértices del laberinto en coordenadas impares: (2i+1, 2j+1). El
-    // número de vértices por dimensión es `w/2` (división entera): la cota
-    // `(w+1).div_ceil(2)` producía un vértice extra en arenas de width/height
-    // par cuyo centro `2i+1 >= w` escribía fuera de la rejilla (pánico en
-    // `Grid::set` al construir los niveles Maze 52/55/58 de Enhanced).
+    // Maze vertices at odd coordinates: (2i+1, 2j+1). The number of vertices
+    // per dimension is `w/2` (integer division): the bound
+    // `(w+1).div_ceil(2)` produced an extra vertex in arenas of even
+    // width/height whose centre `2i+1 >= w` wrote outside the grid (panic in
+    // `Grid::set` when building the Enhanced Maze levels 52/55/58).
     let cols = wu / 2;
     let rows = hu / 2;
     let mut rng = Rng64::new(seed);
@@ -302,7 +305,7 @@ fn materialize_maze(
         for (ni, nj) in neighbours {
             if !visited[nj * cols + ni] {
                 visited[nj * cols + ni] = true;
-                // Arrancamos el muro intermedio (punto medio entre los dos).
+                // Tear out the wall in between (midpoint between the two).
                 let wall_x = (2 * ci + 1 + 2 * ni).div_ceil(2);
                 let wall_y = (2 * cj + 1 + 2 * nj).div_ceil(2);
                 grid.set(wall_x as u16, wall_y as u16, Cell::Open);
@@ -312,11 +315,12 @@ fn materialize_maze(
         }
     }
 
-    // Los pasajes abiertos dejan de ser sólidos estáticos (para que un Mover
-    // que pase pueda restaurarlos).
+    // The opened passages stop being static solids (so that a Mover passing
+    // through can restore them).
     static_solid.retain(|&(x, y)| grid.get(x, y) == Cell::Solid);
 
-    // Pasadizos extra según densidad: cuantos más, más "abierto" el laberinto.
+    // Extra passages according to density: the more there are, the more
+    // "open" the maze.
     let extra = (density as u32) * 3;
     for _ in 0..extra {
         let x = rng.range_i64(0, (wu - 1) as i64) as u16;
@@ -326,7 +330,7 @@ fn materialize_maze(
     static_solid.retain(|&(x, y)| grid.get(x, y) == Cell::Solid);
 }
 
-/// Fisher-Yates con `rng` (determinista).
+/// Fisher-Yates with `rng` (deterministic).
 fn shuffle<T>(items: &mut [T], rng: &mut Rng64) {
     for i in (1..items.len()).rev() {
         let j = rng.range_i64(0, i as i64) as usize;

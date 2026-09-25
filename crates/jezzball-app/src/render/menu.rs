@@ -1,19 +1,19 @@
-//! Render de los menús, selector de niveles, resultados, fin de modo,
-//! pausa, aviso y diálogo de salida.
+//! Render of the menus, level selector, results, end of mode,
+//! pause, floater and exit dialog.
 
 use macroquad::prelude::*;
 
 use crate::render::{draw_text_c, fmt_time, font, mode_name, panel, text_w, world_name};
 use crate::screens::{App, Screen};
 
-/// Marca de Omarchy dibujada con blocks, derivada del icono oficial
-/// (`/usr/share/omarchy/icon.txt`): un marco con una muesca abajo y dos
-/// huecos arriba. Se dibuja con rectángulos, sin depender de ningún fichero
-/// del sistema, para que el juego siga siendo autónomo.
+/// Omarchy mark drawn with blocks, derived from the official icon
+/// (`/usr/share/omarchy/icon.txt`): a frame with a notch at the bottom and two
+/// gaps at the top. It is drawn with rectangles, without depending on any system
+/// file, so that the game remains self-contained.
 ///
-/// Encaja con la estética del juego por sí sola: el logo de Omarchy YA es una
-/// rejilla de celdas rellenas, que es exactamente lo que el jugador construye
-/// al cerrar área.
+/// It fits the game's aesthetic all by itself: the Omarchy logo IS ALREADY a
+/// grid of filled cells, which is exactly what the player builds
+/// when closing off area.
 const OMARCHY_MARK: [&str; 13] = [
     "##############",
     "#......#.....#",
@@ -30,7 +30,7 @@ const OMARCHY_MARK: [&str; 13] = [
     "########.#####",
 ];
 
-/// Dibuja la marca de Omarchy centrada en `cx`, con celdas de `cell` px.
+/// Draws the Omarchy mark centred at `cx`, with cells of `cell` px.
 pub fn draw_omarchy_mark(cx: f32, top: f32, cell: f32, color: Color) {
     let w = OMARCHY_MARK[0].len() as f32 * cell;
     let x0 = cx - w / 2.0;
@@ -49,13 +49,13 @@ pub fn draw_omarchy_mark(cx: f32, top: f32, cell: f32, color: Color) {
     }
 }
 
-/// Título y cabecera comunes.
+/// Common title and header.
 fn title(app: &App, text: &str) -> f32 {
     let t = &app.theme;
     let w = screen_width();
     let s = crate::render::ui_scale();
 
-    // Marca de Omarchy junto al título: pequeña, tenue, a la izquierda.
+    // Omarchy mark next to the title: small, faint, on the left.
     draw_omarchy_mark(
         w / 2.0 - text_w(text, 40.0 * s) / 2.0 - 22.0 * s,
         62.0 * s,
@@ -64,9 +64,9 @@ fn title(app: &App, text: &str) -> f32 {
     );
 
     draw_text_c(text, w / 2.0, 90.0 * s, 40.0 * s, t.accent.to_mq(0.9));
-    // El subtitulo sale del catalogo de language. Antes decia
-    // "... {modo} : {tema}  >" con el tema literal "corriente" (traduccion
-    // palabra por palabra de "current"), que no significa nada en espanol.
+    // The subtitle comes from the language catalog. It used to say
+    // "... {modo} : {tema}  >" with the literal theme "corriente" (a word-for-word
+    // translation of "current"), which means nothing in Spanish.
     let sub = if app.mode == jezzball_core::level::Mode::Enhanced {
         crate::i18n::t("menu.subtitulo_modo")
             .replacen("{}", mode_name(app.mode), 1)
@@ -82,8 +82,8 @@ fn footer(app: &App, hint: &str) {
     let t = &app.theme;
     let w = screen_width();
     let h = screen_height();
-    // El pie tenia 12 px fijos de base: con el juego a pantalla completa era
-    // practicamente ilegible. Va a la misma base que el resto del HUD.
+    // The footer had a fixed 12 px base: with the game full screen it was
+    // practically unreadable. It now uses the same base as the rest of the HUD.
     let sz = font();
     let x = ((w - text_w(hint, sz)) / 2.0).max(4.0);
     draw_text(
@@ -95,8 +95,8 @@ fn footer(app: &App, hint: &str) {
     );
 }
 
-/// Pantalla de ayuda paginada: reglas base, puntuacion y catalogo de
-/// obstaculos / bolas / power-ups de Enhanced.
+/// Paginated help screen: base rules, scoring and the catalog of
+/// Enhanced obstacles / balls / power-ups.
 pub fn draw_help(app: &App, w: f32, h: f32) {
     let t = &app.theme;
     let s = crate::render::ui_scale();
@@ -122,7 +122,7 @@ pub fn draw_help(app: &App, w: f32, h: f32) {
     let x = px + 28.0 * s;
     for line in lines {
         if let Some(sub) = line.strip_prefix("# ") {
-            // Subtitulo: acentuado y con algo de aire por encima.
+            // Subheading: accented and with a bit of air above it.
             y += row * 0.35;
             draw_text(sub, x, y, sz, t.accent.to_mq(0.95));
         } else {
@@ -145,32 +145,32 @@ pub fn draw_help(app: &App, w: f32, h: f32) {
     footer(app, crate::i18n::t("pie.ayuda"));
 }
 
-/// Lista de opciones centrada a partir de `y`.
-/// Fila de lista y posición donde empieza: compartidas por el render y por la
-/// lógica de desplazamiento, para que ambos cuenten lo mismo.
+/// Option list centred starting from `y`.
+/// List row and the position where it starts: shared by the render and by the
+/// scrolling logic, so that both count the same.
 pub fn row_height() -> f32 {
     30.0 * crate::render::ui_scale()
 }
 
-/// Y donde arranca la lista de opciones. Compartida por todas las pantallas
-/// de menú: si una la scale y otra no, los texts se solapan (ocurrió).
+/// The `y` where the option list starts. Shared by all menu
+/// screens: if one scales it and another does not, the texts overlap (it happened).
 pub fn list_y() -> f32 {
     170.0 * crate::render::ui_scale()
 }
 
-/// Cuántas filas de lista caben en pantalla. Única fuente de verdad: si el
-/// render y el scroll usaran cuentas distintas, la selección se saldría de la
-/// ventana visible.
+/// How many list rows fit on the screen. Single source of truth: if the
+/// render and the scroll used different counts, the selection would fall outside the
+/// visible window.
 pub fn visible_rows() -> usize {
     crate::screens::visible_rows_for(screen_height(), crate::render::ui_scale())
 }
 
-/// Lista de opciones con ventana de desplazamiento.
+/// Option list with a scroll window.
 ///
-/// Con 61 niveles la lista no cabe en pantalla: antes se dibujaban todos desde
-/// el first, así que al bajar más allá del borde el jugador seguía viendo el
-/// principio y no sabía qué tenía seleccionado. Ahora se dibuja sólo la
-/// ventana visible y se acompaña la selección.
+/// With 61 levels the list does not fit on the screen: previously all of them were drawn from
+/// the first one, so when scrolling past the edge the player kept seeing the
+/// beginning and did not know what was selected. Now only the
+/// visible window is drawn and it follows the selection.
 fn option_list(app: &App, y: f32) -> f32 {
     let t = &app.theme;
     let w = screen_width();
@@ -205,7 +205,7 @@ fn option_list(app: &App, y: f32) -> f32 {
         ny += row;
     }
 
-    // Indicadores de que hay más lista fuera de la ventana.
+    // Indicators that there is more list outside the window.
     if top > 0 {
         draw_text_c("^", w / 2.0, y - row * 0.6, sz, t.fg_dim.to_mq(1.0));
     }
@@ -223,7 +223,7 @@ fn option_list(app: &App, y: f32) -> f32 {
 
 pub fn draw_menu(app: &App, w: f32, _h: f32) {
     title(app, crate::i18n::t("menu.title"));
-    // Progreso persistido antes de la lista.
+    // Persisted progress before the list.
     let (done_o, stars_o) =
         crate::screens::mode_progress(app, jezzball_core::level::Mode::Original);
     let (done_e, stars_e) =
@@ -263,9 +263,9 @@ pub fn draw_level_select(app: &App, _w: f32, _h: f32) {
     let t = &app.theme;
     if app.screen == Screen::ModeMenu {
         title(app, crate::i18n::t("menu.elegir_nivel"));
-        // La `y` de la lista DEBE escalar igual que el título: con la ventana
-        // grande, un 170.0 sin escalar dejaba las opciones por encima del
-        // subtítulo y los texts se pisaban unos a otros.
+        // The list's `y` MUST scale the same as the title: with a large
+        // window, an unscaled 170.0 left the options above the
+        // subtitle and the texts trampled over each other.
         option_list(app, list_y());
         footer(app, crate::i18n::t("pie.menu"));
         return;
@@ -296,7 +296,7 @@ pub fn draw_results(app: &App, w: f32, h: f32) {
     };
     draw_text_c(&head, w / 2.0, py + 44.0, 26.0, t.accent.to_mq(1.0));
 
-    // Estrellas (1 por objetivo, max 3). '*' llena, '.' vacia.
+    // Stars (1 per objective, max 3). '*' filled, '.' empty.
     let stars: String = (0..3)
         .map(|i| if i < r.stars { '*' } else { '.' })
         .collect();
@@ -400,7 +400,7 @@ pub fn draw_error(app: &App, msg: &str, w: f32, h: f32) {
     footer(app, crate::i18n::t("pie.error"));
 }
 
-/// Overlay de pausa sobre la arena (el juego REAL está a medias).
+/// Pause overlay over the arena (the REAL game is half-finished).
 pub fn draw_pause_overlay(app: &App, layout: &crate::render::Layout) {
     let t = &app.theme;
     let w = screen_width();
@@ -423,7 +423,7 @@ pub fn draw_pause_overlay(app: &App, layout: &crate::render::Layout) {
     );
 }
 
-/// Aviso breve centrado cerca del fondo.
+/// Brief floater centred near the bottom.
 pub fn draw_toast(app: &App, toast: &crate::screens::Toast, w: f32) {
     let t = &app.theme;
     let y = screen_height() - 70.0;
@@ -438,7 +438,7 @@ pub fn draw_toast(app: &App, toast: &crate::screens::Toast, w: f32) {
     draw_text_c(&toast.text, w / 2.0, y, 15.0, t.accent.to_mq(0.95));
 }
 
-/// Diálogo de confirmación de salida.
+/// Exit confirmation dialog.
 pub fn draw_quit_confirm(app: &App, w: f32, h: f32) {
     let t = &app.theme;
     draw_rectangle(0.0, 0.0, w, h, Color::new(0.0, 0.0, 0.0, 0.6));

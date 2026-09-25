@@ -1,37 +1,37 @@
-//! Power-ups (ARCHITECTURE.md §9). Solo existen en Enhanced (mundos ≥ 5) y
-//! quedan completamente desactivados en el modo Original (`purist: true`).
+//! Power-ups (ARCHITECTURE.md §9). They only exist in Enhanced (worlds >= 5)
+//! and are completely disabled in Original mode (`purist: true`).
 
-/// Tipos de power-up.
+/// Power-up types.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PowerUpKind {
-    SlowMotion, // dt de bolas × 0.5 durante 5 s
-    Freeze,     // bolas quietas durante 3 s
-    DoubleWall, // permite 2 builders simultáneos (1 uso)
-    Shield,     // el próximo muro absorbe 1 impacto de bola
-    RemoveBall, // elimina la bola más lenta (1 uso)
+    SlowMotion, // ball dt x 0.5 for 5 s
+    Freeze,     // balls stand still for 3 s
+    DoubleWall, // allows 2 simultaneous builders (1 use)
+    Shield,     // the next wall absorbs 1 ball impact
+    RemoveBall, // removes the slowest ball (1 use)
 }
 
-/// Power-up recogible esperando en el suelo de la arena.
+/// Collectible power-up waiting on the arena floor.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PowerUp {
     pub kind: PowerUpKind,
     pub cell: (u16, u16),
 }
 
-/// Power-up temporal active (SlowMotion/Freeze).
+/// Temporary active power-up (SlowMotion/Freeze).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ActivePowerUp {
     pub kind: PowerUpKind,
     pub remaining: f32,
 }
 
-/// Máximo de power-ups simultáneos recogibles en la arena.
+/// Maximum number of collectible power-ups present in the arena at once.
 pub const PICKUP_MAX: usize = 2;
-/// Tamaño máximo del inventario del jugador.
+/// Maximum size of the player's inventory.
 pub const INVENTORY_MAX: usize = 4;
 
 impl ActivePowerUp {
-    /// Duración (segundos) del efecto temporal de cada tipo.
+    /// Duration (seconds) of the temporary effect of each type.
     pub fn duration(kind: PowerUpKind) -> f32 {
         match kind {
             PowerUpKind::SlowMotion => 5.0,
@@ -41,7 +41,7 @@ impl ActivePowerUp {
     }
 }
 
-/// Lista de todos los tipos (para elegir el kind de un spawn).
+/// List of every type (used to pick the kind of a spawn).
 pub fn all_kinds() -> [PowerUpKind; 5] {
     [
         PowerUpKind::SlowMotion,

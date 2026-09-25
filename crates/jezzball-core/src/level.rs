@@ -1,27 +1,28 @@
-//! Tipos de niveles. Este fichero es el contrato NORMATIVO con los workers
-//! de niveles (LEVEL_SCHEMA.md): los nombres de tipos, campos y variantes son
-//! obligatorios y no deben renombrarse.
+//! Level types. This file is the NORMATIVE contract with the level workers
+//! (LEVEL_SCHEMA.md): the names of types, fields and variants are mandatory
+//! and must not be renamed.
 //!
-//! `serde` es opcional (feature `serde`, activada por defecto): el formato en
-//! disco (`assets/levels/*.ron`) lo usa la capa de persistencia, nunca el core.
+//! `serde` is optional (feature `serde`, enabled by default): the on-disk
+//! format (`assets/levels/*.ron`) is used by the persistence layer, never by
+//! the core.
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LevelSpec {
-    pub id: u16,      // 1-based, único inside del modo
-    pub name: String, // corto, mostrable en HUD
-    pub world: u8,    // 0 = Original; 1..=6 = mundos Enhanced
+    pub id: u16,      // 1-based, unique within the mode
+    pub name: String, // short, displayable in the HUD
+    pub world: u8,    // 0 = Original; 1..=6 = Enhanced worlds
     pub kind: LevelKind,
     pub arena: ArenaSpec,
     pub balls: Vec<BallSpawn>,
-    pub target_ratio: f32, // 0.0..1.0, típico 0.75
+    pub target_ratio: f32, // 0.0..1.0, typically 0.75
     pub lives: u8,
-    pub wall_speed: f32,         // celdas/seg por frente, típico 22.0
-    pub time_limit: Option<f32>, // segundos; None = sin reloj
+    pub wall_speed: f32,         // cells/sec per front, typically 22.0
+    pub time_limit: Option<f32>, // seconds; None = no clock
     pub powerups_enabled: bool,
-    pub objectives: Vec<Objective>, // máx 3; vacío en Original
-    pub purist: bool,               // true => sin combos, sin power-ups, sin objetivos
-    pub seed: u64,                  // semilla del PRNG determinista
+    pub objectives: Vec<Objective>, // max 3; empty in Original
+    pub purist: bool,               // true => no combos, no power-ups, no objectives
+    pub seed: u64,                  // seed of the deterministic PRNG
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,21 +37,21 @@ pub enum LevelKind {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ArenaSpec {
-    pub w: u16, // celdas, 32..=96
-    pub h: u16, // celdas, 20..=60
+    pub w: u16, // cells, 32..=96
+    pub h: u16, // cells, 20..=60
     pub shape: ArenaShape,
-    pub obstacles: Vec<Obstacle>, // celdas Solid pre-colocadas
+    pub obstacles: Vec<Obstacle>, // pre-placed Solid cells
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ArenaShape {
-    Rect,                     // rectángulo estándar
-    Wide,                     // ratio width
-    Tall,                     // ratio height
-    Irregular { notch: u16 }, // esquinas recortadas de `notch` celdas
-    Circle,                   // elipse inscrita; fuera = Solid
-    Maze { density: u8 },     // 0..=100, corredores generados por `seed`
+    Rect,                     // standard rectangle
+    Wide,                     // wide ratio
+    Tall,                     // tall ratio
+    Irregular { notch: u16 }, // corners cut back by `notch` cells
+    Circle,                   // inscribed ellipse; outside = Solid
+    Maze { density: u8 },     // 0..=100, corridors generated from `seed`
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -62,7 +63,7 @@ pub enum Obstacle {
         w: u16,
         h: u16,
     },
-    // se mueve en línea recta rebotando; destruye muros en construcción
+    // moves in a straight line, bouncing; destroys walls under construction
     Mover {
         x: f32,
         y: f32,
@@ -71,7 +72,7 @@ pub enum Obstacle {
         vx: f32,
         vy: f32,
     },
-    // zona que NUNCA puede rellenarse ni cerrarse (cuenta como no-fillable)
+    // zone that can NEVER be filled or closed (counts as non-fillable)
     NoSplit {
         x: u16,
         y: u16,
@@ -91,7 +92,7 @@ pub struct BallSpawn {
     pub radius_mul: f32, // 1.0 = normal
 }
 
-/// Ver ARCHITECTURE.md §8 para la semántica de cada tipo.
+/// See ARCHITECTURE.md §8 for the semantics of each type.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Objective {
@@ -103,7 +104,7 @@ pub enum Objective {
     NoPowerUps,
 }
 
-/// Tipo de bola (LEVEL_SCHEMA.md, semántica en ARCHITECTURE.md §8).
+/// Ball kind (LEVEL_SCHEMA.md, semantics in ARCHITECTURE.md §8).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum BallKind {
@@ -115,7 +116,7 @@ pub enum BallKind {
 }
 
 impl BallKind {
-    /// Radio base (en celdas) de cada tipo de bola (ARCHITECTURE.md §8).
+    /// Base radius (in cells) of each ball kind (ARCHITECTURE.md §8).
     pub fn base_radius(self) -> f32 {
         match self {
             BallKind::Normal | BallKind::Fast | BallKind::Erratic | BallKind::Splitter => 0.45,
@@ -123,7 +124,7 @@ impl BallKind {
         }
     }
 
-    /// Multiplicador de velocidad respecto a la del spawn (ARCHITECTURE.md §8).
+    /// Speed multiplier relative to the spawn's speed (ARCHITECTURE.md §8).
     pub fn speed_mult(self) -> f32 {
         match self {
             BallKind::Normal | BallKind::Erratic | BallKind::Splitter => 1.0,
@@ -132,21 +133,21 @@ impl BallKind {
         }
     }
 
-    /// La bola `Heavy` ignora el escudo: destruye SIEMPRE los muros
-    /// en construcción (ARCHITECTURE.md §8).
+    /// The `Heavy` ball ignores the shield: it ALWAYS destroys walls under
+    /// construction (ARCHITECTURE.md §8).
     pub fn ignores_shield(self) -> bool {
         self == BallKind::Heavy
     }
 }
 
-/// Modo de juego (ARCHITECTURE.md §7).
+/// Game mode (ARCHITECTURE.md §7).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
     Original,
     Enhanced,
 }
 
-/// Mundo de niveles (ARCHITECTURE.md §7).
+/// World of levels (ARCHITECTURE.md §7).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct World {
@@ -155,7 +156,7 @@ pub struct World {
     pub levels: Vec<LevelSpec>,
 }
 
-/// Una estrella = un objetivo cumplido (máx 3 por nivel).
+/// One star = one objective achieved (max 3 per level).
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Star {

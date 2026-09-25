@@ -1,23 +1,23 @@
-//! Muros (ARCHITECTURE.md §3).
+//! Walls (ARCHITECTURE.md §3).
 //!
-//! Un `WallBuilder` es el muro EN CONSTRUCCIÓN: crece en AMBAS direcciones
-//! desde su celda de origen a la vez (un frente hacia coordenadas decrecientes
-//! `lo`, other hacia crecientes `hi`), a `speed` celdas por segundo y por
-//! frente. Cada frente se detiene de forma independiente al tocar
-//! `Filled`/`Solid`/`NoSplit` o el borde. Solo cuando `lo_done && hi_done`
-//! está listo para consolidarse.
+//! A `WallBuilder` is the wall UNDER CONSTRUCTION: it grows in BOTH
+//! directions from its origin cell at the same time (one front towards
+//! decreasing coordinates `lo`, the other towards increasing ones `hi`), at
+//! `speed` cells per second and per front. Each front stops independently
+//! when it touches `Filled`/`Solid`/`NoSplit` or the border. Only when
+//! `lo_done && hi_done` is it ready to consolidate.
 
 use crate::grid::Grid;
 
-/// Eje de crecimiento de un muro.
+/// Growth axis of a wall.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WallAxis {
-    Horizontal, // crece a lo largo de las columnas (misma fila que el origen)
-    Vertical,   // crece a lo largo de las filas (misma columna que el origen)
+    Horizontal, // grows along the columns (same row as the origin)
+    Vertical,   // grows along the rows (same column as the origin)
 }
 
 impl WallAxis {
-    /// Coordenada máxima (inclusive) que puede alcanzar un frente de este eje.
+    /// Maximum coordinate (inclusive) a front on this axis can reach.
     pub fn max_coord(self, w: u16, h: u16) -> f32 {
         match self {
             WallAxis::Horizontal => (w - 1) as f32,
@@ -26,34 +26,37 @@ impl WallAxis {
     }
 }
 
-/// Muro que el jugador está trazando en estos momentos.
+/// Wall the player is currently drawing.
 ///
-/// Regla del JezzBall original: cada mitad se "convierte" (queda fijada) en
-/// cuanto su frente alcanza una pared u obstáculo, y desde ese momento es
-/// inmune a las bolas. Sólo la mitad que sigue creciendo puede costar una
-/// vida. `lo_sealed`/`hi_sealed` registran qué mitades ya se fijaron.
+/// Rule from the original JezzBall: each half "sets" (becomes fixed) as soon
+/// as its front reaches a wall or obstacle, and from that moment it is
+/// immune to balls. Only the half that is still growing can cost a life.
+/// `lo_sealed`/`hi_sealed` record which halves have already set.
 #[derive(Clone, Debug, PartialEq)]
 pub struct WallBuilder {
     pub axis: WallAxis,
-    pub origin: (u16, u16), // celda donde el jugador pulsó
-    pub lo: f32,            // frente que crece hacia -X/-Y (en celdas)
-    pub hi: f32,            // frente que crece hacia +X/+Y
-    pub lo_done: bool,      // llegó a borde/obstáculo
+    pub origin: (u16, u16), // cell where the player clicked
+    pub lo: f32,            // front growing towards -X/-Y (in cells)
+    pub hi: f32,            // front growing towards +X/+Y
+    pub lo_done: bool,      // reached a border/obstacle
     pub hi_done: bool,
-    /// La mitad `lo` ya se volcó a la rejilla como `Filled` (es inmune).
+    /// The `lo` half has already been committed to the grid as `Filled`
+    /// (it is immune).
     pub lo_sealed: bool,
-    /// La mitad `hi` ya se volcó a la rejilla como `Filled` (es inmune).
+    /// The `hi` half has already been committed to the grid as `Filled`
+    /// (it is immune).
     pub hi_sealed: bool,
-    pub speed: f32,     // celdas por segundo, por frente
-    pub shielded: bool, // power-up Escudo: absorbe 1 impacto
+    pub speed: f32,     // cells per second, per front
+    pub shielded: bool, // Shield power-up: absorbs 1 impact
 }
 
-/// Pequeña tolerancia para "apretar" un frente contra la celda bloqueante sin
-/// cubrirla: si el frente se detiene en la celda `c`, lo dejamos en `c - EPS`.
+/// Small tolerance to "press" a front against the blocking cell without
+/// covering it: if the front stops at cell `c`, we leave it at `c - EPS`.
 const EPS: f32 = 1e-3;
 
 impl WallBuilder {
-    /// Crea un muro empezando en su origen (un solo frente con `lo == hi`).
+    /// Creates a wall starting at its origin (a single front with
+    /// `lo == hi`).
     pub fn new(axis: WallAxis, origin: (u16, u16), speed: f32, shielded: bool) -> Self {
         let coord = match axis {
             WallAxis::Horizontal => origin.0 as f32,
@@ -73,12 +76,12 @@ impl WallBuilder {
         }
     }
 
-    /// Celdas cubiertas actualmente por el segmento `[ceil(lo), floor(hi)]`.
+    /// Cells currently covered by the segment `[ceil(lo), floor(hi)]`.
     pub fn cells(&self) -> Vec<(u16, u16)> {
         self.cells_between(self.lo.ceil() as i64, self.hi.floor() as i64)
     }
 
-    /// Celdas del segmento entre dos coordenadas del eje de crecimiento.
+    /// Cells of the segment between two coordinates of the growth axis.
     fn cells_between(&self, start: i64, end: i64) -> Vec<(u16, u16)> {
         let mut out = Vec::new();
         for i in start..=end {
@@ -94,7 +97,7 @@ impl WallBuilder {
         out
     }
 
-    /// Coordenada del origen en el eje de crecimiento.
+    /// Coordinate of the origin along the growth axis.
     fn origin_coord(&self) -> i64 {
         match self.axis {
             WallAxis::Horizontal => self.origin.0 as i64,
@@ -102,24 +105,26 @@ impl WallBuilder {
         }
     }
 
-    /// Celdas de la mitad `lo`: desde el frente hasta el origen (excluido).
+    /// Cells of the `lo` half: from the front up to the origin (excluded).
     pub fn lo_cells(&self) -> Vec<(u16, u16)> {
         self.cells_between(self.lo.ceil() as i64, self.origin_coord() - 1)
     }
 
-    /// Celdas de la mitad `hi`: desde el origen (incluido) hasta el frente.
-    /// El origen se asigna a esta mitad para que ninguna celda quede huérfana.
+    /// Cells of the `hi` half: from the origin (included) up to the front.
+    /// The origin is assigned to this half so that no cell is left orphaned.
     pub fn hi_cells(&self) -> Vec<(u16, u16)> {
         self.cells_between(self.origin_coord(), self.hi.floor() as i64)
     }
 
-    /// Celdas que una bola PUEDE destruir: sólo las de las mitades que aún
-    /// están creciendo. Una mitad ya sellada se comporta como muro normal.
+    /// Cells a ball CAN destroy: only those of the halves that are still
+    /// growing. A half that has already been sealed behaves like a normal
+    /// wall.
     ///
-    /// No se filtra por el estado de la rejilla: las celdas de una mitad viva
-    /// nunca se han volcado a ella, y filtrar por `is_open` haría desaparecer
-    /// las que un `Mover` esté pisando en ese instante (marcadas `Solid`
-    /// temporalmente), que son precisamente las que deben detectar el choque.
+    /// We do not filter by grid state: the cells of a live half have never
+    /// been committed to it, and filtering by `is_open` would make the ones a
+    /// `Mover` happens to be standing on at that instant disappear (they are
+    /// temporarily marked `Solid`), and those are precisely the ones that
+    /// must detect the collision.
     pub fn vulnerable_cells(&self, _grid: &Grid) -> Vec<(u16, u16)> {
         let mut out = Vec::new();
         if !self.lo_sealed {
@@ -131,29 +136,29 @@ impl WallBuilder {
         out
     }
 
-    /// ¿Queda alguna mitad viva (no sellada)? Si no, el muro ya está entero
-    /// en la rejilla y no puede costar vidas.
+    /// Is there any live (unsealed) half left? If not, the wall is already
+    /// fully in the grid and cannot cost lives.
     pub fn has_live_half(&self) -> bool {
         !self.lo_sealed || !self.hi_sealed
     }
 
-    /// ¿Ambos frentes llegaron a su límite? Solo entonces se consolida.
+    /// Have both fronts reached their limit? Only then does it consolidate.
     pub fn is_done(&self) -> bool {
         self.lo_done && self.hi_done
     }
 
-    /// Avanza los dos frentes `dt` segundos. Un frente que ya terminó no se
-    /// mueve. Este avance es puro contra la rejilla current.
+    /// Advances both fronts by `dt` seconds. A front that has already
+    /// finished does not move. This advance is pure against the current grid.
     pub fn advance(&mut self, grid: &Grid, dt: f32) {
         let max_coord = self.axis.max_coord(grid.w, grid.h);
 
         if !self.hi_done {
             let new_hi = self.hi + self.speed * dt;
-            // Barremos TODAS las celdas que el frente pisa en este paso, no
-            // sólo la de destino: con `speed` alta (hasta 30 celdas/s) y un
-            // frame largo el frente avanza varias celdas de golpe, y mirar
-            // únicamente el destino le permitía saltar por encima de muros y
-            // obstáculos intermedios.
+            // We sweep ALL the cells the front steps on during this step, not
+            // just the destination one: with a high `speed` (up to 30
+            // cells/s) and a long frame the front advances several cells at
+            // once, and looking only at the destination let it jump over
+            // intervening walls and obstacles.
             let old_end = self.hi.floor() as i64;
             let new_end = new_hi.floor() as i64;
             let mut blocked: Option<i64> = None;
@@ -164,11 +169,11 @@ impl WallBuilder {
                 }
             }
             if let Some(cell) = blocked {
-                // Apretado contra la celda bloqueante (sin cubrirla).
+                // Pressed against the blocking cell (without covering it).
                 self.hi = cell as f32 - EPS;
                 self.hi_done = true;
             } else if new_end >= max_coord as i64 {
-                // Llegó al borde: completa el último tramo y termina.
+                // Reached the border: complete the last stretch and finish.
                 self.hi = max_coord;
                 self.hi_done = true;
             } else {
@@ -178,10 +183,10 @@ impl WallBuilder {
 
         if !self.lo_done {
             let new_lo = self.lo - self.speed * dt;
-            // Celdas recién pisadas por el frente lo: las del intervalo
-            // [ceil(new_lo), ceil(self.lo)). Se comprueban SIEMPRE, incluso
-            // al llegar al borde: si hay un obstáculo por el camino, el frente
-            // debe pararse ahí y no en la celda 0.
+            // Cells just stepped on by the lo front: those in the interval
+            // [ceil(new_lo), ceil(self.lo)). They are ALWAYS checked, even
+            // when reaching the border: if there is an obstacle along the
+            // way, the front must stop there and not at cell 0.
             let old_start = self.lo.ceil() as i64;
             let new_start = new_lo.ceil().max(0.0) as i64;
             let mut blocked: Option<i64> = None;
@@ -192,12 +197,12 @@ impl WallBuilder {
                 }
             }
             if let Some(cell) = blocked {
-                // Frente apoyado a la derecha de `cell`: la cobertura
-                // arranca en `cell + 1`, que no cubre la celda bloqueante.
+                // Front resting to the right of `cell`: the coverage starts
+                // at `cell + 1`, which does not cover the blocking cell.
                 self.lo = (cell + 1) as f32;
                 self.lo_done = true;
             } else if new_lo <= 0.0 {
-                // Alcanzó el borde izquierdo/superior sin encontrar nada.
+                // Reached the left/top border without finding anything.
                 self.lo = 0.0;
                 self.lo_done = true;
             } else {
@@ -206,7 +211,7 @@ impl WallBuilder {
         }
     }
 
-    /// ¿El frente por la coordenada `coord` tiene celda abierta para crecer?
+    /// Does the front at coordinate `coord` have an open cell to grow into?
     fn front_open(&self, grid: &Grid, coord: i64) -> bool {
         match self.axis {
             WallAxis::Horizontal => grid.is_wall_open(coord, self.origin.1 as i64),
@@ -215,7 +220,8 @@ impl WallBuilder {
     }
 }
 
-/// Muro ya consolidado (registro histórico usado por la capa de render/audio).
+/// Already consolidated wall (historical record used by the render/audio
+/// layer).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Wall {
     pub axis: WallAxis,

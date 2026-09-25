@@ -1,60 +1,57 @@
-//! Crecimiento de los frentes de muro (ARCHITECTURE.md §3).
+//! Wall front growth (ARCHITECTURE.md §3).
 //!
-//! Un frente debe detenerse en la PRIMERA celda bloqueante que encuentra.
-//! Con `wall_speed` alta (hasta 30 celdas/s) y un frame largo, un frente
-//! puede avanzar varias celdas de golpe: si sólo se comprueba la celda de
-//! destino, salta por encima de muros y obstáculos.
+//! A front must stop at the FIRST blocking cell it meets. With a high
+//! `wall_speed` (up to 30 cells/s) and a long frame, a front can advance
+//! several cells at once: if only the destination cell is checked, it jumps
+//! over walls and obstacles.
 
 use jezzball_core::grid::{Cell, Grid};
 use jezzball_core::wall::{WallAxis, WallBuilder};
 
-/// El frente `hi` no debe saltarse un obstáculo aunque avance varias celdas
-/// en un solo paso.
+/// The `hi` front must not skip past an obstacle even if it advances several
+/// cells in a single step.
 #[test]
-fn frente_hi_no_atraviesa_obstaculo_con_paso_grande() {
+fn hi_front_does_not_cross_an_obstacle_with_a_large_step() {
     let mut g = Grid::new(40, 20);
-    // Bloque sólido en la columna 12, fila 10.
+    // Solid block at column 12, row 10.
     g.set(12, 10, Cell::Solid);
 
     let mut b = WallBuilder::new(WallAxis::Horizontal, (5, 10), 30.0, false);
-    // Un frame largo (~3 celdas a 30 celdas/s): el frente pasa de 5 a ~14,
-    // saltándose la columna 12 si sólo se mira la celda de destino.
+    // A long frame (~3 cells at 30 cells/s): the front goes from 5 to ~14,
+    // skipping column 12 if only the destination cell is looked at.
     b.advance(&g, 0.3);
 
-    let celdas = b.cells();
+    let cells = b.cells();
     assert!(
-        !celdas.iter().any(|&(x, y)| x >= 12 && y == 10),
-        "el frente atraveso el obstaculo de la columna 12: {celdas:?}"
+        !cells.iter().any(|&(x, y)| x >= 12 && y == 10),
+        "the front crossed the obstacle on column 12: {cells:?}"
     );
-    assert!(
-        b.hi_done,
-        "el frente deberia haberse detenido en el obstaculo"
-    );
+    assert!(b.hi_done, "the front should have stopped at the obstacle");
 }
 
-/// Mismo caso para el frente `lo` (que ya barría el intervalo, pero se
-/// verifica para que no se rompa en el futuro).
+/// Same case for the `lo` front (which already swept the interval, but is
+/// verified so it does not break in the future).
 #[test]
-fn frente_lo_no_atraviesa_obstaculo_con_paso_grande() {
+fn lo_front_does_not_cross_an_obstacle_with_a_large_step() {
     let mut g = Grid::new(40, 20);
     g.set(8, 10, Cell::Solid);
 
     let mut b = WallBuilder::new(WallAxis::Horizontal, (18, 10), 30.0, false);
     b.advance(&g, 0.5);
 
-    let celdas = b.cells();
+    let cells = b.cells();
     assert!(
-        !celdas.iter().any(|&(x, y)| x <= 8 && y == 10),
-        "el frente lo atraveso el obstaculo de la columna 8: {celdas:?}"
+        !cells.iter().any(|&(x, y)| x <= 8 && y == 10),
+        "the lo front crossed the obstacle on column 8: {cells:?}"
     );
-    assert!(b.lo_done, "el frente lo deberia haberse detenido");
+    assert!(b.lo_done, "the lo front should have stopped");
 }
 
-/// Un frente jamás debe cubrir una celda que no sea transitable para muros.
+/// A front must never cover a cell that is not traversable for walls.
 #[test]
 fn covered_cells_are_always_valid() {
     let mut g = Grid::new(30, 30);
-    // Un tablero con obstáculos dispersos.
+    // A board with scattered obstacles.
     for i in 0..30 {
         if i % 7 == 0 {
             g.set(i, 15, Cell::Filled);
@@ -71,7 +68,7 @@ fn covered_cells_are_always_valid() {
             for (x, y) in b.cells() {
                 assert!(
                     g.is_wall_open(x as i64, y as i64),
-                    "el frente desde x={origin_x} cubrio la celda no valida ({x}, {y})"
+                    "the front from x={origin_x} covered the invalid cell ({x}, {y})"
                 );
             }
             if b.is_done() {
@@ -81,8 +78,8 @@ fn covered_cells_are_always_valid() {
     }
 }
 
-/// Un muro en una arena totalmente abierta debe llegar a ambos bordes y
-/// cubrir la fila completa.
+/// A wall in a fully open arena must reach both borders and cover the whole
+/// line.
 #[test]
 fn wall_in_open_arena_covers_the_whole_line() {
     let g = Grid::new(20, 12);
@@ -93,25 +90,25 @@ fn wall_in_open_arena_covers_the_whole_line() {
             break;
         }
     }
-    assert!(b.is_done(), "el muro nunca termino de crecer");
-    let celdas = b.cells();
+    assert!(b.is_done(), "the wall never finished growing");
+    let cells = b.cells();
     assert_eq!(
-        celdas.len(),
+        cells.len(),
         12,
-        "el muro vertical deberia cubrir las 12 filas, cubrio {}",
-        celdas.len()
+        "the vertical wall should cover all 12 rows, it covered {}",
+        cells.len()
     );
 }
 
-/// Arena mínima: no debe panicar ni cubrir fuera de rango.
+/// Minimal arena: must neither panic nor cover out of range.
 #[test]
-fn arena_minima_no_panica() {
+fn minimal_arena_does_not_panic() {
     let g = Grid::new(3, 3);
     let mut b = WallBuilder::new(WallAxis::Horizontal, (1, 1), 30.0, false);
     for _ in 0..120 {
         b.advance(&g, 1.0 / 60.0);
         for (x, y) in b.cells() {
-            assert!(x < 3 && y < 3, "celda fuera de la arena: ({x}, {y})");
+            assert!(x < 3 && y < 3, "cell outside the arena: ({x}, {y})");
         }
         if b.is_done() {
             break;

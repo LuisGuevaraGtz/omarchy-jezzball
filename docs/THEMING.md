@@ -1,58 +1,59 @@
-# docs/THEMING.md — Cómo se colorea Omarchy-Jezzball
+# docs/THEMING.md — How Omarchy-Jezzball gets its colours
 
-El juego no trae paleta propia. Deriva todos sus colores del tema activo de
-Omarchy. Esta página explica el orden de resolución, el mapeo de roles y cómo
-fijar colores a mano.
+The game ships no palette of its own. It derives every colour from the active
+Omarchy theme. This page explains the resolution order, the role mapping and
+how to pin colours by hand.
 
-## 1. Orden de resolución
+## 1. Resolution order
 
-El primer paso que devuelva un tema válido gana:
+The first step that returns a valid theme wins:
 
-1. **Override del usuario:** `$XDG_CONFIG_HOME/omarchy-jezzball/theme.ron`
-   (normalmente `~/.config/omarchy-jezzball/theme.ron`). Si existe y parsea
-   bien, se usa tal cual. Es la única fuente que controlas al 100 %.
-2. **Tema live de Omarchy:** `~/.config/omarchy/current/theme/alacritty.toml`.
-   Se leen `colors.primary.background`, `colors.primary.foreground` y la tabla
-   `colors.normal` (`black, red, green, yellow, blue, magenta, cyan, white`).
-3. **Tema por nombre:** si Omarchy expone el tema activo bajo
-   `~/.config/omarchy/themes/<activo>/`, se lee su `alacritty.toml` igual
-   que en el paso 2.
-4. **Fallback hardcodeado:** fondo `#0f0f14`, texto `#c9d1d9`,
-   acento `#7aa2f7`. Garantiza que el juego siempre arranca, aunque no haya
-   ningún tema instalado.
+1. **User override:** `$XDG_CONFIG_HOME/omarchy-jezzball/theme.ron`
+   (usually `~/.config/omarchy-jezzball/theme.ron`). If it exists and parses
+   cleanly, it is used as-is. It is the only source you control 100 %.
+2. **Live Omarchy theme:** `~/.config/omarchy/current/theme/alacritty.toml`.
+   `colors.primary.background`, `colors.primary.foreground` and the
+   `colors.normal` table (`black, red, green, yellow, blue, magenta, cyan,
+   white`) are read from it.
+3. **Theme by name:** if Omarchy exposes the active theme under
+   `~/.config/omarchy/themes/<active>/`, its `alacritty.toml` is read exactly
+   as in step 2.
+4. **Hardcoded fallback:** background `#0f0f14`, text `#c9d1d9`,
+   accent `#7aa2f7`. This guarantees the game always starts, even with no
+   theme installed at all.
 
-El tema se re-lee al recuperar el foco de la ventana, así que cambiar de tema
-en Omarchy se refleja en el juego sin reiniciar.
+The theme is re-read whenever the window regains focus, so switching themes
+in Omarchy shows up in the game without a restart.
 
-## 2. Mapeo de roles
+## 2. Role mapping
 
-El juego trabaja con 9 roles semánticos. El render nunca usa un color
-literal: siempre pide uno de estos roles al `Theme`. El mapeo desde un tema
-de Omarchy (pasos 2 y 3) es fijo:
+The game works with 9 semantic roles. The render layer never uses a literal
+colour: it always asks `Theme` for one of these roles. The mapping from an
+Omarchy theme (steps 2 and 3) is fixed:
 
-| Rol del juego   | Origen en el tema Omarchy   | Uso en el juego                              |
+| Game role       | Source in the Omarchy theme | Where it is used in the game                 |
 |-----------------|-----------------------------|----------------------------------------------|
-| `bg`            | `primary.background`        | fondo de la arena y de los menús             |
-| `fg`            | `primary.foreground`        | texto, HUD, bordes de menú                   |
-| `wall`          | `normal.white`              | muros ya consolidados                        |
-| `wall_building` | `normal.yellow`             | muro en construcción (frentes creciendo)     |
-| `ball`          | `normal.cyan`               | bolas normales                               |
-| `ball_special`  | `normal.magenta`            | bolas especiales (Fast, Erratic, …)          |
-| `danger`        | `normal.red`                | avisos: bola cerca del muro, última vida     |
-| `ok`            | `normal.green`              | confirmaciones, nivel superado, estrellas    |
-| `accent`        | `normal.blue`               | selección de menú, resaltados, power-ups     |
+| `bg`            | `primary.background`        | arena and menu background                    |
+| `fg`            | `primary.foreground`        | text, HUD, menu borders                      |
+| `wall`          | `normal.white`              | already-consolidated walls                   |
+| `wall_building` | `normal.yellow`             | wall under construction (growing fronts)     |
+| `ball`          | `normal.cyan`               | normal balls                                 |
+| `ball_special`  | `normal.magenta`            | special balls (Fast, Erratic, …)             |
+| `danger`        | `normal.red`                | warnings: ball near the wall, last life      |
+| `ok`            | `normal.green`              | confirmations, level cleared, stars          |
+| `accent`        | `normal.blue`               | menu selection, highlights, power-ups        |
 
-`normal.black` se ignora: sobre fondos oscuros de terminal no da contraste
-suficiente para ningún rol.
+`normal.black` is ignored: against dark terminal backgrounds it does not give
+enough contrast for any role.
 
-## 3. Override manual: `theme.ron`
+## 3. Manual override: `theme.ron`
 
-Para fijar colores a mano, crea `~/.config/omarchy-jezzball/theme.ron` con
-los 9 roles en hexadecimal `#rrggbb`. Los 9 son obligatorios; si falta uno
-o el fichero no parsea, se ignora entero y se pasa al paso 2 del orden
-(no se mezclan fuentes a medias).
+To pin colours by hand, create `~/.config/omarchy-jezzball/theme.ron` with
+all 9 roles as `#rrggbb` hex values. All 9 are mandatory; if one is missing
+or the file fails to parse, the whole file is ignored and resolution falls
+through to step 2 (sources are never partially merged).
 
-Ejemplo completo:
+Full example:
 
 ```ron
 (
@@ -68,16 +69,17 @@ Ejemplo completo:
 )
 ```
 
-Notas:
+Notes:
 
-- Los valores son `String` con formato `#rrggbb` en minúsculas (se aceptan
-  mayúsculas, pero el ejemplo usa minúsculas por convención).
-- Los 3 campos que no aparecen aquí (`name`, `bg_panel`, `fg_dim`) se derivan:
-  `name` es "personalizado", `bg_panel` aclara `bg` y `fg_dim` oscurece `fg`
-  ambos ~12 % (ajuste suave de luminosidad, por canal).
-- Para volver al tema automático de Omarchy, borra o renombra el fichero.
-- IMPLEMENTADO: este esquema `(clave: "valor", …)` lo implementa la app en
-  `crates/jezzball-app/src/theme.rs` vía el DTO `ThemeOverrideFile`. El test
-  `bloque_exacto_de_theming_md_parsea` copia literal este ejemplo: si el
-  formato cambia aquí o en el struct, ese test se cae y ambos deben
-  actualizarse a la vez.
+- Values are `String`s formatted as lowercase `#rrggbb` (uppercase is
+  accepted, but the example uses lowercase by convention).
+- The 3 fields that do not appear here (`name`, `bg_panel`, `fg_dim`) are
+  derived: `name` becomes "personalizado", `bg_panel` lightens `bg` and
+  `fg_dim` darkens `fg`, both by ~12 % (a gentle per-channel luminosity
+  adjustment).
+- To go back to the automatic Omarchy theme, delete or rename the file.
+- IMPLEMENTED: this `(key: "value", …)` schema is implemented by the app in
+  `crates/jezzball-app/src/theme.rs` through the `ThemeOverrideFile` DTO. The
+  `exact_block_from_theming_md_parses` test copies this example verbatim: if
+  the format changes here or in the struct, that test fails and both must be
+  updated together.

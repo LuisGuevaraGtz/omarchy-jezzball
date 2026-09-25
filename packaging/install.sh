@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# install.sh — instalación local de omarchy-jezzball sin pasar por pacman.
+# install.sh — local installation of omarchy-jezzball without going through pacman.
 #
-# Uso:
-#   ./packaging/install.sh            instala en ~/.local
-#   ./packaging/install.sh --uninstall desinstala de ~/.local
+# Usage:
+#   ./packaging/install.sh            install into ~/.local
+#   ./packaging/install.sh --uninstall remove from ~/.local
 #
-# Qué instala:
+# What it installs:
 #   ~/.local/bin/omarchy-jezzball
-#   ~/.local/share/omarchy-jezzball/levels/*.ron (+ fonts si existen)
+#   ~/.local/share/omarchy-jezzball/levels/*.ron (+ fonts if present)
 #   ~/.local/share/applications/omarchy-jezzball.desktop
 #   ~/.local/share/icons/hicolor/scalable/apps/omarchy-jezzball.svg
 #
-# SUPUESTO: el workspace define el binario `omarchy-jezzball`
-# (worker de la app: [[bin]] name = "omarchy-jezzball").
+# ASSUMPTION: the workspace defines the `omarchy-jezzball` binary
+# (app worker: [[bin]] name = "omarchy-jezzball").
 
 set -euo pipefail
 
@@ -23,14 +23,14 @@ DESKTOPDIR="${PREFIX}/share/applications"
 ICONDIR="${PREFIX}/share/icons/hicolor/scalable/apps"
 BIN_NAME="omarchy-jezzball"
 
-# Raíz del repo = directorio padre de este script (packaging/..).
+# Repo root = the parent directory of this script (packaging/..).
 ROOT="$(cd "$(dirname "${0}")/.." && pwd)"
 
 log()  { printf '%s\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 uninstall() {
-    log "Desinstalando ${BIN_NAME} de ${PREFIX}..."
+    log "Uninstalling ${BIN_NAME} from ${PREFIX}..."
     rm -f "${BINDIR}/${BIN_NAME}"
     rm -rf "${DATADIR}"
     rm -f "${DESKTOPDIR}/omarchy-jezzball.desktop"
@@ -38,7 +38,7 @@ uninstall() {
     if command -v update-desktop-database >/dev/null 2>&1; then
         update-desktop-database "${DESKTOPDIR}" || true
     fi
-    log "Desinstalado. (No se toca tu partida: ~/.local/share/omarchy-jezzball/save.ron no existe ahí; el save vive junto a XDG_DATA_HOME, ver README.)"
+    log "Uninstalled. (Your save file is untouched: ~/.local/share/omarchy-jezzball/save.ron is not there; the save lives alongside XDG_DATA_HOME, see the README.)"
 }
 
 if [ "${1:-}" = "--uninstall" ]; then
@@ -51,35 +51,35 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     exit 0
 fi
 
-# 1. Comprobar toolchain.
+# 1. Check the toolchain.
 command -v cargo >/dev/null 2>&1 \
-    || fail "no se encontró 'cargo'. Instala Rust estable (rustup: https://rustup.rs) y reintenta."
+    || fail "'cargo' not found. Install stable Rust (rustup: https://rustup.rs) and try again."
 
-# 2. Compilar en release. `--locked` usa el Cargo.lock versionado.
-log "Compilando ${BIN_NAME} (release)..."
+# 2. Build in release mode. `--locked` uses the committed Cargo.lock.
+log "Building ${BIN_NAME} (release)..."
 (
     cd "${ROOT}"
     cargo build --locked --release
 )
 
-# 3. Instalar binario.
-log "Instalando binario en ${BINDIR}/${BIN_NAME}..."
+# 3. Install the binary.
+log "Installing the binary at ${BINDIR}/${BIN_NAME}..."
 mkdir -p "${BINDIR}"
 install -m755 "${ROOT}/target/release/${BIN_NAME}" "${BINDIR}/${BIN_NAME}"
 
-# 4. Instalar assets (los niveles se cargan en ejecución desde disco).
-log "Instalando assets en ${DATADIR}..."
+# 4. Install assets (levels are loaded from disk at runtime).
+log "Installing assets into ${DATADIR}..."
 mkdir -p "${DATADIR}/levels"
 install -m644 "${ROOT}"/assets/levels/*.ron "${DATADIR}/levels/"
 if compgen -G "${ROOT}/assets/fonts/*" > /dev/null; then
     mkdir -p "${DATADIR}/fonts"
     install -m644 "${ROOT}"/assets/fonts/* "${DATADIR}/fonts/"
 else
-    log "Aviso: no hay fuentes en assets/fonts, se omite ese paso."
+    log "Note: no fonts in assets/fonts, skipping that step."
 fi
 
-# 5. Instalar icono (hicolor scalable: lo recogen todos los lanzadores).
-log "Instalando icono en ${ICONDIR}..."
+# 5. Install the icon (hicolor scalable: every launcher picks it up).
+log "Installing the icon into ${ICONDIR}..."
 mkdir -p "${ICONDIR}"
 install -m644 "${ROOT}/assets/icons/omarchy-jezzball.svg" \
     "${ICONDIR}/omarchy-jezzball.svg"
@@ -87,25 +87,25 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
     gtk-update-icon-cache -qtf "${PREFIX}/share/icons/hicolor" 2>/dev/null || true
 fi
 
-# 6. Instalar entrada de escritorio.
-log "Instalando lanzador en ${DESKTOPDIR}..."
+# 6. Install the desktop entry.
+log "Installing the launcher into ${DESKTOPDIR}..."
 mkdir -p "${DESKTOPDIR}"
 install -m644 "${ROOT}/packaging/omarchy-jezzball.desktop" \
     "${DESKTOPDIR}/omarchy-jezzball.desktop"
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database "${DESKTOPDIR}" || true
 else
-    log "Aviso: 'update-desktop-database' no encontrado; el lanzador funcionará tras reiniciar sesión."
+    log "Note: 'update-desktop-database' not found; the launcher will work after you log out and back in."
 fi
 
-# 7. Avisar si ~/.local/bin no está en el PATH.
+# 7. Warn if ~/.local/bin is not on PATH.
 case ":${PATH}:" in
     *":${BINDIR}:"*) ;;
     *)
-        log "AVISO: ${BINDIR} no está en tu PATH."
-        log "Añade esta línea a tu ~/.bashrc (o equivalente) y recarga la shell:"
+        log "WARNING: ${BINDIR} is not on your PATH."
+        log "Add this line to your ~/.bashrc (or equivalent) and reload the shell:"
         log "  export PATH=\"\$HOME/.local/bin:\$PATH\""
         ;;
 esac
 
-log "Listo. Ejecuta '${BIN_NAME}' o búscalo como JezzBall en tu lanzador."
+log "Done. Run '${BIN_NAME}' or look for JezzBall in your launcher."

@@ -1,12 +1,15 @@
 [package]
 name = "jezzball-app"
-description = "Capa de render/input/persistencia de Omarchy-Jezzball (macroquad)."
+description = "Rendering, input and persistence layer for Omarchy-Jezzball (macroquad)."
 edition.workspace = true
 version.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
-# El binario DEBE llamarse `omarchy-jezzball`: el PKGBUILD y el .desktop
-# esperan exactamente ese nombre (packaging/PKGBUILD §package).
+# The binary MUST be named `omarchy-jezzball`: the PKGBUILD and the .desktop
+# entry expect exactly that name (packaging/PKGBUILD, package()).
 [[bin]]
 name = "omarchy-jezzball"
 path = "src/main.rs"

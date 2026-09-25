@@ -1,8 +1,8 @@
-//! Render global (ARCHITECTURE.md §13): el render NUNCA decide lógica de
-//! juego, se limita a leer `&App` / `&GameState` y dibujar.
+//! Global render (ARCHITECTURE.md §13): the render layer NEVER decides game
+//! logic, it merely reads `&App` / `&GameState` and draws.
 //!
-//! `Layout` calcula dónde vive la arena inside de la ventana y se usa tanto
-//! para dibujar como para el hit-testing del ratón en `screens`.
+//! `Layout` computes where the arena lives inside the window and is used both
+//! for drawing and for mouse hit-testing in `screens`.
 
 pub mod arena;
 pub mod hud;
@@ -12,27 +12,27 @@ use macroquad::prelude::*;
 
 use crate::screens::{App, Screen};
 
-/// Tamaño base de la fuente del HUD, a la scale de reference.
-/// 16 px: a 14 px el HUD resultaba ilegible incluso ya escalado.
+/// Base font size of the HUD, at the reference scale.
+/// 16 px: at 14 px the HUD was unreadable even after scaling.
 pub const FONT_BASE: f32 = 16.0;
-/// Altura base de una fila del HUD (px).
+/// Base height of a HUD row (px).
 pub const HUD_ROW_BASE: f32 = 24.0;
-/// Altura base de la barra de pistas inferior.
+/// Base height of the bottom hint bar.
 pub const HINT_H_BASE: f32 = 20.0;
 
-/// Escala de la interfaz.
+/// UI scale.
 ///
-/// El HUD se diseñó con `FONT_BASE` para una ventana pequeña. Con tamaños
-/// fijos, en una pantalla grande o con `high_dpi` el texto queda diminuto: la
-/// arena crece con la ventana pero las letras no.
+/// The HUD was designed with `FONT_BASE` for a small window. With fixed
+/// sizes, on a large screen or with `high_dpi` the text ends up tiny: the
+/// arena grows with the window but the letters do not.
 ///
-/// La reference es 1280x720 (no la resolución real de un monitor moderno, a
-/// propósito): así una ventana de 1900x1000 —lo normal en un portátil current—
-/// da del orden de x1.5, que es donde el HUD se lee cómodo. Verificado sobre
-/// capturas reales del juego a 1890x1017, donde la reference anterior
-/// (1024x768) se quedaba en x1.32 y el texto seguía siendo ilegible.
+/// The reference is 1280x720 (deliberately not the real resolution of a modern
+/// monitor): that way a 1900x1000 window —normal on a current laptop—
+/// gives around x1.5, which is where the HUD reads comfortably. Verified against
+/// real screenshots of the game at 1890x1017, where the previous reference
+/// (1024x768) stayed at x1.32 and the text was still unreadable.
 ///
-/// `OMARCHY_JEZZBALL_UI_SCALE` permite ajustarlo a mano (p. ej. `2.0`).
+/// `OMARCHY_JEZZBALL_UI_SCALE` allows adjusting it by hand (e.g. `2.0`).
 pub fn ui_scale() -> f32 {
     if let Ok(v) = std::env::var("OMARCHY_JEZZBALL_UI_SCALE") {
         if let Ok(f) = v.trim().parse::<f32>() {
@@ -43,30 +43,30 @@ pub fn ui_scale() -> f32 {
     }
     let w = screen_width().max(1.0);
     let h = screen_height().max(1.0);
-    // Se toma la dimensión más restrictiva para no desbordar el width en
-    // ventanas apaisadas ni el height en las estrechas.
+    // The most restrictive dimension is taken so as not to overflow the width in
+    // landscape windows nor the height in narrow ones.
     let s = (w / 1280.0).min(h / 720.0);
-    // Suelo en 1.15: incluso en una ventana pequeña el texto base resultaba
-    // justo. Techo en 3.0 para que no invada la arena en pantallas enormes.
+    // Floor at 1.15: even in a small window the base text was
+    // tight. Ceiling at 3.0 so it does not invade the arena on huge screens.
     s.clamp(1.15, 3.0)
 }
 
-/// Tamaño de fuente del HUD ya escalado.
+/// HUD font size, already scaled.
 pub fn font() -> f32 {
     (FONT_BASE * ui_scale()).round()
 }
 
-/// Altura de fila del HUD ya escalada.
+/// HUD row height, already scaled.
 pub fn hud_row() -> f32 {
     HUD_ROW_BASE * ui_scale()
 }
 
-/// Altura de la barra de pistas ya escalada.
+/// Height of the hint bar, already scaled.
 pub fn hint_h() -> f32 {
     HINT_H_BASE * ui_scale()
 }
 
-/// Geometría de la arena inside de la ventana.
+/// Geometry of the arena inside the window.
 #[derive(Clone, Copy, Debug)]
 pub struct Layout {
     pub arena_x: f32,
@@ -77,8 +77,8 @@ pub struct Layout {
 }
 
 impl Layout {
-    /// Encaja la arena de `grid_w x grid_h` celdas cuadradas por debajo del
-    /// HUD y por encima de la barra de pistas, centrada horizontalmente.
+    /// Fits the arena of `grid_w x grid_h` square cells below the
+    /// HUD and above the hint bar, horizontally centred.
     pub fn compute(win_w: f32, win_h: f32, grid_w: u16, grid_h: u16, hud_rows: u32) -> Self {
         let hud_h = hud_rows.max(1) as f32 * hud_row();
         let top = hud_h + 4.0;
@@ -100,7 +100,7 @@ impl Layout {
         }
     }
 
-    /// Centro del píxel de la celda `(x, y)`.
+    /// Pixel centre of the cell `(x, y)`.
     pub fn cell_to_px(&self, x: f32, y: f32) -> (f32, f32) {
         (
             self.arena_x + (x + 0.5) * self.cell,
@@ -108,7 +108,7 @@ impl Layout {
         )
     }
 
-    /// Celda bajo el punto `(mx, my)` de la ventana, o `None` si está fuera.
+    /// Cell under the window point `(mx, my)`, or `None` if it is outside.
     pub fn hovered_cell(&self, mx: f32, my: f32) -> Option<(u16, u16)> {
         if mx < self.arena_x || my < self.arena_y {
             return None;
@@ -123,7 +123,7 @@ impl Layout {
     }
 }
 
-/// Dibuja el fotograma completo según la pantalla activa.
+/// Draws the whole frame according to the active screen.
 pub fn render(app: &App) {
     let (w, h) = (screen_width(), screen_height());
     clear_background(app.theme.bg.to_mq(1.0));
@@ -141,7 +141,7 @@ pub fn render(app: &App) {
     }
 }
 
-/// Pantalla de juego: HUD + arena + overlays de pausa/toasts.
+/// Game screen: HUD + arena + pause/toast overlays.
 fn render_game(app: &App, w: f32, h: f32) {
     let rows = crate::screens::hud_rows_for(app);
     let g = &app.state.arena.grid;
@@ -158,7 +158,7 @@ fn render_game(app: &App, w: f32, h: f32) {
     }
 }
 
-/// Barra de pistas con los atajos principales.
+/// Hint bar with the main shortcuts.
 fn draw_hint(app: &App, w: f32, h: f32) {
     let line = crate::i18n::t("pie.juego");
     let sz2 = 12.0 * ui_scale();
@@ -172,7 +172,7 @@ fn draw_hint(app: &App, w: f32, h: f32) {
     );
 }
 
-/// Textos flotantes de recompensa (puntos, combo, vidas).
+/// Floating reward texts (points, combo, lives).
 fn draw_floaters(app: &App) {
     for f in &app.floaters {
         let alpha = (f.ttl / 1.4).clamp(0.0, 1.0);
@@ -191,18 +191,18 @@ fn draw_floaters(app: &App) {
     }
 }
 
-/// Ancho aproximado de un texto con la fuente por defecto.
+/// Approximate width of a text with the default font.
 pub fn text_w(text: &str, size: f32) -> f32 {
     measure_text(text, None, size as u16, 1.0).width
 }
 
-/// Texto centrado horizontalmente en `cx`, con `y` como borde superior.
+/// Text horizontally centred at `cx`, with `y` as the top edge.
 pub fn draw_text_c(text: &str, cx: f32, y: f32, size: f32, color: Color) {
     let w = text_w(text, size);
     draw_text(text, cx - w / 2.0, y, size, color);
 }
 
-/// Dibuja segmentos de texto coloreados en línea, devolviendo la `x` final.
+/// Draws coloured text segments in a line, returning the final `x`.
 pub fn draw_segments(mut x: f32, y: f32, size: f32, segs: &[(&str, Color)]) -> f32 {
     for (s, c) in segs {
         draw_text(s, x, y, size, *c);
@@ -211,19 +211,19 @@ pub fn draw_segments(mut x: f32, y: f32, size: f32, segs: &[(&str, Color)]) -> f
     x
 }
 
-/// Panel de fondo con borde fino, estilo terminal.
+/// Background panel with a thin border, terminal style.
 pub fn panel(t: &crate::theme::Theme, x: f32, y: f32, w: f32, h: f32) {
     draw_rectangle(x, y, w, h, t.bg_panel.to_mq(1.0));
     draw_rectangle_lines(x, y, w, h, 1.0, t.fg_dim.to_mq(0.35));
 }
 
-/// Formatea segundos como `MM:SS`.
+/// Formats seconds as `MM:SS`.
 pub fn fmt_time(s: f32) -> String {
     let s = s.max(0.0) as u32;
     format!("{:02}:{:02}", s / 60, s % 60)
 }
 
-/// Etiqueta corta de un objetivo, en ASCII seguro (fuente por defecto).
+/// Short label for an objective, in safe ASCII (default font).
 pub fn objective_label(o: &jezzball_core::level::Objective) -> String {
     use crate::i18n::t;
     use jezzball_core::level::Objective::*;
@@ -237,7 +237,7 @@ pub fn objective_label(o: &jezzball_core::level::Objective) -> String {
     }
 }
 
-/// Nombre de un modo.
+/// Name of a mode.
 pub fn mode_name(mode: jezzball_core::level::Mode) -> &'static str {
     use crate::i18n::t;
     match mode {
@@ -246,7 +246,7 @@ pub fn mode_name(mode: jezzball_core::level::Mode) -> &'static str {
     }
 }
 
-/// Nombre de un mundo Enhanced.
+/// Name of an Enhanced world.
 pub fn world_name(world: u8) -> &'static str {
     use crate::i18n::t;
     match world {

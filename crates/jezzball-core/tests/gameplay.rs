@@ -1,6 +1,6 @@
-//! Tests obligatorios de jugabilidad (ARCHITECTURE.md §15):
-//! juego por defecto, victoria, puntuación pequeña-vs-grande, combo y
-//! determinismo (600 pasos).
+//! Mandatory gameplay tests (ARCHITECTURE.md §15):
+//! default game, victory, small-vs-large scoring, combo and determinism
+//! (600 steps).
 
 mod common;
 
@@ -10,7 +10,7 @@ use jezzball_core::powerup::PowerUpKind;
 use jezzball_core::state::{step, GameEvent, GamePhase, GameState, PlayerInput};
 use jezzball_core::wall::WallAxis;
 
-/// La partida por defecto arranca en Running y no pierde vidas ni puntos.
+/// The default game starts in Running and loses neither lives nor points.
 #[test]
 fn default_running() {
     let s = GameState::new(spec(
@@ -30,12 +30,12 @@ fn default_running() {
     assert_eq!(s.phase, GamePhase::Running);
     assert_eq!(s.lives, 3);
     assert_eq!(s.score, 0);
-    assert!(evs.is_empty(), "sin eventos con `None`: {evs:?}");
+    assert!(evs.is_empty(), "no events with `None`: {evs:?}");
     assert_eq!(s.balls.len(), 1);
 }
 
-/// Tres muros cierran 3 regiones y la década del área supera `target_ratio`
-/// (0.75): se dispara `LevelCleared` con la estrella del objetivo cumplido.
+/// Three walls close 3 regions and the resulting area exceeds `target_ratio`
+/// (0.75): `LevelCleared` fires with the star for the objective met.
 #[test]
 fn level_cleared() {
     let mut s = GameState::new(spec(
@@ -84,18 +84,18 @@ fn level_cleared() {
     );
 }
 
-/// Rsgo/recompensa: cerrar un bolsillo pequeñito paga MÁS que cerrar una
-/// región grande (mismos `balls_near` y velocidad: bolas estáticas lejos).
+/// Risk/reward: closing a tiny pocket pays MORE than closing a large region
+/// (same `balls_near` and speed: static balls far away).
 #[test]
 fn small_vs_large_scoring() {
     let small = single_wall_points(5, 0);
     let large = single_wall_points(24, 0);
 
-    assert_eq!(small.0, 50, "bolsillo de 5 columnas");
-    assert_eq!(large.0, 240, "bolsillo de 24 columnas");
+    assert_eq!(small.0, 50, "5-column pocket");
+    assert_eq!(large.0, 240, "24-column pocket");
     assert!(
         small.1 > large.1,
-        "cerrar {} celdas ({}) debe pagar más que {} celdas ({})",
+        "closing {} cells ({}) must pay more than {} cells ({})",
         small.0,
         small.1,
         large.0,
@@ -103,8 +103,8 @@ fn small_vs_large_scoring() {
     );
 }
 
-/// Cierra exactamente UNA región con un muro vertical y devuelve
-/// `(celdas_cerradas, puntos)`.
+/// Closes exactly ONE region with a vertical wall and returns
+/// `(closed_cells, points)`.
 fn single_wall_points(col: u16, _row: u16) -> (u32, u32) {
     let s = GameState::new(spec(
         30,
@@ -136,12 +136,12 @@ fn single_wall_points(col: u16, _row: u16) -> (u32, u32) {
             completed.push((cells, points));
         }
     }
-    assert_eq!(completed.len(), 1, "solo un muro debe completarse");
+    assert_eq!(completed.len(), 1, "only one wall must complete");
     completed[0]
 }
 
-/// Dos muros consecutivos inside de la ventana (4 s) suben el combo a x3, y
-/// se reinicia solo cuando la ventana caduca sin consolidar más muros.
+/// Two consecutive walls inside the window (4 s) raise the combo to x3, and it
+/// only resets when the window expires without consolidating more walls.
 #[test]
 fn combo() {
     let mut s = GameState::new(spec(
@@ -175,8 +175,8 @@ fn combo() {
     s = n;
     all.extend(e);
 
-    // Segundo muro: horizontal en la fila 2, que puede cerrar la región
-    // superior (sin bolas) y seguir inside de la ventana de combo.
+    // Second wall: horizontal on row 2, which can close the upper region
+    // (no balls) and still fall inside the combo window.
     let (n, e) = step(
         &s,
         PlayerInput::StartWall {
@@ -197,14 +197,14 @@ fn combo() {
     assert_eq!(s.max_combo_reached, 3);
     assert_ne!(s.phase, GamePhase::Won);
 
-    // La ventana caduca sin nuevos muros: multiplicador a x1 + ComboReset.
+    // The window expires with no new walls: multiplier back to x1 + ComboReset.
     let (s, evs) = frames(&s, 160);
     assert!(evs.contains(&GameEvent::ComboReset));
     assert_eq!(s.combo.multiplier, 1);
 }
 
-/// Determinismo: misma semilla + misma entrada en 600 pasos => estado idéntico
-/// (incluye bola `Erratic` y power-ups para ejercitar el PRNG).
+/// Determinism: same seed + same input over 600 steps => identical state
+/// (includes an `Erratic` ball and power-ups to exercise the PRNG).
 #[test]
 fn determinism_600_steps() {
     let spec = spec(
@@ -245,14 +245,14 @@ fn determinism_600_steps() {
     let a = run_script(&spec, &script);
     let b = run_script(&spec, &script);
 
-    assert_eq!(a, b, "dos ejecuciones con la misma semilla deben coincidir");
+    assert_eq!(a, b, "two runs with the same seed must match");
 }
 
-/// Ejecuta el guion (input en el frame exacto, relleno con `None`) hasta
-/// completar 600 pasos de `DT`. Devuelve el estado final.
+/// Runs the script (input on the exact frame, padded with `None`) until
+/// 600 steps of `DT` are completed. Returns the final state.
 fn run_script(spec: &jezzball_core::level::LevelSpec, script: &[(u32, PlayerInput)]) -> GameState {
     let mut s = GameState::new(spec.clone());
-    // Inventario determinista para ejercitar `UsePowerUp`.
+    // Deterministic inventory to exercise `UsePowerUp`.
     s.inventory.push(PowerUpKind::Freeze);
     s.inventory.push(PowerUpKind::Shield);
 

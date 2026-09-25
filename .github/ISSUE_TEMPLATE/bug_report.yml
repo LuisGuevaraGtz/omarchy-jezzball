@@ -1,0 +1,62 @@
+name: Bug report
+description: Something in the game misbehaves
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this.
+
+        If the game crashed, the most useful thing you can attach is the crash
+        log, which the game writes on every internal failure:
+
+        ```bash
+        cat ~/.local/state/omarchy-jezzball/crash.log
+        ```
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+      placeholder: |
+        I was drawing a wall next to an obstacle in world 3 and...
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start ENHANCED mode, level 24
+        2. Draw a vertical wall at the left edge
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: mode-level
+    attributes:
+      label: Mode and level
+      placeholder: "ENHANCED, level 24 (world 3)"
+
+  - type: textarea
+    id: crash-log
+    attributes:
+      label: Crash log
+      description: Output of `cat ~/.local/state/omarchy-jezzball/crash.log`, if the game closed on its own.
+      render: text
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        Output of these commands helps a lot:
+        ```bash
+        omarchy-jezzball --help | head -1
+        echo "$XDG_SESSION_TYPE / $WAYLAND_DISPLAY / $DISPLAY"
+        cat ~/.local/state/omarchy/current/theme.name 2>/dev/null
+        ```
+      render: text

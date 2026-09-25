@@ -1,51 +1,51 @@
-//! Internacionalización.
+//! Internationalization.
 //!
-//! Todos los texts visible viven en ficheros de language
-//! (`assets/i18n/<código>.ron`), nunca escritos inside de la lógica. Añadir un
-//! language nuevo es añadir un fichero: no se toca ni el motor ni las pantallas.
+//! All visible text lives in language files
+//! (`assets/i18n/<code>.ron`), never written inside the logic. Adding a
+//! new language means adding a file: neither the engine nor the screens are touched.
 //!
-//! Decisiones:
+//! Decisions:
 //!
-//! * **Los catálogos se empotran en el binario** con `include_str!`. El juego
-//!   debe funcionar aunque se copie el ejecutable suelto, sin depender de que
-//!   `assets/` esté instalado; los ficheros siguen siendo editables en el
-//!   repositorio, que es lo que importa para mantenerlos y traducirlos.
-//! * **Clave ausente = se devuelve la key**. Nunca se panica ni se deja un
-//!   hueco en blanco: una traducción incompleta degrada a texto visible, y el
-//!   test de cobertura obliga a completarla.
-//! * El language se resuelve una vez al arrancar y se guarda en `OnceLock`.
+//! * **The catalogs are embedded in the binary** with `include_str!`. The game
+//!   must work even if the executable is copied on its own, without depending on
+//!   `assets/` being installed; the files remain editable in the
+//!   repository, which is what matters for maintaining and translating them.
+//! * **Missing key = the key is returned**. It never panics and never leaves a
+//!   blank gap: an incomplete translation degrades to visible text, and the
+//!   coverage test forces it to be completed.
+//! * The language is resolved once at startup and stored in a `OnceLock`.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-/// Idiomas incluidos. Para añadir uno: crear `assets/i18n/<código>.ron`,
-/// añadir la entrada aquí y listo.
+/// Included languages. To add one: create `assets/i18n/<code>.ron`,
+/// add the entry here and you are done.
 pub const CATALOGS: &[(&str, &str)] = &[
     ("es", include_str!("../../../assets/i18n/es.ron")),
     ("en", include_str!("../../../assets/i18n/en.ron")),
 ];
 
-/// Idioma por defecto si no se reconoce ninguno del entorno.
+/// Default language if none is recognised from the environment.
 pub const DEFAULT_LANGUAGE: &str = "es";
 
 static ACTIVO: OnceLock<Catalog> = OnceLock::new();
 
-/// Catálogo de texts de un language.
+/// Text catalog for a language.
 #[derive(Debug, Clone)]
 pub struct Catalog {
-    /// Código del language cargado ("es", "en"...). Lo consultan los tests de
-    /// cobertura y es útil para diagnóstico.
+    /// Code of the loaded language ("es", "en"...). The coverage tests query it
+    /// and it is useful for diagnostics.
     #[allow(dead_code)]
     pub code: String,
     texts: HashMap<String, String>,
 }
 
 impl Catalog {
-    /// Texto de una key. Si falta, devuelve la propia key: visible y
-    /// rastreable, en lugar de un hueco vacío o un panic.
+    /// Text for a key. If it is missing, it returns the key itself: visible and
+    /// traceable, instead of an empty gap or a panic.
     ///
-    /// El juego usa `t()`, que devuelve `&'static str`; este método existe
-    /// para consultar un catálogo concreto (comparar idiomas en los tests).
+    /// The game uses `t()`, which returns `&'static str`; this method exists
+    /// to query a specific catalog (comparing languages in the tests).
     #[allow(dead_code)]
     pub fn get<'a>(&'a self, key: &'a str) -> &'a str {
         self.texts.get(key).map(|s| s.as_str()).unwrap_or(key)
@@ -67,7 +67,7 @@ impl Catalog {
     }
 }
 
-/// Parsea un catálogo RON (`{"key": "texto", ...}`).
+/// Parses a RON catalog (`{"key": "texto", ...}`).
 pub fn parse(code: &str, fuente: &str) -> Option<Catalog> {
     let texts: HashMap<String, String> = ron::from_str(fuente).ok()?;
     Some(Catalog {
@@ -76,7 +76,7 @@ pub fn parse(code: &str, fuente: &str) -> Option<Catalog> {
     })
 }
 
-/// Busca el catálogo de un código de language concreto.
+/// Looks up the catalog for a specific language code.
 pub fn catalog_for(code: &str) -> Option<Catalog> {
     CATALOGS
         .iter()
@@ -84,14 +84,14 @@ pub fn catalog_for(code: &str) -> Option<Catalog> {
         .and_then(|(c, fuente)| parse(c, fuente))
 }
 
-/// Resuelve el language a partir del entorno, en orden de prioridad:
+/// Resolves the language from the environment, in priority order:
 ///
-/// 1. `OMARCHY_JEZZBALL_LANG` — escotilla explícita del juego.
-/// 2. `LC_ALL`, `LC_MESSAGES`, `LANG` — configuración estándar de POSIX.
+/// 1. `OMARCHY_JEZZBALL_LANG` — the game's explicit override.
+/// 2. `LC_ALL`, `LC_MESSAGES`, `LANG` — standard POSIX configuration.
 /// 3. `DEFAULT_LANGUAGE`.
 ///
-/// De `es_MX.UTF-8` se queda con `es`. Función pura para poder testearla sin
-/// tocar el entorno del proceso.
+/// From `es_MX.UTF-8` it keeps `es`. A pure function so it can be tested without
+/// touching the process environment.
 pub fn resolve_code(vars: &[(&str, Option<String>)]) -> String {
     for (_, valor) in vars {
         let Some(v) = valor else { continue };
@@ -112,7 +112,7 @@ pub fn resolve_code(vars: &[(&str, Option<String>)]) -> String {
     DEFAULT_LANGUAGE.to_string()
 }
 
-/// Lee el entorno real y resuelve el language.
+/// Reads the real environment and resolves the language.
 fn code_from_env() -> String {
     let vars: Vec<(&str, Option<String>)> =
         ["OMARCHY_JEZZBALL_LANG", "LC_ALL", "LC_MESSAGES", "LANG"]
@@ -122,7 +122,7 @@ fn code_from_env() -> String {
     resolve_code(&vars)
 }
 
-/// Catálogo active, resuelto una sola vez.
+/// Active catalog, resolved only once.
 pub fn active() -> &'static Catalog {
     ACTIVO.get_or_init(|| {
         let code = code_from_env();
@@ -135,11 +135,11 @@ pub fn active() -> &'static Catalog {
     })
 }
 
-/// Traduce una key con el catálogo active.
+/// Translates a key with the active catalog.
 ///
-/// Devuelve `&'static str` porque el catálogo vive en un `OnceLock` durante
-/// toda la ejecución; si la key falta, se devuelve la propia key (que es
-/// un literal del código, también `'static`).
+/// It returns `&'static str` because the catalog lives in a `OnceLock` for
+/// the whole execution; if the key is missing, the key itself is returned (which is
+/// a literal from the code, also `'static`).
 pub fn t(key: &'static str) -> &'static str {
     let cat: &'static Catalog = active();
     match cat.texts.get(key) {
@@ -156,22 +156,22 @@ mod tests {
     fn every_catalog_parses() {
         for (code, fuente) in CATALOGS {
             let cat =
-                parse(code, fuente).unwrap_or_else(|| panic!("el catalogo '{code}' no parsea"));
-            assert!(!cat.is_empty(), "el catalogo '{code}' esta vacio");
+                parse(code, fuente).unwrap_or_else(|| panic!("catalog '{code}' does not parse"));
+            assert!(!cat.is_empty(), "catalog '{code}' is empty");
         }
     }
 
     #[test]
     fn every_language_has_the_same_keys() {
-        // Una traduccion incompleta deja texto en el language equivocado (o la
-        // key cruda) delante del jugador. Se compara contra el language de
-        // reference para que no pase inadvertido.
+        // An incomplete translation leaves text in the wrong language (or the
+        // raw key) in front of the player. It is compared against the reference
+        // language so that it does not go unnoticed.
         let reference = catalog_for(DEFAULT_LANGUAGE).expect("catalogo de reference");
         for (code, _) in CATALOGS {
             if *code == DEFAULT_LANGUAGE {
                 continue;
             }
-            let other = catalog_for(code).expect("catalogo");
+            let other = catalog_for(code).expect("catalog");
             let missing: Vec<&String> = reference
                 .keys()
                 .filter(|k| other.get(k) == k.as_str())
@@ -188,7 +188,7 @@ mod tests {
                 .collect();
             assert!(
                 extra.is_empty(),
-                "el language '{code}' tiene keys que no existen en '{DEFAULT_LANGUAGE}': {:?}",
+                "language '{code}' has keys that do not exist in '{DEFAULT_LANGUAGE}': {:?}",
                 &extra[..extra.len().min(10)]
             );
         }
@@ -206,9 +206,9 @@ mod tests {
         assert_eq!(resolve_code(&v("es_MX.UTF-8")), "es");
         assert_eq!(resolve_code(&v("en_US.UTF-8")), "en");
         assert_eq!(resolve_code(&v("en")), "en");
-        // Idioma sin catalogo -> por defecto.
+        // Language with no catalog -> default.
         assert_eq!(resolve_code(&v("fr_FR.UTF-8")), DEFAULT_LANGUAGE);
-        // "C"/"POSIX" no son idiomas reales.
+        // "C"/"POSIX" are not real languages.
         assert_eq!(resolve_code(&v("C")), DEFAULT_LANGUAGE);
         assert_eq!(resolve_code(&[]), DEFAULT_LANGUAGE);
     }

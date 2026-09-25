@@ -1,58 +1,58 @@
-//! Reproducción de los fallos de física reportados al jugar.
+//! Reproduction of the physics failures reported while playing.
 //!
-//! Estos tests se escribieron ANTES del arreglo, para demostrar el bug.
+//! These tests were written BEFORE the fix, to demonstrate the bug.
 
 use jezzball_core::ball::Ball;
 use jezzball_core::grid::{Cell, Grid};
 use jezzball_core::level::BallKind;
 use jezzball_core::rng::Rng64;
 
-/// Arena 10x10 abierta.
+/// Open 10x10 arena.
 fn arena() -> Grid {
     Grid::new(10, 10)
 }
 
-/// BUG 1 — Tras rebotar contra un muro, la bola queda apoyada exactamente en
-/// `celda - radio`, de modo que el borde de su AABB cae JUSTO sobre la celda
-/// bloqueante. Al frame siguiente, viajando ya en sentido contrario, el
-/// barrido vuelve a "ver" esa misma celda y la trata como bloqueo, con lo que
-/// la teletransporta AL OTRO LADO del muro e invierte otra vez la velocidad.
+/// BUG 1 — After bouncing off a wall, the ball ends up resting exactly at
+/// `cell - radius`, so the edge of its AABB falls RIGHT on the blocking cell.
+/// On the next frame, already travelling in the opposite direction, the sweep
+/// "sees" that same cell again and treats it as a block, which teleports it
+/// TO THE OTHER SIDE of the wall and flips the velocity once more.
 ///
-/// Síntoma en pantalla: las bolas se pegan, vibran o cruzan muros.
+/// On-screen symptom: balls stick, jitter, or pass through walls.
 #[test]
-fn rebote_no_teletransporta_ni_atraviesa_el_muro() {
+fn bouncing_neither_teleports_nor_crosses_the_wall() {
     let mut g = arena();
-    // Muro vertical en la columna 5.
+    // Vertical wall on column 5.
     for y in 0..10 {
         g.set(5, y, Cell::Filled);
     }
     let mut rng = Rng64::new(1);
 
-    // Bola avanzando hacia +X, a la izquierda del muro.
+    // Ball moving towards +X, to the left of the wall.
     let mut b = Ball::new(0, 4.0, 4.5, 6.0, 0.0, BallKind::Normal, 1.0);
     let radius = b.radius;
 
-    // Simulamos 120 frames a 60 FPS. La bola NUNCA debe cruzar la columna 5.
+    // We simulate 120 frames at 60 FPS. The ball must NEVER cross column 5.
     for frame in 0..120 {
         b.step(&g, &mut rng, 1.0 / 60.0);
         assert!(
             b.pos.x + radius <= 5.0 + 1e-3,
-            "frame {frame}: la bola atraveso el muro (x={}, radio={radius})",
+            "frame {frame}: the ball crossed the wall (x={}, radius={radius})",
             b.pos.x
         );
         assert!(
             b.pos.x - radius >= -1e-3,
-            "frame {frame}: la bola salio por el borde izquierdo (x={})",
+            "frame {frame}: the ball left through the left edge (x={})",
             b.pos.x
         );
     }
 }
 
-/// BUG 1 (variante) — El rebote debe conservar la RAPIDEZ. Si la bola se
-/// queda vibrando contra la pared, la velocidad se invierte varias veces por
-/// frame y el movimiento deja de ser el del JezzBall clásico.
+/// BUG 1 (variant) — The bounce must preserve SPEED. If the ball ends up
+/// jittering against the wall, the velocity is flipped several times per
+/// frame and the motion stops being that of classic JezzBall.
 #[test]
-fn rebote_conserva_la_rapidez_y_avanza_de_verdad() {
+fn bouncing_preserves_speed_and_actually_advances() {
     let mut g = arena();
     for y in 0..10 {
         g.set(5, y, Cell::Filled);
@@ -67,80 +67,80 @@ fn rebote_conserva_la_rapidez_y_avanza_de_verdad() {
         min_x = min_x.min(b.pos.x);
         assert!(
             (b.speed() - speed0).abs() < 1e-3,
-            "la rapidez cambio: {} -> {}",
+            "the speed changed: {} -> {}",
             speed0,
             b.speed()
         );
     }
-    // Tras rebotar debe haber viajado de vuelta hacia la izquierda,
-    // no quedarse pegada al muro.
+    // After bouncing it must have travelled back to the left,
+    // not stayed stuck to the wall.
     assert!(
         min_x < 3.0,
-        "la bola se quedo pegada al muro (min_x={min_x}); deberia haber rebotado y viajado"
+        "the ball stayed stuck to the wall (min_x={min_x}); it should have bounced and travelled"
     );
 }
 
-/// BUG 2 — Una celda que se rellena DETRÁS de la bola (caso normal: el muro
-/// se consolida justo donde la bola acaba de pasar) no debe empujarla ni
-/// invertir su velocidad: sólo bloquea lo que hay por delante.
+/// BUG 2 — A cell that gets filled BEHIND the ball (the normal case: the wall
+/// consolidates right where the ball has just passed) must not push it nor
+/// flip its velocity: it only blocks what lies ahead.
 #[test]
 fn filled_cell_behind_does_not_push_the_ball() {
     let mut g = arena();
     let mut rng = Rng64::new(1);
-    // Bola en el centro de la celda 4, viajando hacia +X.
+    // Ball at the centre of cell 4, travelling towards +X.
     let mut b = Ball::new(0, 4.5, 4.5, 6.0, 0.0, BallKind::Normal, 1.0);
     b.step(&g, &mut rng, 1.0 / 60.0);
-    let vel_antes = b.vel.x;
-    let x_antes = b.pos.x;
+    let vel_before = b.vel.x;
+    let x_before = b.pos.x;
 
-    // Ahora se rellena la celda que la bola tiene DETRÁS.
+    // Now the cell BEHIND the ball gets filled.
     g.set(4, 4, Cell::Filled);
     b.step(&g, &mut rng, 1.0 / 60.0);
 
     assert!(
         b.vel.x > 0.0,
-        "la bola invirtio su velocidad por una celda que tenia detras ({vel_antes} -> {})",
+        "the ball flipped its velocity because of a cell behind it ({vel_before} -> {})",
         b.vel.x
     );
     assert!(
-        b.pos.x >= x_antes,
-        "la bola retrocedio por una celda que tenia detras ({x_antes} -> {})",
+        b.pos.x >= x_before,
+        "the ball moved back because of a cell behind it ({x_before} -> {})",
         b.pos.x
     );
 }
 
-/// BUG 3 — En una esquina, la bola rebota en ambos ejes y debe seguir inside
-/// de la arena, sin quedar atrapada ni salir despedida.
+/// BUG 3 — In a corner, the ball bounces on both axes and must stay inside
+/// the arena, without getting trapped or being flung out.
 #[test]
-fn rebote_en_esquina_mantiene_la_bola_dentro() {
+fn corner_bounce_keeps_the_ball_inside() {
     let g = arena();
     let mut rng = Rng64::new(7);
-    // Hacia la esquina superior izquierda.
+    // Towards the top-left corner.
     let mut b = Ball::new(0, 1.0, 1.0, -9.0, -9.0, BallKind::Normal, 1.0);
     let r = b.radius;
     for frame in 0..300 {
         b.step(&g, &mut rng, 1.0 / 60.0);
         assert!(
             b.pos.x - r >= -1e-3 && b.pos.y - r >= -1e-3,
-            "frame {frame}: la bola salio por la esquina ({}, {})",
+            "frame {frame}: the ball left through the corner ({}, {})",
             b.pos.x,
             b.pos.y
         );
         assert!(
             b.pos.x + r <= 10.0 + 1e-3 && b.pos.y + r <= 10.0 + 1e-3,
-            "frame {frame}: la bola salio por el lado opuesto ({}, {})",
+            "frame {frame}: the ball left through the opposite side ({}, {})",
             b.pos.x,
             b.pos.y
         );
     }
 }
 
-/// BUG 4 — Una bola encajonada en un pasillo de una sola celda debe rebotar
-/// limpiamente de lado a lado, sin vibrar ni escaparse.
+/// BUG 4 — A ball boxed into a single-cell corridor must bounce cleanly from
+/// side to side, without jittering or escaping.
 #[test]
-fn pasillo_estrecho_rebota_limpio() {
+fn narrow_corridor_bounces_cleanly() {
     let mut g = arena();
-    // Pasillo horizontal de 1 celda de height en la fila 4, entre x=1 y x=8.
+    // Horizontal corridor one cell high on row 4, between x=1 and x=8.
     for x in 0..10 {
         for y in 0..10 {
             if y != 4 {
@@ -158,12 +158,12 @@ fn pasillo_estrecho_rebota_limpio() {
         b.step(&g, &mut rng, 1.0 / 60.0);
         assert!(
             b.pos.y - r >= 4.0 - 1e-3 && b.pos.y + r <= 5.0 + 1e-3,
-            "frame {frame}: la bola se salio del pasillo (y={})",
+            "frame {frame}: the ball left the corridor (y={})",
             b.pos.y
         );
         assert!(
             b.pos.x - r >= 1.0 - 1e-3 && b.pos.x + r <= 9.0 + 1e-3,
-            "frame {frame}: la bola se salio por los topes (x={})",
+            "frame {frame}: the ball left through the end caps (x={})",
             b.pos.x
         );
     }

@@ -16,27 +16,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar toolchain Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: Cachear dependencias
+      - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
 
-      # macroquad/miniquad enlaza con X11, ALSA y GL en Linux. En CI no hay
-      # pantalla, pero sí hacen falta las cabeceras para compilar.
-      - name: Dependencias de sistema
+      # macroquad/miniquad links against X11, ALSA and GL on Linux. CI has no
+      # display, but the headers are still required to build.
+      - name: System dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libx11-dev libxi-dev libgl1-mesa-dev libasound2-dev \
             libwayland-dev libxkbcommon-dev
 
-      - name: Formato
+      - name: Formatting
         run: cargo fmt --all --check
 
-      - name: Clippy (incluidos tests)
+      - name: Clippy (tests included)
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Tests
@@ -45,23 +45,23 @@ jobs:
       - name: Build release
         run: cargo build --release --locked
 
-      # El juego necesita pantalla, pero `--help` no: sirve de humo básico
-      # para detectar que el binario arranca y no panica antes de tiempo.
-      - name: Humo (--help sin display)
+      # The game needs a display, but `--help` does not: it works as a basic
+      # smoke test that the binary starts and does not panic straight away.
+      - name: Smoke test (--help with no display)
         run: ./target/release/omarchy-jezzball --help
 
-      # Prueba de arranque REAL con pantalla virtual.
+      # A REAL startup test against a virtual display.
       #
-      # Existe porque `cargo test` y `--help` NO detectan un binario que no
-      # abre ventana: dos regresiones de arranque (un backend de ventana mal
-      # elegido y un `overflow-checks` que abortaba el proceso) pasaron ambas
-      # comprobaciones y sólo se vieron al jugar. Xvfb arranca el juego de
-      # verdad, lo deja correr unos segundos y falla si el proceso muere o si
-      # deja un crash.log.
-      - name: Dependencias de pantalla virtual
+      # This exists because `cargo test` and `--help` do NOT catch a binary
+      # that fails to open a window: two startup regressions (a badly chosen
+      # window backend and an `overflow-checks` setting that aborted the
+      # process) passed both checks and only showed up while playing. Xvfb
+      # starts the game for real, lets it run for a few seconds and fails if
+      # the process dies or leaves a crash.log behind.
+      - name: Virtual display dependencies
         run: sudo apt-get install -y --no-install-recommends xvfb
 
-      - name: Arranque real bajo Xvfb
+      - name: Real startup under Xvfb
         run: |
           set -euo pipefail
           rm -f "$HOME/.local/state/omarchy-jezzball/crash.log"
@@ -70,21 +70,22 @@ jobs:
           PID=$!
           sleep 8
           if ! kill -0 "$PID" 2>/dev/null; then
-            echo "ERROR: el juego murio durante el arranque."
+            echo "ERROR: the game died during startup."
             cat "$HOME/.local/state/omarchy-jezzball/crash.log" 2>/dev/null || true
             exit 1
           fi
           kill "$PID" 2>/dev/null || true
           wait "$PID" 2>/dev/null || true
           if [ -s "$HOME/.local/state/omarchy-jezzball/crash.log" ]; then
-            echo "ERROR: el juego registro un fallo durante el arranque:"
+            echo "ERROR: the game logged a failure during startup:"
             cat "$HOME/.local/state/omarchy-jezzball/crash.log"
             exit 1
           fi
-          echo "OK: el juego arranco y se mantuvo en pie."
+          echo "OK: the game started and stayed up."
 
-      # El mismo arranque con los dos modos, que es como lo lanza el .desktop.
-      - name: Arranque por modo (--mode)
+      # The same startup check for both modes, which is how the .desktop file
+      # launches the game.
+      - name: Startup per mode (--mode)
         run: |
           set -euo pipefail
           for m in original enhanced; do
@@ -94,11 +95,17 @@ jobs:
             PID=$!
             sleep 6
             if ! kill -0 "$PID" 2>/dev/null; then
-              echo "ERROR: --mode $m murio al arrancar."
+              echo "ERROR: --mode $m died on startup."
               cat "$HOME/.local/state/omarchy-jezzball/crash.log" 2>/dev/null || true
               exit 1
             fi
             kill "$PID" 2>/dev/null || true
             wait "$PID" 2>/dev/null || true
-            echo "OK: --mode $m arranco."
+            echo "OK: --mode $m started."
           done
+
+      # Guard against Spanish creeping back into the published sources.
+      # The Spanish UI catalogue (assets/i18n/es.ron) is excluded on purpose:
+      # that file IS the translation.
+      - name: No Spanish left in sources
+        run: python3 tools/check_english.py

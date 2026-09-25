@@ -1,9 +1,9 @@
-//! Regla del JezzBall original: cada mitad del muro se "convierte" (se fija)
-//! en cuanto su frente toca una pared, y a partir de ese momento es INMUNE.
-//! Sólo la mitad que todavía está creciendo puede costar una vida.
+//! Rule from the original JezzBall: each half of the wall "converts" (gets
+//! fixed) as soon as its front touches a wall, and from that moment on it is
+//! IMMUNE. Only the half that is still growing can cost a life.
 //!
-//! Antes el muro era todo-o-nada: una bola tocando cualquier punto destruía
-//! la línea completa, incluida la parte ya anclada en la pared.
+//! Previously the wall was all-or-nothing: a ball touching any point destroyed
+//! the whole line, including the part already anchored to the wall.
 
 use jezzball_core::grid::Cell;
 use jezzball_core::level::{ArenaShape, ArenaSpec, BallKind, BallSpawn, LevelKind, LevelSpec};
@@ -36,7 +36,7 @@ fn spec(w: u16, h: u16, balls: Vec<BallSpawn>, wall_speed: f32) -> LevelSpec {
     }
 }
 
-fn bola(x: f32, y: f32, vx: f32, vy: f32) -> BallSpawn {
+fn ball(x: f32, y: f32, vx: f32, vy: f32) -> BallSpawn {
     BallSpawn {
         x,
         y,
@@ -47,14 +47,14 @@ fn bola(x: f32, y: f32, vx: f32, vy: f32) -> BallSpawn {
     }
 }
 
-/// Una bola quieta (velocidad mínima) colocada sobre la mitad ya fijada no
-/// debe costar vidas.
+/// A still ball (minimal velocity) placed on the already fixed half must not
+/// cost lives.
 #[test]
-fn la_mitad_anclada_en_la_pared_es_inmune() {
-    // Arena ancha y baja. Muro VERTICAL desde una fila cercana al borde
-    // superior: el frente `lo` llega arriba enseguida y se fija; el frente
-    // `hi` sigue bajando mucho rato.
-    let st = GameState::new(spec(30, 40, vec![bola(25.0, 30.0, 0.5, 0.5)], 6.0));
+fn the_half_anchored_to_the_wall_is_immune() {
+    // Wide, low arena. VERTICAL wall from a row close to the top border: the
+    // `lo` front reaches the top right away and gets fixed; the `hi` front
+    // keeps descending for a long while.
+    let st = GameState::new(spec(30, 40, vec![ball(25.0, 30.0, 0.5, 0.5)], 6.0));
     let (st, _) = step(
         &st,
         PlayerInput::StartWall {
@@ -64,46 +64,49 @@ fn la_mitad_anclada_en_la_pared_es_inmune() {
         DT,
     );
 
-    // Avanzamos lo justo para que el frente `lo` toque el borde superior.
+    // We advance just enough for the `lo` front to touch the top border.
     let mut st = st;
     for _ in 0..60 {
         st = step(&st, PlayerInput::None, DT).0;
     }
-    assert_eq!(st.builders.len(), 1, "el muro deberia seguir creciendo");
+    assert_eq!(st.builders.len(), 1, "the wall should still be growing");
     let b = &st.builders[0];
-    assert!(b.lo_done, "el frente lo deberia haber tocado el borde ya");
-    assert!(!b.hi_done, "el frente hi deberia seguir creciendo");
+    assert!(
+        b.lo_done,
+        "the lo front should have touched the border by now"
+    );
+    assert!(!b.hi_done, "the hi front should still be growing");
 
-    // La mitad superior (filas 0..=2 de la columna 10) ya debe estar FIJADA
-    // en la rejilla, no simplemente "pintada".
+    // The upper half (rows 0..=2 of column 10) must already be FIXED in the
+    // grid, not merely "painted".
     for y in 0..2u16 {
         assert_eq!(
             st.arena.grid.get(10, y),
             Cell::Filled,
-            "la celda (10, {y}) de la mitad anclada deberia estar fijada"
+            "cell (10, {y}) of the anchored half should be fixed"
         );
     }
 
-    // Y no debe figurar como vulnerable.
+    // And it must not show up as vulnerable.
     let vulnerable = st.builders[0].vulnerable_cells(&st.arena.grid);
     for y in 0..2u16 {
         assert!(
             !vulnerable.contains(&(10, y)),
-            "la celda (10, {y}) sigue siendo vulnerable pese a estar anclada"
+            "cell (10, {y}) is still vulnerable despite being anchored"
         );
     }
     assert!(
         !vulnerable.is_empty(),
-        "la mitad que aun crece deberia ser vulnerable"
+        "the half that is still growing should be vulnerable"
     );
 }
 
-/// Si la bola golpea la mitad que AÚN CRECE, se pierde una vida pero la
-/// mitad ya anclada permanece en la arena.
+/// If the ball hits the half that is STILL GROWING, a life is lost but the
+/// already anchored half stays in the arena.
 #[test]
-fn al_golpear_la_mitad_viva_sobrevive_la_anclada() {
-    // Bola situada abajo, en la columna del muro, viajando hacia él.
-    let st = GameState::new(spec(30, 40, vec![bola(10.5, 30.0, 0.0001, -9.0)], 6.0));
+fn hitting_the_live_half_leaves_the_anchored_one_standing() {
+    // Ball placed at the bottom, in the wall's column, travelling towards it.
+    let st = GameState::new(spec(30, 40, vec![ball(10.5, 30.0, 0.0001, -9.0)], 6.0));
     let (st, _) = step(
         &st,
         PlayerInput::StartWall {
@@ -114,12 +117,12 @@ fn al_golpear_la_mitad_viva_sobrevive_la_anclada() {
     );
 
     let mut st = st;
-    let mut vida_perdida = false;
+    let mut life_lost = false;
     for _ in 0..900 {
         let (next, events) = step(&st, PlayerInput::None, DT);
         st = next;
         if events.iter().any(|e| matches!(e, GameEvent::LifeLost)) {
-            vida_perdida = true;
+            life_lost = true;
             break;
         }
         if st.builders.is_empty() {
@@ -128,32 +131,32 @@ fn al_golpear_la_mitad_viva_sobrevive_la_anclada() {
     }
 
     assert!(
-        vida_perdida,
-        "la bola deberia haber golpeado la mitad viva y costado una vida"
+        life_lost,
+        "the ball should have hit the live half and cost a life"
     );
-    assert_eq!(st.lives, 2, "deberia quedar exactamente una vida menos");
+    assert_eq!(st.lives, 2, "exactly one life less should remain");
 
-    // LA CLAVE: la mitad superior, que ya estaba anclada en la pared, sigue
-    // ahí. Antes se borraba junto con el resto del muro.
+    // THE KEY POINT: the upper half, which was already anchored to the wall,
+    // is still there. Previously it was wiped along with the rest of the wall.
     for y in 0..2u16 {
         assert_eq!(
             st.arena.grid.get(10, y),
             Cell::Filled,
-            "la mitad anclada (10, {y}) se perdio al golpear la otra mitad"
+            "the anchored half (10, {y}) was lost when the other half was hit"
         );
     }
 }
 
-/// Cuando ambos frentes llegan a su límite, el muro se consolida y parte el
-/// área como siempre (no rompemos el comportamiento existente).
+/// When both fronts reach their limit, the wall consolidates and splits the
+/// area as always (we are not breaking the existing behaviour).
 #[test]
 fn with_both_halves_anchored_the_wall_splits_the_area() {
-    // Las dos bolas viven a la derecha; el muro vertical en la columna 8
-    // debe cerrar la franja izquierda.
+    // Both balls live on the right; the vertical wall on column 8 must close
+    // the left strip.
     let st = GameState::new(spec(
         30,
         20,
-        vec![bola(20.0, 8.0, 6.0, 6.0), bola(24.0, 12.0, -6.0, 6.0)],
+        vec![ball(20.0, 8.0, 6.0, 6.0), ball(24.0, 12.0, -6.0, 6.0)],
         24.0,
     ));
     let (st, _) = step(
@@ -166,7 +169,7 @@ fn with_both_halves_anchored_the_wall_splits_the_area() {
     );
 
     let mut st = st;
-    let mut completado = false;
+    let mut consolidated = false;
     for _ in 0..1200 {
         let (next, events) = step(&st, PlayerInput::None, DT);
         st = next;
@@ -174,39 +177,39 @@ fn with_both_halves_anchored_the_wall_splits_the_area() {
             .iter()
             .any(|e| matches!(e, GameEvent::WallCompleted { .. }))
         {
-            completado = true;
+            consolidated = true;
             break;
         }
     }
-    assert!(completado, "el muro no se consolido");
+    assert!(consolidated, "the wall did not consolidate");
 
-    // La columna del muro entera debe estar fijada.
+    // The wall's entire column must be fixed.
     for y in 0..20u16 {
         assert_eq!(
             st.arena.grid.get(8, y),
             Cell::Filled,
-            "la columna del muro no quedo completa en y={y}"
+            "the wall column is not complete at y={y}"
         );
     }
-    // Y la franja izquierda (sin bolas) debe haberse cerrado.
-    let mut abiertas_izq = 0;
+    // And the left strip (with no balls) must have been closed.
+    let mut left_open = 0;
     for y in 0..20u16 {
         for x in 0..8u16 {
             if st.arena.grid.get(x, y) == Cell::Open {
-                abiertas_izq += 1;
+                left_open += 1;
             }
         }
     }
     assert_eq!(
-        abiertas_izq, 0,
-        "la franja izquierda no se cerro: {abiertas_izq} celdas abiertas"
+        left_open, 0,
+        "the left strip did not close: {left_open} open cells"
     );
 }
 
-/// Un muro horizontal se comporta igual (la regla no depende del eje).
+/// A horizontal wall behaves the same way (the rule does not depend on the axis).
 #[test]
 fn the_rule_holds_for_horizontal_walls() {
-    let st = GameState::new(spec(40, 30, vec![bola(30.0, 25.0, 0.5, 0.5)], 6.0));
+    let st = GameState::new(spec(40, 30, vec![ball(30.0, 25.0, 0.5, 0.5)], 6.0));
     let (st, _) = step(
         &st,
         PlayerInput::StartWall {
@@ -223,13 +226,13 @@ fn the_rule_holds_for_horizontal_walls() {
     assert_eq!(st.builders.len(), 1);
     assert!(
         st.builders[0].lo_done,
-        "el frente lo deberia haber tocado el borde izquierdo"
+        "the lo front should have touched the left border"
     );
     for x in 0..2u16 {
         assert_eq!(
             st.arena.grid.get(x, 10),
             Cell::Filled,
-            "la celda ({x}, 10) de la mitad anclada deberia estar fijada"
+            "cell ({x}, 10) of the anchored half should be fixed"
         );
     }
 }

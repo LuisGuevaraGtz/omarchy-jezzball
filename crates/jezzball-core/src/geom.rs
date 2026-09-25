@@ -1,12 +1,11 @@
-//! Utilidades geométricas de bajo nivel usadas por bolas y muros.
+//! Low-level geometry helpers used by balls and walls.
 //!
-//! El core trabaja en "unidades de celda": la arena es una rejilla de celdas
-//! de tamaño 1×1 y las bolas se mueven en coordenadas continuas `f32`
-//! (ARCHITECTURE.md §2).
+//! The core works in "cell units": the arena is a grid of 1x1 cells and the
+//! balls move in continuous `f32` coordinates (ARCHITECTURE.md §2).
 
 use std::ops::{Add, Mul, Sub};
 
-/// Vector 2D continuo en unidades de celda.
+/// Continuous 2D vector in cell units.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Vec2 {
     pub x: f32,
@@ -18,7 +17,7 @@ impl Vec2 {
         Vec2 { x, y }
     }
 
-    /// Módulo (longitud euclídea).
+    /// Magnitude (Euclidean length).
     pub fn length(self) -> f32 {
         self.length_sq().sqrt()
     }
@@ -31,8 +30,8 @@ impl Vec2 {
         self.x * other.x + self.y * other.y
     }
 
-    /// Versor unitario. Si el vector es (casi) nulo devuelve el cero,
-    /// porque no hay dirección válida que representar.
+    /// Unit vector. If the vector is (almost) zero it returns zero, because
+    /// there is no valid direction to represent.
     pub fn normalized(self) -> Vec2 {
         let len = self.length();
         if len <= f32::EPSILON {
@@ -42,7 +41,7 @@ impl Vec2 {
         }
     }
 
-    /// Rota el vector `angle` radianes (sentido horario en pantalla).
+    /// Rotates the vector by `angle` radians (clockwise on screen).
     pub fn rotate(self, angle: f32) -> Vec2 {
         let (sin, cos) = angle.sin_cos();
         Vec2::new(self.x * cos - self.y * sin, self.x * sin + self.y * cos)
@@ -70,7 +69,7 @@ impl Mul<f32> for Vec2 {
     }
 }
 
-/// Rectángulo en unidades de celda (esquina superior izquierda + tamaño).
+/// Rectangle in cell units (top-left corner + size).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Rect {
     pub x: f32,
@@ -98,7 +97,7 @@ impl Rect {
     }
 }
 
-/// Caja alineada a los ejes descrita por sus extremos.
+/// Axis-aligned box described by its extents.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Aabb {
     pub min_x: f32,
@@ -108,7 +107,7 @@ pub struct Aabb {
 }
 
 impl Aabb {
-    /// AABB centrado en `center` con media extensión `half` por cada eje.
+    /// AABB centred on `center` with half-extent `half` along each axis.
     pub fn from_center(center: Vec2, half: f32) -> Self {
         Aabb {
             min_x: center.x - half,

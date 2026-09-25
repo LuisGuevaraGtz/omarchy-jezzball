@@ -1,27 +1,27 @@
-# Apéndice A — Esquema de datos de niveles (normativo)
+# Appendix A — Level data schema (normative)
 
-Los workers de niveles y el crate `jezzball-core` DEBEN usar exactamente
-estos tipos. Cualquier cambio se propaga a ambos lados.
+Level workers and the `jezzball-core` crate MUST use exactly these types.
+Any change has to propagate to both sides.
 
-## Tipos Rust (definidos en `jezzball-core/src/level.rs`)
+## Rust types (defined in `jezzball-core/src/level.rs`)
 
 ```rust
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LevelSpec {
-    pub id: u16,                  // 1-based, único dentro del modo
-    pub name: String,             // corto, mostrable en HUD
-    pub world: u8,                // 0 = Original; 1..=6 = mundos Enhanced
+    pub id: u16,                  // 1-based, unique within the mode
+    pub name: String,             // short, displayable in the HUD
+    pub world: u8,                // 0 = Original; 1..=6 = Enhanced worlds
     pub kind: LevelKind,
     pub arena: ArenaSpec,
     pub balls: Vec<BallSpawn>,
-    pub target_ratio: f32,        // 0.0..1.0, típico 0.75
+    pub target_ratio: f32,        // 0.0..1.0, typically 0.75
     pub lives: u8,
-    pub wall_speed: f32,          // celdas/seg por frente, típico 22.0
-    pub time_limit: Option<f32>,  // segundos; None = sin reloj
+    pub wall_speed: f32,          // cells/sec per front, typically 22.0
+    pub time_limit: Option<f32>,  // seconds; None = no clock
     pub powerups_enabled: bool,
-    pub objectives: Vec<Objective>, // máx 3; vacío en Original
-    pub purist: bool,             // true => sin combos, sin power-ups, sin objetivos
-    pub seed: u64,                // semilla del PRNG determinista
+    pub objectives: Vec<Objective>, // max 3; empty in Original
+    pub purist: bool,             // true => no combos, no power-ups, no objectives
+    pub seed: u64,                // seed for the deterministic PRNG
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
@@ -29,35 +29,35 @@ pub enum LevelKind { Standard, Boss, SpeedRun, Chaos }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ArenaSpec {
-    pub w: u16,                   // celdas, 32..=96
-    pub h: u16,                   // celdas, 20..=60
+    pub w: u16,                   // cells, 32..=96
+    pub h: u16,                   // cells, 20..=60
     pub shape: ArenaShape,
-    pub obstacles: Vec<Obstacle>, // celdas Solid pre-colocadas
+    pub obstacles: Vec<Obstacle>, // pre-placed Solid cells
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum ArenaShape {
-    Rect,                         // rectángulo estándar
-    Wide,                         // ratio ancho
-    Tall,                         // ratio alto
-    Irregular { notch: u16 },     // esquinas recortadas de `notch` celdas
-    Circle,                       // elipse inscrita; fuera = Solid
-    Maze { density: u8 },         // 0..=100, corredores generados por `seed`
+    Rect,                         // standard rectangle
+    Wide,                         // wide aspect ratio
+    Tall,                         // tall aspect ratio
+    Irregular { notch: u16 },     // corners notched by `notch` cells
+    Circle,                       // inscribed ellipse; outside = Solid
+    Maze { density: u8 },         // 0..=100, corridors generated from `seed`
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum Obstacle {
     Block { x: u16, y: u16, w: u16, h: u16 },
-    // se mueve en línea recta rebotando; destruye muros en construcción
+    // moves in a straight line, bouncing; destroys walls under construction
     Mover { x: f32, y: f32, w: u16, h: u16, vx: f32, vy: f32 },
-    // zona que NUNCA puede rellenarse ni cerrarse (cuenta como no-fillable)
+    // a zone that can NEVER be filled or sealed (counts as non-fillable)
     NoSplit { x: u16, y: u16, w: u16, h: u16 },
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct BallSpawn {
-    pub x: f32, pub y: f32,       // celdas
-    pub vx: f32, pub vy: f32,     // celdas/seg
+    pub x: f32, pub y: f32,       // cells
+    pub vx: f32, pub vy: f32,     // cells/sec
     pub kind: BallKind,
     pub radius_mul: f32,          // 1.0 = normal
 }
@@ -72,10 +72,10 @@ pub enum Objective {
 }
 ```
 
-## Formato en disco
+## On-disk format
 
-`assets/levels/original.ron` y `assets/levels/enhanced.ron` contienen
-un `Vec<LevelSpec>` en RON. Ejemplo mínimo válido:
+`assets/levels/original.ron` and `assets/levels/enhanced.ron` each contain a
+`Vec<LevelSpec>` in RON. Minimal valid example:
 
 ```ron
 [
@@ -101,58 +101,61 @@ un `Vec<LevelSpec>` en RON. Ejemplo mínimo válido:
 ]
 ```
 
-## Reglas de generación
+## Generation rules
 
-### Original (10 niveles, `original.ron`)
+### Original (10 levels, `original.ron`)
 - `world: 0`, `kind: Standard`, `purist: true`, `objectives: []`,
   `powerups_enabled: false`, `obstacles: []`, `shape: Rect`, `time_limit: None`.
-- Bolas: nivel N tiene `1 + N` bolas (nivel 1 → 2 bolas ... nivel 10 → 11).
-  Esto reproduce la curva del JezzBall original.
-- Todas las bolas `Normal`, `radius_mul: 1.0`.
-- Velocidad base 8.0 celdas/s en nivel 1, subiendo ~4% por nivel (tope 11.5).
-- `lives`: 3 en niveles 1-3, 4 en 4-7, 5 en 8-10 (el original da vidas = nivel,
-  nosotros lo acotamos para que siga siendo justo).
-- `target_ratio: 0.75` fijo.
-- `wall_speed`: 22.0 fijo.
-- Posiciones iniciales: repartidas, nunca a menos de 4 celdas del borde
-  ni a menos de 5 celdas entre sí. Velocidades con componentes no nulas
-  y no exactamente iguales entre bolas (evitar simetrías aburridas).
+- Balls: level N has `1 + N` balls (level 1 → 2 balls ... level 10 → 11).
+  This reproduces the original JezzBall curve.
+- All balls are `Normal`, `radius_mul: 1.0`.
+- Base speed 8.0 cells/s at level 1, rising ~4% per level (capped at 11.5).
+- `lives`: 3 on levels 1-3, 4 on 4-7, 5 on 8-10 (the original grants
+  lives = level; we bound it so the game stays fair).
+- `target_ratio: 0.75`, fixed.
+- `wall_speed`: 22.0, fixed.
+- Starting positions: spread out, never closer than 4 cells to an edge nor
+  closer than 5 cells to each other. Velocities must have non-zero components
+  and must not be exactly equal across balls (this avoids dull symmetries).
 - `seed`: 1000 + id.
 
-### Enhanced (60 niveles, `enhanced.ron`)
-`world = 1 + (id-1)/10`, o sea ids 1-10 → mundo 1, 11-20 → mundo 2, etc.
-`purist: false` siempre. `seed`: 2000 + id.
+### Enhanced (60 levels, `enhanced.ron`)
+`world = 1 + (id-1)/10`, i.e. ids 1-10 → world 1, 11-20 → world 2, and so on.
+`purist: false` always. `seed`: 2000 + id.
 
-Niveles especiales dentro de cada mundo:
-- el nivel 5 de cada mundo → `kind: SpeedRun` con `time_limit: Some(...)`.
-- el nivel 10 de cada mundo → `kind: Boss` (mundos 1,2,4) o `Chaos` (mundos 3,5,6).
+Special levels within each world:
+- level 5 of every world → `kind: SpeedRun` with `time_limit: Some(...)`.
+- level 10 of every world → `kind: Boss` (worlds 1, 2, 4) or `Chaos`
+  (worlds 3, 5, 6).
 
-Por mundo:
-- **M1 Clásico (1-10)**: como Original pero `purist: false`, combos activos,
-  1-2 objetivos por nivel, sin obstáculos, `shape: Rect`. Bolas 2→6.
-- **M2 Velocidad (11-20)**: velocidades 12-18 celdas/s, algunas `Fast`,
-  `time_limit` en la mitad de los niveles, `wall_speed` 24-28.
-  `shape` alterna Rect/Wide/Tall. Bolas 3→7.
-- **M3 Obstáculos (21-30)**: 2-6 `Block` por nivel, a partir del 25 aparecen
-  `Mover`, a partir del 27 aparece 1 `NoSplit`. `shape` incluye Irregular.
-  Bolas 3→6. Bajar `target_ratio` a 0.70 donde haya mucho `Solid`.
-- **M4 Bolas especiales (31-40)**: introducción gradual — 31-32 `Erratic`,
-  33-34 `Splitter`, 35-36 `Heavy`, 37-40 mezclas. Máx 2 `Heavy` por nivel,
-  máx 2 `Splitter`. Mezclar con obstáculos ligeros. `shape` incluye Circle.
-- **M5 Power-ups (41-50)**: `powerups_enabled: true`, dificultad claramente
-  por encima de M4 para que el power-up sea necesario, no un regalo.
-  Objetivo `NoPowerUps` en 2-3 niveles como reto opcional. `shape` variado.
-- **M6 Retos avanzados (51-60)**: todo combinado, `shape: Maze` en 3+ niveles,
-  `target_ratio` hasta 0.82, `lives` 2-3, 3 objetivos por nivel,
-  nivel 60 = `Chaos` final, el más duro del juego.
+Per world:
+- **W1 Classic (1-10)**: like Original but with `purist: false`, combos
+  active, 1-2 objectives per level, no obstacles, `shape: Rect`. Balls 2→6.
+- **W2 Speed (11-20)**: speeds 12-18 cells/s, some `Fast` balls,
+  `time_limit` on half the levels, `wall_speed` 24-28.
+  `shape` alternates Rect/Wide/Tall. Balls 3→7.
+- **W3 Obstacles (21-30)**: 2-6 `Block`s per level, `Mover`s appear from 25
+  onwards, one `NoSplit` from 27 onwards. `shape` includes Irregular.
+  Balls 3→6. Lower `target_ratio` to 0.70 wherever there is a lot of `Solid`.
+- **W4 Special balls (31-40)**: gradual introduction — 31-32 `Erratic`,
+  33-34 `Splitter`, 35-36 `Heavy`, 37-40 mixed. Max 2 `Heavy` per level,
+  max 2 `Splitter`. Mix in light obstacles. `shape` includes Circle.
+- **W5 Power-ups (41-50)**: `powerups_enabled: true`, difficulty clearly
+  above W4 so the power-up is a necessity rather than a gift.
+  The `NoPowerUps` objective appears on 2-3 levels as an optional challenge.
+  Varied `shape`.
+- **W6 Advanced challenges (51-60)**: everything combined, `shape: Maze` on
+  3+ levels, `target_ratio` up to 0.82, `lives` 2-3, 3 objectives per level,
+  level 60 = the final `Chaos`, the hardest in the game.
 
-Objetivos: 2-3 por nivel en Enhanced, coherentes con el nivel
-(no pedir `UnderTime(30.0)` en un nivel que razonablemente toma 90 s;
-no pedir `NoPowerUps` si `powerups_enabled: false`;
-`ClearRatio` debe ser > `target_ratio`).
+Objectives: 2-3 per level in Enhanced, and consistent with the level itself
+(don't ask for `UnderTime(30.0)` on a level that reasonably takes 90 s;
+don't ask for `NoPowerUps` if `powerups_enabled: false`;
+`ClearRatio` must be > `target_ratio`).
 
-### Validaciones obligatorias
-Ningún spawn de bola dentro de un `Obstacle` o fuera de la forma de arena.
-Ninguna bola con `vx == 0.0 && vy == 0.0`.
-`target_ratio` en 0.60..=0.85. `lives` en 1..=5. `wall_speed` en 18.0..=30.0.
-`objectives.len() <= 3`. Ids consecutivos sin huecos empezando en 1.
+### Mandatory validations
+No ball spawn inside an `Obstacle` or outside the arena shape.
+No ball with `vx == 0.0 && vy == 0.0`.
+`target_ratio` within 0.60..=0.85. `lives` within 1..=5. `wall_speed` within
+18.0..=30.0.
+`objectives.len() <= 3`. Consecutive ids with no gaps, starting at 1.

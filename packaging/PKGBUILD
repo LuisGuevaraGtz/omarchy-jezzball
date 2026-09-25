@@ -1,32 +1,32 @@
 # Maintainer: Luis Guevara <luisguevaragtz@users.noreply.github.com>
-# PKGBUILD de omarchy-jezzball — clon nativo de JezzBall para Omarchy.
+# PKGBUILD for omarchy-jezzball — a native JezzBall clone for Omarchy.
 #
-# Notas de las decisiones (contrato: docs/ARCHITECTURE.md, sección 14):
-# - El binario final se llama `omarchy-jezzball` (lo genera el miembro
-#   `jezzball-app` del workspace; ver supuesto al final del fichero).
-# - Wayland-first: solo dependencias Wayland/GL. Nada de X11 obligatorio.
-# - Se sigue la convención de Arch para paquetes Rust:
+# Notes on the decisions taken (contract: docs/ARCHITECTURE.md, section 14):
+# - The final binary is named `omarchy-jezzball` (produced by the workspace
+#   member `jezzball-app`; see the assumption at the end of this file).
+# - Wayland-first: Wayland/GL dependencies only. No mandatory X11.
+# - Follows the Arch convention for Rust packages:
 #   `export RUSTUP_TOOLCHAIN=stable` + `export CARGO_TARGET_DIR=target`.
-# - `options=('!lto')`: el LTO lo gestiona ya el perfil release de Cargo;
-#   dejar que makepkg añada sus flags LTO rompe/dobla el trabajo.
+# - `options=('!lto')`: LTO is already handled by Cargo's release profile;
+#   letting makepkg add its own LTO flags breaks or duplicates that work.
 
 pkgname=omarchy-jezzball
 pkgver=0.1.0
 pkgrel=1
-pkgdesc='Clon nativo de JezzBall para Omarchy (Wayland, keyboard-first)'
+pkgdesc='Native JezzBall clone for Omarchy (Wayland, keyboard-first)'
 arch=('x86_64')
-# TODO(worker-pkg): sustituir por la URL real del repositorio al publicarlo.
+# TODO(worker-pkg): replace with the real repository URL once published.
 url='https://github.com/LuisGuevaraGtz/omarchy-jezzball'
 license=('MIT')
-# Dependencias de sistema reales de un juego macroquad/miniquad en Wayland:
-# - wayland: protocolo del compositor (Hyprland).
-# - libxkbcommon: gestión de teclado en Wayland.
-# - libglvnd: provee libGL/libEGL que usa miniquad para el render.
-# - alsa-lib: backend de audio de miniquad en Linux.
+# The real system dependencies of a macroquad/miniquad game on Wayland:
+# - wayland: the compositor protocol (Hyprland).
+# - libxkbcommon: keyboard handling on Wayland.
+# - libglvnd: provides the libGL/libEGL that miniquad uses for rendering.
+# - alsa-lib: miniquad's audio backend on Linux.
 depends=('wayland' 'libxkbcommon' 'libglvnd' 'alsa-lib')
 makedepends=('cargo' 'git')
 options=('!lto')
-# Se publica por tag `v$pkgver`. La suma se omite porque la fuente es git.
+# Released via the `v$pkgver` tag. The checksum is skipped because the source is git.
 source=("git+https://github.com/LuisGuevaraGtz/omarchy-jezzball.git#tag=v${pkgver}")
 sha256sums=('SKIP')
 
@@ -34,7 +34,7 @@ prepare() {
   cd "$pkgname"
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
-  # Descarga las dependencias con el Cargo.lock versionado, sin compilar.
+  # Fetch dependencies using the committed Cargo.lock, without building.
   cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
 }
 
@@ -42,8 +42,8 @@ build() {
   cd "$pkgname"
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
-  # `--frozen` garantiza reproducibilidad (usa solo Cargo.lock).
-  # `--all-features` activa el soporte Wayland si es opt-in.
+  # `--frozen` guarantees reproducibility (uses Cargo.lock only).
+  # `--all-features` enables Wayland support in case it is opt-in.
   cargo build --frozen --release --all-features
 }
 
@@ -51,40 +51,40 @@ check() {
   cd "$pkgname"
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
-  # El contrato exige que los tests del core pasen (lógica pura, sin I/O).
+  # The contract requires the core tests to pass (pure logic, no I/O).
   cargo test --frozen -p jezzball-core
 }
 
 package() {
   cd "$pkgname"
 
-  # 1. Binario (contrato §14: /usr/bin/omarchy-jezzball).
-  # SUPUESTO: el workspace define [[bin]] name = "omarchy-jezzball" en
-  # crates/jezzball-app/Cargo.toml. El worker de la app debe garantizarlo.
+  # 1. Binary (contract §14: /usr/bin/omarchy-jezzball).
+  # ASSUMPTION: the workspace defines [[bin]] name = "omarchy-jezzball" in
+  # crates/jezzball-app/Cargo.toml. The app worker must guarantee this.
   install -Dm755 "target/release/omarchy-jezzball" \
     "$pkgdir/usr/bin/omarchy-jezzball"
 
-  # 2. Assets (contrato §14: /usr/share/omarchy-jezzball).
-  # Los niveles viven en RON y se cargan en tiempo de ejecución, así que
-  # viajan como datos, no compilados dentro del binario.
+  # 2. Assets (contract §14: /usr/share/omarchy-jezzball).
+  # Levels are RON files loaded at runtime, so they ship as data rather than
+  # being compiled into the binary.
   install -Dm644 assets/levels/*.ron \
     -t "$pkgdir/usr/share/omarchy-jezzball/levels/"
-  # Las fuentes son opcionales: solo se instalan si el worker de niveles
-  # las aporta (el glob se protege para no romper el build si faltan).
+  # Fonts are optional: they are only installed if the levels worker provides
+  # them (the glob is guarded so a missing directory cannot break the build).
   if compgen -G "assets/fonts/*" > /dev/null; then
     install -Dm644 assets/fonts/* \
       -t "$pkgdir/usr/share/omarchy-jezzball/fonts/"
   fi
 
-  # 3. Entrada de escritorio.
+  # 3. Desktop entry.
   install -Dm644 packaging/omarchy-jezzball.desktop \
     "$pkgdir/usr/share/applications/omarchy-jezzball.desktop"
 
-  # 4. Icono (hicolor scalable, coincide con `Icon=omarchy-jezzball`).
+  # 4. Icon (hicolor scalable, matches `Icon=omarchy-jezzball`).
   install -Dm644 assets/icons/omarchy-jezzball.svg \
     "$pkgdir/usr/share/icons/hicolor/scalable/apps/omarchy-jezzball.svg"
 
-  # 5. Licencia (contrato: /usr/share/licenses/$pkgname/LICENSE).
-  # SUPUESTO: la raíz del repo contiene el fichero LICENSE (texto MIT).
+  # 5. License (contract: /usr/share/licenses/$pkgname/LICENSE).
+  # ASSUMPTION: the repo root contains a LICENSE file (MIT text).
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

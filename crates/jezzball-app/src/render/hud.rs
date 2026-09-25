@@ -1,6 +1,6 @@
-//! HUD (ARCHITECTURE.md §13): en el Modo Original es deliberadamente pobre
-//! (solo lo esencial); en Enhanced muestra objetivos, combos, power-ups y
-//! tiempo. `F` alterna a una sola línea compacta.
+//! HUD (ARCHITECTURE.md §13): in Original Mode it is deliberately sparse
+//! (only the essentials); in Enhanced it shows objectives, combos, power-ups and
+//! time. `F` toggles a single compact line.
 
 use macroquad::prelude::*;
 
@@ -21,7 +21,7 @@ pub fn draw_hud(app: &App, layout: &Layout) {
     let _ = layout;
 }
 
-/// Inventario de power-ups con la ranura activa (cada una con su tecla).
+/// Power-up inventory with the active slot (each one with its key).
 pub fn draw_inventory(app: &App, cx: f32, y: f32) {
     let t = &app.theme;
     let inv = &app.state.inventory;
@@ -57,7 +57,7 @@ pub fn powerup_letter(k: PowerUpKind) -> &'static str {
     }
 }
 
-/// Efectos temporales activos con su tiempo restante.
+/// Active temporary effects with their remaining time.
 fn draw_active_effects(app: &App, cx: f32, y: f32) {
     let t = &app.theme;
     let act: Vec<String> =
@@ -85,7 +85,7 @@ fn draw_active_effects(app: &App, cx: f32, y: f32) {
     }
 }
 
-/// Porcentaje de zona capturada.
+/// Percentage of captured area.
 fn pct(app: &App) -> u32 {
     let g = &app.state.arena.grid;
     let mut open = 0u32;
@@ -101,7 +101,7 @@ fn pct(app: &App) -> u32 {
     (open * 100).checked_div(total).unwrap_or(0)
 }
 
-/// Tiempo restante si el nivel tiene límite (mundos velocidad).
+/// Remaining time if the level has a limit (speed worlds).
 fn remaining_time(app: &App) -> Option<f32> {
     app.state
         .level
@@ -109,18 +109,16 @@ fn remaining_time(app: &App) -> Option<f32> {
         .map(|tl| (tl - app.state.elapsed).max(0.0))
 }
 
-/// Primera línea del HUD (modo + nivel + mundo).
+/// First line of the HUD (mode + level + world).
 fn level_line(app: &App) -> (String, Color) {
     let t = &app.theme;
     let n = app.level_number;
     if app.mode == Mode::Enhanced {
         let world = app.state.level.world;
         (
-            format!(
-                "NIVEL {} ({})",
-                n.saturating_add(1),
-                crate::render::world_name(world)
-            ),
+            crate::i18n::t("hud.nivel_mundo")
+                .replacen("{}", &n.saturating_add(1).to_string(), 1)
+                .replacen("{}", crate::render::world_name(world), 1),
             t.accent.to_mq(1.0),
         )
     } else {
@@ -142,9 +140,18 @@ fn draw_hud_original(app: &App) {
         font(),
         &[
             (&lv, lvc),
-            (&format!("  PUNTOS {}", app.state.score), dim.to_mq(0.9)),
-            (&format!("  AREA {}%", pct(app)), dim.to_mq(0.9)),
-            (&format!("  VIDAS {}", app.state.lives), t.danger.to_mq(0.9)),
+            (
+                &crate::i18n::t("hud.puntos_etq").replace("{}", &app.state.score.to_string()),
+                dim.to_mq(0.9),
+            ),
+            (
+                &crate::i18n::t("hud.area_etq").replace("{}", &pct(app).to_string()),
+                dim.to_mq(0.9),
+            ),
+            (
+                &crate::i18n::t("hud.vidas_etq").replace("{}", &app.state.lives.to_string()),
+                t.danger.to_mq(0.9),
+            ),
         ],
     );
 }
@@ -161,26 +168,26 @@ fn draw_hud_enhanced(app: &App) {
         y0,
         font(),
         &[
-            ("MODO ", dim.to_mq(1.0)),
+            (crate::i18n::t("hud.modo_etq"), dim.to_mq(1.0)),
             (mode_name(app.mode), dim.to_mq(0.9)),
             (&format!("  {lv}"), lvc),
             (
-                &format!("  TIEMPO {}", fmt_time(app.state.elapsed)),
+                &crate::i18n::t("hud.tiempo_etq").replace("{}", &fmt_time(app.state.elapsed)),
                 dim.to_mq(0.9),
             ),
             (
-                &format!(
-                    "  RESTANTE {}",
-                    remaining_time(app)
+                &crate::i18n::t("hud.restante_etq").replace(
+                    "{}",
+                    &remaining_time(app)
                         .map(fmt_time)
-                        .unwrap_or_else(|| "--".to_string())
+                        .unwrap_or_else(|| "--".to_string()),
                 ),
                 t.danger.to_mq(if has_limit { 0.95 } else { 0.35 }),
             ),
         ],
     );
 
-    // Objetivos con su estado.
+    // Objectives with their state.
     let mut parts: Vec<(String, Color)> =
         vec![(crate::i18n::t("hud.objetivos").to_string(), dim.to_mq(1.0))];
     for o in &app.state.objectives {
@@ -192,31 +199,45 @@ fn draw_hud_enhanced(app: &App) {
         );
         parts.push((txt, if done { ok.to_mq(0.9) } else { dim.to_mq(1.0) }));
     }
-    parts.push((format!("  ESTRELLAS {}", app.state.stars), ok.to_mq(0.9)));
+    parts.push((
+        crate::i18n::t("hud.estrellas_etq").replace("{}", &app.state.stars.to_string()),
+        ok.to_mq(0.9),
+    ));
     let refs: Vec<(&str, Color)> = parts.iter().map(|(s, c)| (s.as_str(), *c)).collect();
     draw_segments(font(), y0 + hud_row(), font(), &refs);
 
-    // Combo y estado de partida.
+    // Combo and game state.
     draw_segments(
         12.0,
         y0 + 2.0 * hud_row(),
         font(),
         &[
             (
-                &format!("COMBO x{}", app.state.combo.multiplier),
+                &crate::i18n::t("hud.combo_mayus")
+                    .replace("{}", &app.state.combo.multiplier.to_string()),
                 t.accent.to_mq(0.95),
             ),
             (
-                &format!("  MAX x{}", app.state.max_combo_reached),
+                &crate::i18n::t("hud.max_etq")
+                    .replace("{}", &app.state.max_combo_reached.to_string()),
                 dim.to_mq(0.9),
             ),
-            (&format!("  AREA {}%", pct(app)), dim.to_mq(0.9)),
-            (&format!("  PUNTOS {}", app.state.score), dim.to_mq(0.9)),
-            (&format!("  VIDAS {}", app.state.lives), t.danger.to_mq(0.9)),
+            (
+                &crate::i18n::t("hud.area_etq").replace("{}", &pct(app).to_string()),
+                dim.to_mq(0.9),
+            ),
+            (
+                &crate::i18n::t("hud.puntos_etq").replace("{}", &app.state.score.to_string()),
+                dim.to_mq(0.9),
+            ),
+            (
+                &crate::i18n::t("hud.vidas_etq").replace("{}", &app.state.lives.to_string()),
+                t.danger.to_mq(0.9),
+            ),
         ],
     );
 
-    // Inventario y efectos.
+    // Inventory and effects.
     draw_inventory(app, 12.0, y0 + 3.0 * hud_row());
     draw_active_effects(app, screen_width() * 0.5 + 40.0, y0 + 3.0 * hud_row());
 }

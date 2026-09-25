@@ -6,19 +6,25 @@ members = ["crates/jezzball-core", "crates/jezzball-app"]
 edition = "2021"
 version = "0.1.0"
 license = "MIT"
+authors = ["Luis Guevara <luisguevaragtz@users.noreply.github.com>"]
+repository = "https://github.com/LuisGuevaraGtz/omarchy-jezzball"
+homepage = "https://github.com/LuisGuevaraGtz/omarchy-jezzball"
+keywords = ["game", "jezzball", "omarchy", "wayland", "macroquad"]
+categories = ["games"]
+rust-version = "1.75"
 
-# Un desbordamiento de enteros es siempre un bug de lógica, así que lo
-# queremos detectar — pero NO a costa de cerrarle el juego al jugador.
+# An integer overflow is always a logic bug, so we do want to catch it - but
+# NOT at the cost of closing the game on the player.
 #
-# Con `overflow-checks = true` en release, cualquier desbordamiento que antes
-# pasaba inadvertido (un contador raro, una etiqueta del HUD) aborta el
-# proceso. Eso convierte un defecto cosmético en una partida perdida, y es
-# exactamente lo que le pasó a este juego al publicarlo.
+# With `overflow-checks = true` in release, any overflow that previously went
+# unnoticed (an odd counter, a HUD label) aborts the process. That turns a
+# cosmetic defect into a lost game, and it is exactly what happened to this
+# game right after it shipped.
 #
-# Reparto: los tests y el perfil de depuración SÍ comprueban overflow (ahí es
-# donde se cazan los bugs, y la CI ejecuta `cargo test`), mientras el binario
-# que se distribuye prioriza seguir en pie. El perfil `release-checked` queda
-# disponible para depurar un fallo concreto en condiciones de release:
+# The split: tests and the debug profile DO check for overflow (that is where
+# bugs get caught, and CI runs `cargo test`), while the distributed binary
+# prioritises staying on its feet. The `release-checked` profile is available
+# to debug a specific failure under release conditions:
 #   cargo build --profile release-checked
 [profile.release]
 overflow-checks = false

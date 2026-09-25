@@ -1,24 +1,24 @@
-//! Puntuación riesgo/recompensa y combos (ARCHITECTURE.md §5).
+//! Risk/reward scoring and combos (ARCHITECTURE.md §5).
 //!
-//! Por cada región cerrada de `n` celdas en una arena con `open` celdas
-//! abiertas antes del cierre:
+//! For every closed region of `n` cells in an arena with `open` open cells
+//! before the closing:
 //!
 //! ```text
 //! frac      = n / open                       // 0..1
-//! size_mult = lerp(3.0, 0.4, frac)           // pequeño = arriesgado = paga más
-//! risk      = 1.0 + 0.35 * balls_near        // bolas a <4 celdas del muro
+//! size_mult = lerp(3.0, 0.4, frac)           // small = risky = pays more
+//! risk      = 1.0 + 0.35 * balls_near        // balls within 4 cells of the wall
 //! speed_b   = 1.0 + 0.10 * max_ball_speed
 //! base      = 100.0 * n.sqrt()
 //! points    = base * size_mult * risk * speed_b * combo_mult
 //! ```
 
-/// Ventana de combo en segundos: cada muro consolidado sin perder vida inside
-/// de esta ventana sube el multiplicador.
+/// Combo window in seconds: every wall consolidated without losing a life
+/// inside this window raises the multiplier.
 pub const COMBO_WINDOW: f32 = 4.0;
-/// Tope del multiplicador de combo (x1 → x2 → ... → x8).
+/// Cap of the combo multiplier (x1 -> x2 -> ... -> x8).
 pub const COMBO_MAX: u8 = 8;
 
-/// Multiplicador de combo y su reloj interno.
+/// Combo multiplier and its internal clock.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Combo {
     pub multiplier: u8,
@@ -33,21 +33,22 @@ impl Combo {
         }
     }
 
-    /// Sube un nivel el multiplicador (hasta `COMBO_MAX`).
+    /// Raises the multiplier by one level (up to `COMBO_MAX`).
     pub fn bump(&mut self) {
         if self.multiplier < COMBO_MAX {
             self.multiplier += 1;
         }
     }
 
-    /// Reinicia a x1 y limpia el reloj (al perder vida o al expirar la ventana).
+    /// Resets to x1 and clears the clock (on losing a life or when the
+    /// window expires).
     pub fn reset(&mut self) {
         self.multiplier = 1;
         self.timer = 0.0;
     }
 
-    /// Avanza el reloj `dt` segundos. Devuelve `true` si la ventana expiró
-    /// (el multiplicador vuelve a x1).
+    /// Advances the clock by `dt` seconds. Returns `true` if the window
+    /// expired (the multiplier goes back to x1).
     pub fn tick(&mut self, dt: f32) -> bool {
         self.timer += dt;
         if self.timer >= COMBO_WINDOW {
@@ -65,7 +66,7 @@ impl Default for Combo {
     }
 }
 
-/// Puntos que otorga cerrar una región de `n` celdas.
+/// Points awarded for closing a region of `n` cells.
 pub fn region_points(
     n: u32,
     open: u32,
@@ -87,7 +88,7 @@ pub fn region_points(
         .max(0.0) as u32
 }
 
-/// Interpolación lineal `a + (b - a) * t`, con `t` en `[0, 1]`.
+/// Linear interpolation `a + (b - a) * t`, with `t` in `[0, 1]`.
 fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }

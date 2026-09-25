@@ -1,5 +1,5 @@
-//! Render de la arena: rejilla, celdas, bolas, muros en construcción,
-//! power-ups del suelo y la previsualización del eje active (línea fantasma).
+//! Arena render: grid, cells, balls, walls under construction,
+//! power-ups on the floor and the preview of the active axis (ghost line).
 
 use macroquad::prelude::*;
 
@@ -11,8 +11,8 @@ use jezzball_core::wall::WallAxis;
 use crate::render::{draw_text_c, Layout};
 use crate::screens::App;
 
-/// Fuerza con la que se ve la previsualización del eje mientras hay un muro
-/// creciendo (se atenúa para no confundir con el muro real).
+/// Strength with which the axis preview is shown while a wall is
+/// growing (it is dimmed so it is not confused with the real wall).
 const GHOST_LIVE: f32 = 0.16;
 const GHOST_BUSY: f32 = 0.06;
 
@@ -26,7 +26,7 @@ pub fn draw_arena(app: &App, layout: &Layout) {
     draw_ghost(app, layout);
 }
 
-/// Overlays de power-ups temporales (SlowMotion/Freeze) sobre toda la arena.
+/// Overlays of temporary power-ups (SlowMotion/Freeze) over the whole arena.
 fn draw_overlays(app: &App, layout: &Layout) {
     let s = &app.state;
     let any_slow = s
@@ -48,10 +48,10 @@ fn draw_overlays(app: &App, layout: &Layout) {
             app.theme.fg_dim.to_mq(0.05),
         );
         draw_text_c(
-            "LENTO",
+            crate::i18n::t("hud.overlay_lento"),
             layout.arena_x + a_w / 2.0,
             layout.arena_y + 8.0,
-            12.0,
+            font(),
             app.theme.fg_dim.to_mq(0.9),
         );
     }
@@ -64,17 +64,17 @@ fn draw_overlays(app: &App, layout: &Layout) {
             app.theme.ball.to_mq(0.06),
         );
         draw_text_c(
-            "CONGELADO",
+            crate::i18n::t("hud.overlay_congelado"),
             layout.arena_x + a_w / 2.0,
             layout.arena_y + 8.0,
-            12.0,
+            font(),
             app.theme.ball.to_mq(0.9),
         );
     }
 }
 
-/// Celdas especiales: muros consolidados (Filled), obstáculos (Solid) y
-/// zonas `NoSplit`. El resto es fondo.
+/// Special cells: consolidated walls (Filled), obstacles (Solid) and
+/// `NoSplit` zones. The rest is background.
 fn draw_cells(app: &App, layout: &Layout) {
     let t = &app.theme;
     let g = &app.state.arena.grid;
@@ -111,7 +111,7 @@ fn draw_cells(app: &App, layout: &Layout) {
     }
 }
 
-/// Líneas de rejilla finas + borde de la arena.
+/// Thin grid lines + arena border.
 fn draw_grid(app: &App, layout: &Layout) {
     let t = &app.theme;
     let c = layout.cell;
@@ -136,7 +136,7 @@ fn draw_grid(app: &App, layout: &Layout) {
     );
 }
 
-/// Power-ups esperando en el suelo.
+/// Power-ups waiting on the floor.
 fn draw_pickups(app: &App, layout: &Layout) {
     let t = &app.theme;
     let c = layout.cell;
@@ -178,7 +178,7 @@ fn draw_pickups(app: &App, layout: &Layout) {
     }
 }
 
-/// Bolas: la Normal usa `ball`, el resto `ball_special`.
+/// Balls: the Normal one uses `ball`, the rest use `ball_special`.
 fn draw_balls(app: &App, layout: &Layout) {
     let t = &app.theme;
     let c = layout.cell;
@@ -195,18 +195,18 @@ fn draw_balls(app: &App, layout: &Layout) {
     }
 }
 
-/// Muros en construcción.
+/// Walls under construction.
 ///
-/// Se distinguen las dos mitades porque ya NO son equivalentes (regla del
-/// JezzBall original): la que ha tocado pared está sellada y es inmune, así
-/// que se dibuja como muro normal; la que sigue creciendo se pinta en
-/// `wall_building`, el color que "canta" porque es la única que cuesta vidas.
-/// Pintarlas iguales engañaría al jugador sobre dónde está el riesgo.
+/// The two halves are distinguished because they are NOT equivalent any more (rule of
+/// the original JezzBall): the one that has touched a wall is sealed and immune, so
+/// it is drawn as a normal wall; the one that keeps growing is painted in
+/// `wall_building`, the colour that "stands out" because it is the only one that costs lives.
+/// Painting them the same would mislead the player about where the risk is.
 fn draw_builders(app: &App, layout: &Layout) {
     let t = &app.theme;
     let c = layout.cell;
     for b in &app.state.builders {
-        // Mitad ya anclada: color de muro consolidado.
+        // Half already anchored: consolidated wall colour.
         let sealed_cells: Vec<(u16, u16)> = {
             let mut v = Vec::new();
             if b.lo_sealed {
@@ -226,7 +226,7 @@ fn draw_builders(app: &App, layout: &Layout) {
                 t.wall.to_mq(0.95),
             );
         }
-        // Mitad viva: en riesgo.
+        // Live half: at risk.
         for (cx, cy) in b.vulnerable_cells(&app.state.arena.grid) {
             draw_rectangle(
                 layout.arena_x + cx as f32 * c,
@@ -244,9 +244,9 @@ fn draw_builders(app: &App, layout: &Layout) {
     }
 }
 
-/// Previsualización del eje active bajo el cursor (requisito: siempre visible
-/// junto al ratón). El eje del botón izquierdo se ve fuerte; el del derecho
-/// (contrario) se insinúa más tenue.
+/// Preview of the active axis under the cursor (requirement: always visible
+/// next to the mouse). The left-button axis is shown strongly; the right-button
+/// one (the opposite) is only hinted at, more faintly.
 fn draw_ghost(app: &App, layout: &Layout) {
     let t = &app.theme;
     let c = layout.cell;
@@ -263,7 +263,7 @@ fn draw_ghost(app: &App, layout: &Layout) {
     draw_axis_ghost(app, layout, axis, alpha);
     draw_axis_ghost(app, layout, opp, alpha * 0.35);
 
-    // Marca sobre la celda bajo el cursor.
+    // Mark over the cell under the cursor.
     let px = layout.arena_x + hx as f32 * c;
     let py = layout.arena_y + hy as f32 * c;
     draw_rectangle(px, py, c, c, t.accent.to_mq(0.12));
@@ -281,7 +281,7 @@ fn draw_ghost(app: &App, layout: &Layout) {
     );
 }
 
-/// Línea fantasma a lo largo de todo el eje por la fila/columna indicada.
+/// Ghost line along the whole axis through the given row/column.
 fn draw_axis_ghost(app: &App, layout: &Layout, axis: WallAxis, alpha: f32) {
     let t = &app.theme;
     let c = layout.cell;

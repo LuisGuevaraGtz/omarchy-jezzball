@@ -1,8 +1,8 @@
-//! Máquina de estados de pantallas y lógica de APP (ARCHITECTURE.md §6 y §13).
+//! Screen state machine and APP logic (ARCHITECTURE.md §6 and §13).
 //!
-//! Reglas: la lógica de partida vive en `jezzball-core`; aquí solo se orquesta
-//! `step()` con la entrada del jugador, se actualizan récords/persistencia y se
-//! deciden las transiciones entre pantallas. Sin `unsafe`, sin panics.
+//! Rules: the game logic lives in `jezzball-core`; here we only orchestrate
+//! `step()` with the player's input, update records/persistence and
+//! decide the transitions between screens. No `unsafe`, no panics.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -20,11 +20,11 @@ use crate::persist::{load_save, save_save, SaveData};
 use crate::render::{mode_name, Layout};
 use crate::theme::{resolve_theme, OmarchyDirs, Theme};
 
-/// Segundos mínimos que se muestra la pantalla de resultados antes de aceptar
-/// entrada (evita avanzar por un clic suelto del nivel anterior).
+/// Minimum seconds the results screen is shown before accepting
+/// input (it prevents advancing because of a stray click from the previous level).
 const RESULTS_WAIT: f32 = 0.4;
 
-/// Pantallas de la máquina de estados.
+/// Screens of the state machine.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Screen {
     Menu,
@@ -37,14 +37,14 @@ pub enum Screen {
     Error,
 }
 
-/// Una opción de menú de la lista activa (`menu_items`).
+/// One menu option of the active list (`menu_items`).
 #[derive(Clone, Debug)]
 pub struct MenuItem {
     pub label: String,
     pub enabled: bool,
 }
 
-/// Tipo de texto flotante (corta el evento después de los hechos).
+/// Kind of floating text (it cuts the event after the fact).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FloaterKind {
     Good,
@@ -53,7 +53,7 @@ pub enum FloaterKind {
     Neutral,
 }
 
-/// Texto flotante animado (puntos, combos, avisos).
+/// Animated floating text (points, combos, floaters).
 #[derive(Clone, Debug)]
 pub struct Floater {
     pub text: String,
@@ -63,14 +63,14 @@ pub struct Floater {
     pub kind: FloaterKind,
 }
 
-/// Aviso breve en el centro inferior.
+/// Brief floater at the bottom centre.
 #[derive(Clone, Debug)]
 pub struct Toast {
     pub text: String,
     pub ttl: f32,
 }
 
-/// Datos de la pantalla de resultados.
+/// Data for the results screen.
 #[derive(Clone, Debug)]
 pub struct ResultsData {
     pub won: bool,
@@ -85,7 +85,7 @@ pub struct ResultsData {
     pub level: u16,
 }
 
-/// Niveles cargados por modo, ordenados por `id`.
+/// Levels loaded per mode, sorted by `id`.
 #[derive(Debug, Clone)]
 pub struct Levels {
     pub original: Vec<LevelSpec>,
@@ -109,7 +109,7 @@ impl Levels {
     }
 }
 
-/// Estado global de la capa de app.
+/// Global state of the app layer.
 pub struct App {
     pub theme: Theme,
     pub levels: Levels,
@@ -128,22 +128,22 @@ pub struct App {
     pub menu_items: Vec<MenuItem>,
     pub selector_mode: Mode,
     pub error_msg: String,
-    /// Rutas concretas probadas al cargar los niveles (diagnóstico: se
-    /// muestran en la pantalla de error si no se encuentran).
+    /// Concrete paths tried when loading the levels (diagnostics: they are
+    /// shown on the error screen if none are found).
     pub candidates: Vec<PathBuf>,
     pub hud_compact: bool,
     pub quit_confirm: bool,
     pub quit_requested: bool,
-    /// Cuenta atrás de protección de la pantalla de resultados.
+    /// Protection countdown for the results screen.
     pub results_wait: f32,
-    /// Página visible de la pantalla de ayuda (0..HELP_PAGES).
+    /// Visible page of the help screen (0..HELP_PAGES).
     pub help_page: usize,
-    /// Primer elemento visible de la lista del selector: sin esto, con 61
-    /// niveles la lista se salía de la pantalla y no se veía la selección.
+    /// First visible item of the selector list: without this, with 61
+    /// levels the list ran off the screen and the selection was not visible.
     pub list_top: usize,
-    /// Filas de lista que caben en pantalla. Lo refresca el bucle de render
-    /// (unico sitio que conoce el height real de la ventana) y lo consume la
-    /// logica de desplazamiento, que asi no depende de macroquad.
+    /// List rows that fit on the screen. The render loop refreshes it
+    /// (the only place that knows the real height of the window) and the
+    /// scrolling logic consumes it, which is how it avoids depending on macroquad.
     pub visible_rows: usize,
 }
 
@@ -157,8 +157,8 @@ impl App {
                 eprintln!("  {}", c.display());
             }
             eprintln!(
-                "Define OMARCHY_JEZZBALL_ASSETS con el directorio que contiene 'levels/' \
-                 para indicar la path a mano."
+                "Set OMARCHY_JEZZBALL_ASSETS to the directory containing 'levels/' \
+                 to point at it by hand."
             );
         }
         let save = load_save();
@@ -205,8 +205,8 @@ impl App {
     }
 }
 
-/// Un `LevelSpec` mínimo de emergencia para inicializar `App` (nunca se
-/// juega: todas las pantallas cargan los niveles de disco antes de jugar).
+/// A minimal emergency `LevelSpec` to initialise `App` (it is never
+/// played: every screen loads the levels from disk before playing).
 fn fallback_level() -> LevelSpec {
     LevelSpec {
         id: 1,
@@ -238,13 +238,13 @@ fn fallback_level() -> LevelSpec {
     }
 }
 
-// --- Carga de niveles ---
+// --- Level loading ---
 
-/// Variable de entorno de escape para desarrollo y tests: apunta a la carpeta
-/// `assets/` del repo, que contiene `levels/`. Ver `level_candidates`.
+/// Environment variable override for development and tests: it points to the repo's
+/// `assets/` folder, which contains `levels/`. See `level_candidates`.
 const ENV_ASSETS: &str = "OMARCHY_JEZZBALL_ASSETS";
 
-/// Niveles cargados + rutas candidatas probadas (para el diagnóstico).
+/// Loaded levels + candidate paths tried (for diagnostics).
 fn load_levels() -> (Levels, Vec<PathBuf>) {
     let dirs = level_candidates(
         current_exe_dir().as_deref(),
@@ -255,23 +255,23 @@ fn load_levels() -> (Levels, Vec<PathBuf>) {
     (levels, dirs)
 }
 
-/// Directorio del binario active (`std::env::current_exe()`), o `None` si el
-/// SO no lo puede resolver (nunca panic).
+/// Directory of the active binary (`std::env::current_exe()`), or `None` if the
+/// OS cannot resolve it (never panics).
 fn current_exe_dir() -> Option<PathBuf> {
     std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.to_path_buf()))
 }
 
-/// Directorios candidatos donde puede haber `original.ron` / `enhanced.ron`,
-/// en orden de prioridad. Función PURA (no toca el SO) para poder testear el
-/// orden sin efectos de entorno. Orden documentado en README:
-/// 1. `$OMARCHY_JEZZBALL_ASSETS/levels`         (escape desarrollo/tests)
-/// 2. `<dir exe>/assets/levels`                 (binario junto a assets)
-/// 3. `<dir exe>/../share/omarchy-jezzball/levels` (install.sh: ~/.local)
+/// Candidate directories where `original.ron` / `enhanced.ron` may live,
+/// in priority order. A PURE function (it does not touch the OS) so the
+/// order can be tested without environment side effects. Order documented in the README:
+/// 1. `$OMARCHY_JEZZBALL_ASSETS/levels`         (development/test override)
+/// 2. `<exe dir>/assets/levels`                 (binary next to assets)
+/// 3. `<exe dir>/../share/omarchy-jezzball/levels` (install.sh: ~/.local)
 /// 4. `$XDG_DATA_HOME/omarchy-jezzball/levels`  (fallback ~/.local/share)
 /// 5. `/usr/share/omarchy-jezzball/levels`      (PKGBUILD / pacman)
-/// 6. `./assets/levels`                         (CWD: `cargo run` en el repo)
+/// 6. `./assets/levels`                         (CWD: `cargo run` in the repo)
 fn level_candidates(
     exe_dir: Option<&Path>,
     data_home: &Path,
@@ -295,13 +295,13 @@ fn level_candidates(
     ));
     out.push(PathBuf::from("/usr/share/omarchy-jezzball/levels"));
     out.push(PathBuf::from("assets/levels"));
-    // Con ~/.local (install.sh) los candidatos 3 y 4 convergen en la misma
-    // path: se coleapsa para que el diagnóstico no repita directorios.
+    // With ~/.local (install.sh) candidates 3 and 4 converge on the same
+    // path: it is collapsed so the diagnostics do not repeat directories.
     out.dedup();
     out
 }
 
-/// Colapsa `.` y `..` redundantes de una path (puro, nunca hace I/O).
+/// Collapses redundant `.` and `..` from a path (pure, it never does I/O).
 fn normalize_path(p: &Path) -> PathBuf {
     use std::path::Component;
     let mut out = PathBuf::new();
@@ -350,13 +350,13 @@ fn parse_levels(text: &str) -> Result<Vec<LevelSpec>, String> {
     Ok(list.into_iter().filter(|l| l.id >= 1).collect())
 }
 
-// --- Navegación / menús ---
+// --- Navigation / menus ---
 
 fn open_menu(app: &mut App) {
     app.screen = Screen::Menu;
-    // Enhanced se gana: hasta completar los 10 de Original, la opción aparece
-    // bloqueada y el rótulo dice por qué (un "(BLOQUEADO)" a secas dejaría al
-    // jugador sin saber qué hacer).
+    // Enhanced is earned: until the 10 Original levels are completed, the option appears
+    // locked and the label says why (a bare "(BLOQUEADO)" would leave the
+    // player with no idea what to do).
     let enh_ok = original_mode_completed(app);
     let enh_label = if enh_ok {
         crate::i18n::t("menu.modo_enhanced").to_string()
@@ -419,8 +419,8 @@ fn open_selector(app: &mut App, mode: Mode) {
         });
     }
     app.menu_items = items;
-    // Arrancar en el primer nivel jugable, no en el 1 si ya está superado:
-    // con 61 niveles, abrir siempre arriba obliga a bajar decenas de veces.
+    // Start on the first playable level, not on level 1 if it is already beaten:
+    // with 61 levels, always opening at the top forces dozens of downward moves.
     let first = app.menu_items.iter().position(|i| i.enabled).unwrap_or(0);
     app.select = first;
     app.list_top = 0;
@@ -428,8 +428,8 @@ fn open_selector(app: &mut App, mode: Mode) {
     app.nav = NavRepeat::default();
 }
 
-/// Navegación vertical típica sobre `menu_items` (salta opciones deshabilitadas
-/// por teclas dobles).
+/// Typical vertical navigation over `menu_items` (it skips options disabled
+/// by double keys).
 fn nav_menu(app: &mut App, dt: f32) {
     if let Some(d) = app.nav.input(
         &app.frame,
@@ -452,20 +452,20 @@ fn nav_menu(app: &mut App, dt: f32) {
     }
 }
 
-/// Filas de lista visible, para la lógica de desplazamiento.
+/// Visible list rows, for the scrolling logic.
 ///
-/// No puede preguntarle al render: `screen_height()` de macroquad panica si no
-/// hay ventana, y eso hacía imposible testear el scroll. El render usa esta
-/// misma función, así que ambos cuentan lo mismo.
+/// It cannot ask the render layer: macroquad's `screen_height()` panics if there
+/// is no window, and that made testing the scroll impossible. The render layer uses this
+/// same function, so both count the same.
 pub fn visible_rows_for(height: f32, scale: f32) -> usize {
     let row = 30.0 * scale;
     let available = (height - 170.0 * scale - 20.0 * scale - 24.0 * scale).max(row);
     ((available / row).floor() as usize).max(1)
 }
 
-/// Mantiene `list_top` de forma que `select` quede siempre inside de la
-/// ventana visible de la lista. Sin esto, con 61 niveles el jugador movía la
-/// selección fuera de la pantalla y seguía viendo los primeros niveles.
+/// Keeps `list_top` such that `select` always stays inside the
+/// visible window of the list. Without this, with 61 levels the player moved the
+/// selection off the screen and kept seeing the first levels.
 fn adjust_scroll_window(app: &mut App) {
     let visible = app.visible_rows;
     let n = app.menu_items.len();
@@ -481,7 +481,7 @@ fn adjust_scroll_window(app: &mut App) {
     app.list_top = app.list_top.min(n - visible);
 }
 
-/// Progreso persistido por modo, para el menú.
+/// Persisted progress per mode, for the menu.
 pub fn mode_progress(app: &App, mode: Mode) -> (usize, u32) {
     let total = app.levels.len(mode);
     let done = app.save.completed_count(mode).min(total as usize);
@@ -489,14 +489,14 @@ pub fn mode_progress(app: &App, mode: Mode) -> (usize, u32) {
     (done, stars)
 }
 
-/// ¿Este nivel está desbloqueado para jugar? (progreso parcial en Original →
-/// desbloquea Enhancement como modalidad de rejugar enteras a angelical)
+/// Is this level unlocked for playing? (partial progress in Original →
+/// unlocks Enhancement as a mode to replay whole ones angelically)
 fn is_unlocked(app: &App, mode: Mode, idx: u16) -> bool {
-    // Puerta de entrada a Enhanced: se comprueba ANTES que nada, incluido el
-    // primer nivel. Enhanced es la evolución de la mecánica clásica, así que
-    // exige los 10 niveles de Original completos; si no, un jugador nuevo
-    // empezaría en niveles con obstáculos y bolas especiales sin haber
-    // aprendido la base.
+    // Entry gate to Enhanced: it is checked BEFORE anything else, including the
+    // first level. Enhanced is the evolution of the classic mechanic, so it
+    // requires the 10 Original levels completed; otherwise, a new player
+    // would start on levels with obstacles and special balls without having
+    // learned the basics.
     if mode == Mode::Enhanced && !original_mode_completed(app) {
         return false;
     }
@@ -506,18 +506,18 @@ fn is_unlocked(app: &App, mode: Mode, idx: u16) -> bool {
     if app.levels.list(mode).is_empty() {
         return false;
     }
-    // En Original (purist, 10 niveles) la progresión es estricta: nivel prev
-    // completado, salvo que el modo ya se haya terminado (rejugar libre).
+    // In Original (purist, 10 levels) the progression is strict: the previous level
+    // completed, unless the mode has already been finished (free replay).
     if mode == Mode::Original {
         if original_mode_completed(app) {
             return true;
         }
         return prev_completed(app, mode, idx);
     }
-    // Dentro de Enhanced hay una puerta temática: los mundos 2..=6 exigen un
-    // avance mínimo en Original (§7: original nivel n => enhanced mundo w,
-    // con n >= 2(w-1)). El mundo entero se desbloquea a la vez (se puede
-    // jugar cualquier nivel de ese mundo, sin secuencia interna).
+    // Inside Enhanced there is a thematic gate: worlds 2..=6 require a
+    // minimum progress in Original (§7: original level n => enhanced world w,
+    // with n >= 2(w-1)). The whole world is unlocked at once (any level of
+    // that world can be played, with no internal sequence).
     let spec = match app.levels.get(mode, idx) {
         Some(s) => s,
         None => return false,
@@ -540,9 +540,9 @@ fn is_unlocked(app: &App, mode: Mode, idx: u16) -> bool {
 }
 
 fn prev_completed(app: &App, mode: Mode, idx: u16) -> bool {
-    // `idx` es 0-based: el nivel 0 no tiene anterior. Restar sin comprobarlo
-    // desbordaba el `u16` y en compilaciones debug eso PANICA, cerrando el
-    // juego al consultar el desbloqueo del primer nivel.
+    // `idx` is 0-based: level 0 has no previous one. Subtracting without checking
+    // overflowed the `u16` and in debug builds that PANICS, closing the
+    // game when querying the unlocking of the first level.
     let Some(prev_idx) = idx.checked_sub(1) else {
         return false;
     };
@@ -559,11 +559,11 @@ fn original_mode_completed(app: &App) -> bool {
         || app.save.completed_count(Mode::Original) >= app.levels.len(Mode::Original) as usize
 }
 
-// --- Inicio de partidas ---
+// --- Starting games ---
 
-/// Mensaje de error cuando un modo no tiene niveles: además del aviso, lista
-/// las rutas concretas que se probaron, una por línea, para que el usuario
-/// sepa dónde colocar `original.ron` / `enhanced.ron`.
+/// Error message when a mode has no levels: besides the warning, it lists
+/// the concrete paths that were tried, one per line, so the user
+/// knows where to place `original.ron` / `enhanced.ron`.
 fn no_levels_message(mode: Mode, candidates: &[PathBuf]) -> String {
     let paths: Vec<String> = candidates
         .iter()
@@ -585,7 +585,7 @@ fn start_mode(app: &mut App, mode: Mode) {
         app.nav = NavRepeat::default();
         return;
     }
-    // Modos ya completados: abren el selector para rejugar niveles.
+    // Modes already completed: they open the selector to replay levels.
     let completed = if mode == Mode::Original {
         original_mode_completed(app)
     } else {
@@ -600,9 +600,9 @@ fn start_mode(app: &mut App, mode: Mode) {
 
 fn start_level(app: &mut App, mode: Mode, idx: u16) {
     let Some(spec) = app.levels.get(mode, idx).cloned() else {
-        // `idx + 1` pasa de 0-based a 1-based para el mensaje, pero con
-        // `idx == u16::MAX` desbordaría y en debug eso panica. `saturating_add`
-        // mantiene el mensaje legible sin poder romper nunca.
+        // `idx + 1` goes from 0-based to 1-based for the message, but with
+        // `idx == u16::MAX` it would overflow and in debug that panics. `saturating_add`
+        // keeps the message readable without ever being able to break.
         app.error_msg = crate::i18n::t("error.nivel_no_existe")
             .replace("{}", &idx.saturating_add(1).to_string());
         app.screen = Screen::Error;
@@ -619,7 +619,7 @@ fn start_level(app: &mut App, mode: Mode, idx: u16) {
     app.nav = NavRepeat::default();
 }
 
-/// Arranque inicial desde la CLI: `--mode` y/o `--level` (1-based).
+/// Initial startup from the CLI: `--mode` and/or `--level` (1-based).
 pub fn launch(app: &mut App, mode: Option<Mode>, level: Option<u16>) {
     let mode = mode.unwrap_or(Mode::Original);
     if let Some(n) = level {
@@ -640,14 +640,14 @@ pub fn launch(app: &mut App, mode: Option<Mode>, level: Option<u16>) {
     start_mode(app, mode);
 }
 
-// --- Bucle de actualización ---
+// --- Update loop ---
 
 pub fn update(app: &mut App, dt: f32) {
     app.frame = crate::input::sample_frame();
     app.mouse_pos = (app.frame.mouse.x, app.frame.mouse.y);
-    // El height de la ventana puede cambiar (redimensionar, pantalla completa),
-    // así que la cuenta de filas visible se refresca cada frame aquí, donde
-    // sí hay ventana, y la lógica de scroll la consume sin tocar macroquad.
+    // The window height can change (resizing, full screen),
+    // so the visible row count is refreshed every frame here, where
+    // there is a window, and the scroll logic consumes it without touching macroquad.
     app.visible_rows = crate::render::menu::visible_rows();
 
     if app.quit_confirm {
@@ -666,7 +666,7 @@ pub fn update(app: &mut App, dt: f32) {
         Screen::Error => update_error(app),
     }
 
-    // Animaciones independientes de la pantalla.
+    // Animations independent of the screen.
     for f in &mut app.floaters {
         f.y -= 16.0 * dt;
         f.ttl -= dt;
@@ -697,12 +697,12 @@ fn update_menu(app: &mut App, dt: f32) {
     }
 }
 
-/// Páginas de la ayuda. El contents vive en los catálogos de language
-/// (`assets/i18n/*.ron`), no aquí: añadir un language no toca este código.
+/// Help pages. The contents live in the language catalogs
+/// (`assets/i18n/*.ron`), not here: adding a language does not touch this code.
 pub const HELP_PAGES: usize = 4;
 
-/// Título y body de una página de ayuda, traducidos.
-/// Las líneas que empiezan por "# " son subtítulos y el render las resalta.
+/// Title and body of a help page, translated.
+/// Lines starting with "# " are subheadings and the render layer highlights them.
 pub fn help_page(n: usize) -> (&'static str, Vec<&'static str>) {
     let (kt, kc) = match n {
         0 => ("ayuda.p1.title", "ayuda.p1.body"),
@@ -713,8 +713,8 @@ pub fn help_page(n: usize) -> (&'static str, Vec<&'static str>) {
     (crate::i18n::t(kt), crate::i18n::t(kc).lines().collect())
 }
 
-/// Pantalla de ayuda: reglas, controles y catálogo de obstáculos, bolas y
-/// power-ups de Enhanced. Accesible desde el menú y desde la pausa.
+/// Help screen: rules, controls and the catalog of Enhanced obstacles, balls and
+/// power-ups. Reachable from the menu and from the pause screen.
 fn open_help(app: &mut App) {
     app.screen = Screen::Help;
     app.help_page = 0;
@@ -726,7 +726,7 @@ fn update_help(app: &mut App, _dt: f32) {
         open_menu(app);
         return;
     }
-    // Paginación: abajo/derecha avanza, arriba/izquierda retrocede.
+    // Pagination: down/right advances, up/left goes back.
     if app.frame.pressed_any(&[UiKey::Down, UiKey::J, UiKey::L]) {
         app.help_page = (app.help_page + 1).min(HELP_PAGES.saturating_sub(1));
     }
@@ -770,21 +770,21 @@ fn update_selector(app: &mut App, dt: f32) {
     if app.select == 0 {
         start_level(app, mode, 0);
     } else if let Some(spec) = app.levels.get(mode, app.select as u16 - 1) {
-        // Los ids de nivel son 1-based por contrato (LEVEL_SCHEMA.md), pero un
-        // .ron editado a mano podría traer `id: 0`; sin `saturating_sub` eso
-        // desbordaría el u16 y en debug cerraría el juego.
+        // Level ids are 1-based by contract (LEVEL_SCHEMA.md), but a
+        // hand-edited .ron could carry `id: 0`; without `saturating_sub` that
+        // would overflow the u16 and in debug would close the game.
         let idx = spec.id.saturating_sub(1);
         start_level(app, mode, idx);
     }
 }
 
-/// Enter, Espacio o la tecla del controlador (en menús de teclado).
+/// Enter, Space or the controller key (in keyboard menus).
 fn confirm_pressed(app: &App) -> bool {
     app.frame
         .pressed_any(&[UiKey::Enter, UiKey::Space, UiKey::M])
 }
 
-// --- Pantalla de juego ---
+// --- Game screen ---
 
 fn update_playing(app: &mut App, dt: f32) {
     match app.state.phase {
@@ -798,7 +798,7 @@ fn update_playing(app: &mut App, dt: f32) {
             } else if app.frame.pressed(UiKey::H) {
                 open_help(app);
             } else if app.frame.pressed(UiKey::M) {
-                // Salir DEL NIVEL al menú, sin cerrar el juego.
+                // Leave THE LEVEL back to the menu, without closing the game.
                 open_menu(app);
             } else if app.frame.pressed(UiKey::Q) {
                 app.quit_confirm = true;
@@ -843,7 +843,7 @@ fn update_playing(app: &mut App, dt: f32) {
         let left = app.frame.mouse.left;
         let right = app.frame.mouse.right;
         if (left || right) && !app.state.builders.is_empty() {
-            // Con el muro en construcción el ratón no puede disparar other.
+            // With a wall under construction the mouse cannot fire another one.
         } else if left || right {
             let max_builders = if app.state.pending_double_wall { 2 } else { 1 };
             if app.state.builders.len() < max_builders {
@@ -934,7 +934,7 @@ fn add_floater(app: &mut App, kind: FloaterKind, text: String) {
     });
 }
 
-// --- Fin de nivel / resultados ---
+// --- End of level / results ---
 
 fn finish_level(app: &mut App) {
     let mode = app.mode;
@@ -987,7 +987,7 @@ fn finish_level(app: &mut App) {
     app.results_wait = RESULTS_WAIT;
     app.screen = Screen::Results;
 
-    // Persistencia inmediata (degradación silenciosa si el disco falla).
+    // Immediate persistence (silent degradation if the disk fails).
     if !save_save(&app.save) {
         eprintln!("omarchy-jezzball: no se pudo guardar la partida");
     }
@@ -1001,9 +1001,9 @@ fn update_results(app: &mut App, dt: f32) {
     let next = if app.results.no_next {
         None
     } else {
-        // `saturating_add` por defensa: `no_next` ya debería cubrirlo, pero
-        // un `level_number` en el tope desbordaría y con overflow-checks eso
-        // cierra el juego. No hacemos depender la estabilidad de un flag.
+        // `saturating_add` as a defence: `no_next` should already cover it, but
+        // a `level_number` at the maximum would overflow and with overflow-checks that
+        // closes the game. We do not make stability depend on a flag.
         Some(app.level_number.saturating_add(1))
     };
     if app.frame.pressed(UiKey::R) {
@@ -1033,7 +1033,7 @@ fn update_error(app: &mut App) {
     }
 }
 
-// --- Diálogo de salida ---
+// --- Exit dialog ---
 
 fn update_quit_confirm(app: &mut App) {
     if app.frame.pressed(UiKey::Enter) {
@@ -1044,7 +1044,7 @@ fn update_quit_confirm(app: &mut App) {
     }
 }
 
-/// Filas del HUD según modo y compactación.
+/// HUD rows according to mode and compaction.
 pub fn hud_rows_for(app: &App) -> u32 {
     if app.hud_compact {
         return 1;
@@ -1127,7 +1127,7 @@ mod tests {
 
     #[test]
     fn the_real_assets_parse() {
-        // Ruta relativa al workspace (los assets viven fuera del crate).
+        // Path relative to the workspace (the assets live outside the crate).
         let base = |name: &str| {
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("../../assets/levels")
@@ -1141,14 +1141,14 @@ mod tests {
         assert_eq!(ids, (1..=original.len() as u16).collect::<Vec<_>>());
 
         let enhanced = read_level_list(&base("enhanced.ron")).unwrap();
-        // 60 niveles de los 6 mundos + el nivel bonus con el logo de Omarchy.
+        // 60 levels from the 6 worlds + the bonus level with the Omarchy logo.
         assert_eq!(enhanced.len(), 61);
         assert!(enhanced.iter().all(|l| !l.purist));
         assert!(enhanced.iter().all(|l| (1..=6).contains(&l.world)));
     }
 
-    /// Barrido sobre los 70 assets reales: ningún spawn de bola debe caer en
-    /// una celda que no sea `Open` tras construir la partida.
+    /// Sweep over the 70 real assets: no ball spawn must land on
+    /// a cell that is not `Open` after building the game.
     #[test]
     fn no_spawn_in_the_real_assets_lands_on_a_non_open_cell() {
         use jezzball_core::grid::Cell;
@@ -1181,11 +1181,11 @@ mod tests {
         }
         assert!(
             violated.is_empty(),
-            "{} bolas de {} nacen en celdas no `Open` (nivel, mundo, nombre, celda): {violated:?}",
+            "{} of {} balls spawn on non-`Open` cells (level, world, name, cell): {violated:?}",
             violated.len(),
             checked
         );
-        assert!(checked > 0, "el barrido debe revisar al menos una bola");
+        assert!(checked > 0, "the sweep must check at least one ball");
     }
 
     #[test]
@@ -1196,7 +1196,7 @@ mod tests {
         app.save = SaveData::default();
         assert!(is_unlocked(&app, Mode::Original, 0));
         assert!(!is_unlocked(&app, Mode::Original, 5));
-        // Completo el nivel 5 (id 5): desbloquea el 6.
+        // I complete level 5 (id 5): it unlocks number 6.
         app.save.record_for(Mode::Original, 5).completed = true;
         assert!(is_unlocked(&app, Mode::Original, 5));
         assert!(!is_unlocked(&app, Mode::Original, 6));
@@ -1211,14 +1211,14 @@ mod tests {
         app.levels.enhanced[1].world = 2;
         app.save = SaveData::default();
 
-        // Puerta de entrada: sin Original completo, NADA de Enhanced se puede
-        // jugar, ni siquiera el primer nivel.
+        // Entry gate: without Original completed, NOTHING of Enhanced can be
+        // played, not even the first level.
         assert!(
             !is_unlocked(&app, Mode::Enhanced, 0),
-            "Enhanced no debe abrirse antes de completar Original"
+            "Enhanced must not open before Original is completed"
         );
 
-        // Completar Original entero abre Enhanced.
+        // Completing the whole of Original opens Enhanced.
         for i in 1..=10 {
             app.save.record_for(Mode::Original, i).completed = true;
         }
@@ -1236,27 +1236,30 @@ mod tests {
 
         open_menu(&mut app);
         let enh = &app.menu_items[1];
-        assert!(!enh.enabled, "la entrada de Enhanced debe estar bloqueada");
+        assert!(!enh.enabled, "the Enhanced entry must be locked");
         assert!(
             enh.label.contains("ORIGINAL"),
-            "el rotulo debe explicar como desbloquearlo, no solo decir BLOQUEADO: {:?}",
+            "the label must explain how to unlock it, not just say LOCKED: {:?}",
             enh.label
         );
 
         app.save.original_completed = true;
         open_menu(&mut app);
-        assert!(app.menu_items[1].enabled, "tras Original, Enhanced se abre");
+        assert!(
+            app.menu_items[1].enabled,
+            "after Original, Enhanced opens up"
+        );
     }
 
     #[test]
     fn the_list_window_follows_the_selection() {
-        // Regresion: con 61 niveles la lista se dibujaba entera desde el
-        // first, asi que al seleccionar uno bajo, el jugador seguia viendo
-        // el principio de la lista y no sabia que tenia elegido.
+        // Regression: with 61 levels the whole list was drawn from the
+        // first one, so when selecting a low one, the player kept seeing
+        // the beginning of the list and did not know what was chosen.
         let mut app = App::new();
         app.menu_items = (0..61)
             .map(|i| MenuItem {
-                label: format!("NIVEL {i}"),
+                label: format!("LEVEL {i}"),
                 enabled: true,
             })
             .collect();
@@ -1265,28 +1268,28 @@ mod tests {
         app.visible_rows = visible_rows_for(1000.0, 1.4);
         let visible = app.visible_rows;
 
-        // Seleccion inside de la primera ventana: no hace falta desplazar.
+        // Selection inside the first window: no need to scroll.
         app.select = 0;
         adjust_scroll_window(&mut app);
         assert_eq!(app.list_top, 0);
 
-        // Seleccion muy por debajo: la ventana debe alcanzarla.
+        // Selection far below: the window must reach it.
         app.select = 55;
         adjust_scroll_window(&mut app);
         assert!(
             app.select >= app.list_top && app.select < app.list_top + visible,
-            "la seleccion {} quedo fuera de la ventana [{}, {})",
+            "selection {} fell outside the window [{}, {})",
             app.select,
             app.list_top,
             app.list_top + visible
         );
 
-        // Y al volver arriba, otra vez inside.
+        // And when going back up, inside again.
         app.select = 2;
         adjust_scroll_window(&mut app);
         assert!(
             app.select >= app.list_top && app.select < app.list_top + visible,
-            "al subir, la seleccion volvio a quedar fuera de la ventana"
+            "when scrolling up, the selection fell outside the window again"
         );
     }
 
@@ -1304,9 +1307,9 @@ mod tests {
 
     #[test]
     fn candidate_order_matches_the_six_documented_paths() {
-        // El orden de resolución debe ser exactamente el documentado: first
-        // la escotilla de entorno, luego las relativas al binario, luego XDG,
-        // luego /usr/share, y por último el CWD.
+        // The resolution order must be exactly the documented one: first
+        // the environment override, then the ones relative to the binary, then XDG,
+        // then /usr/share, and lastly the CWD.
         let dirs = level_candidates(
             Some(Path::new("/opt/jezzball/bin")),
             Path::new("/home/user/.local/share"),
@@ -1326,11 +1329,11 @@ mod tests {
     }
 
     #[test]
-    fn instalacion_local_de_install_sh_converge_y_colapsa() {
-        // install.sh deja el binario en ~/.local/bin y los niveles en
-        // ~/.local/share/omarchy-jezzball/levels. El candidato 3 (relativo al
-        // exe, `bin/../share`) y el 4 (XDG_DATA_HOME) coinciden tras colapsar
-        // `..`, así que se deduplican: el diagnóstico no repite la path.
+    fn local_install_sh_layout_converges_and_collapses() {
+        // install.sh leaves the binary in ~/.local/bin and the levels in
+        // ~/.local/share/omarchy-jezzball/levels. Candidate 3 (relative to the
+        // exe, `bin/../share`) and candidate 4 (XDG_DATA_HOME) coincide after collapsing
+        // `..`, so they are deduplicated: the diagnostics do not repeat the path.
         let dirs = level_candidates(
             Some(Path::new("/home/user/.local/bin")),
             Path::new("/home/user/.local/share"),
@@ -1353,9 +1356,9 @@ mod tests {
 
     #[test]
     fn no_candidate_contains_the_wrong_assets_segment() {
-        // Regresión del bug 2: la app NUNCA debe buscar en
-        // `<...>/omarchy-jezzball/assets/levels`. Barrido de configuraciones
-        // (con y sin override, exe en binarios, pacman, etc.).
+        // Regression for bug 2: the app must NEVER look in
+        // `<...>/omarchy-jezzball/assets/levels`. Sweep of configurations
+        // (with and without override, exe in binary dirs, pacman, etc.).
         let cases: [(&Path, &Path, Option<&Path>); 4] = [
             (
                 Path::new("/opt/jezzball/bin"),
@@ -1380,7 +1383,7 @@ mod tests {
                 let s = d.to_string_lossy();
                 assert!(
                     !s.contains("omarchy-jezzball/assets/levels"),
-                    "candidato con la path equivocada del bug 2: {s}"
+                    "candidate with the wrong path from bug 2: {s}"
                 );
                 checked += 1;
             }
@@ -1390,8 +1393,8 @@ mod tests {
 
     #[test]
     fn real_assets_via_simulated_exe_dir_pointing_at_the_repo() {
-        // Candidato 2 (`<dir exe>/assets/levels`) con el exe "vivido" en la
-        // raíz del repo: debe cargar los 70 niveles reales sin tocar el SO.
+        // Candidate 2 (`<exe dir>/assets/levels`) with the exe "living" at the
+        // root of the repo: it must load the 70 real levels without touching the OS.
         let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let dirs = level_candidates(Some(&repo), Path::new("/var/empty/nonexistent"), None);
         let levels = load_levels_in(&dirs);
@@ -1401,8 +1404,8 @@ mod tests {
 
     #[test]
     fn real_assets_via_simulated_env_var() {
-        // `$OMARCHY_JEZZBALL_ASSETS` = carpeta `assets/` del repo: el
-        // candidato 1 (escotilla de desarrollo/tests) debe encontrarla.
+        // `$OMARCHY_JEZZBALL_ASSETS` = the repo's `assets/` folder: the
+        // candidate 1 (development/test override) must find it.
         let assets = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets");
         let dirs = level_candidates(
             Some(Path::new("/bin")),
@@ -1412,7 +1415,7 @@ mod tests {
         assert_eq!(
             dirs[0],
             normalize_path(&assets.join("levels")),
-            "el override abre la lista"
+            "the override opens the list"
         );
         let levels = load_levels_in(&dirs);
         assert_eq!(levels.original.len(), 10);
@@ -1420,12 +1423,12 @@ mod tests {
     }
 
     #[test]
-    fn sin_ninguna_ruta_la_carga_devuelve_vacio_sin_panic() {
-        // Con exe y data_home en sitios inexistentes y sin override, NINGÚN
-        // candidato acierta: la carga devuelve listas vacías (que la UI muestra
-        // como "no tiene niveles disponibles"), nunca panic.
+    fn with_no_path_at_all_loading_returns_empty_without_panicking() {
+        // With exe and data_home in non-existent places and with no override, NO
+        // candidate hits: the load returns empty lists (which the UI shows
+        // as "no levels available"), never a panic.
         let dirs = level_candidates(
-            Some(Path::new("/srv/juego/bin")),
+            Some(Path::new("/srv/game/bin")),
             Path::new("/srv/no-existe"),
             None,
         );
@@ -1434,17 +1437,17 @@ mod tests {
         assert!(levels.enhanced.is_empty());
     }
 
-    /// Fuzz de la lógica de desbloqueo y arranque de niveles con índices
-    /// hostiles. En debug, una resta sobre `u16` que baje de cero PANICA, así
-    /// que este test cubre la clase de fallo que cerraría el juego al navegar
-    /// por el selector (que es como se ejecuta con `cargo run`).
+    /// Fuzz of the unlocking logic and level startup with hostile
+    /// indices. In debug, a subtraction on a `u16` that goes below zero PANICS, so
+    /// this test covers the class of failure that would close the game when navigating
+    /// the selector (which is how it runs with `cargo run`).
     #[test]
-    fn fuzz_indices_hostiles_no_panica() {
+    fn fuzz_hostile_indices_does_not_panic() {
         let mut app = App::new();
         app.levels.original = (1..=10).map(|i| sample_level(i, true)).collect();
         app.levels.enhanced = (1..=60).map(|i| sample_level(i, false)).collect();
 
-        // Índices inside, en los bordes y muy fuera de rango.
+        // Indices inside, at the edges and far out of range.
         let hostile = [
             0u16,
             1,
@@ -1463,7 +1466,7 @@ mod tests {
         ];
         for mode in [Mode::Original, Mode::Enhanced] {
             for &idx in &hostile {
-                // Ninguna de estas debe panicar, pase lo que pase.
+                // None of these must panic, whatever happens.
                 let _ = is_unlocked(&app, mode, idx);
                 let _ = prev_completed(&app, mode, idx);
                 let _ = app.levels.get(mode, idx);
@@ -1471,7 +1474,7 @@ mod tests {
             }
         }
 
-        // También con las listas vacías (el caso "no hay niveles").
+        // Also with the empty lists (the "there are no levels" case).
         let mut vacio = App::new();
         for mode in [Mode::Original, Mode::Enhanced] {
             for &idx in &hostile {
@@ -1483,10 +1486,10 @@ mod tests {
         }
     }
 
-    /// `launch` desde la CLI con `--level` arbitrario: nunca debe panicar,
-    /// aunque el usuario pida un nivel que no existe o el 0.
+    /// `launch` from the CLI with an arbitrary `--level`: it must never panic,
+    /// even if the user asks for a level that does not exist or for 0.
     #[test]
-    fn fuzz_launch_cli_no_panica() {
+    fn fuzz_cli_launch_does_not_panic() {
         for lvl in [
             None,
             Some(0u16),
@@ -1506,10 +1509,10 @@ mod tests {
         }
     }
 
-    /// Fuzz de la PROGRESIÓN: completar niveles en cadena, que es el camino
-    /// que recorre de verdad quien juega. Cubre `finish_level` (récords,
-    /// estrellas, desbloqueo del siguiente mundo, fin de modo) con estados
-    /// de partida extremos, buscando desbordamientos e índices inválidos.
+    /// Fuzz of the PROGRESSION: completing levels one after another, which is the path
+    /// actually walked by whoever plays. It covers `finish_level` (records,
+    /// stars, unlocking of the next world, end of mode) with extreme
+    /// game states, looking for overflows and invalid indices.
     #[test]
     fn fuzz_progression_completing_levels_does_not_panic() {
         for mode in [Mode::Original, Mode::Enhanced] {
@@ -1519,12 +1522,12 @@ mod tests {
             app.mode = mode;
 
             let total = app.levels.len(mode);
-            // Recorremos TODOS los niveles del modo, ganando y perdiendo
-            // alternadamente, incluido el último (fin de modo).
+            // We go through ALL the levels of the mode, winning and losing
+            // alternately, including the last one (end of mode).
             for idx in 0..total {
                 start_level(&mut app, mode, idx);
                 app.level_number = idx;
-                // Estado de partida hostil: puntuación y estrellas al máximo.
+                // Hostile game state: score and stars at maximum.
                 app.state.score = u32::MAX;
                 app.state.stars = 3;
                 app.state.elapsed = f32::MAX;
@@ -1536,7 +1539,7 @@ mod tests {
                 finish_level(&mut app);
             }
 
-            // Y una vez más pasado el final: `level_number` fuera de rango.
+            // And once more past the end: `level_number` out of range.
             app.level_number = total;
             app.state.phase = GamePhase::Won;
             finish_level(&mut app);

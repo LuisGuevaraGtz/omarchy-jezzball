@@ -1,25 +1,25 @@
-//! Resolución del tema de Omarchy (ARCHITECTURE.md §12).
+//! Resolution of the Omarchy theme (ARCHITECTURE.md §12).
 //!
-//! Orden de resolución (primer acierto gana):
-//!   1. `$XDG_CONFIG_HOME/omarchy-jezzball/theme.ron` (override del usuario).
+//! Resolution order (the first hit wins):
+//!   1. `$XDG_CONFIG_HOME/omarchy-jezzball/theme.ron` (the user's override).
 //!   2. `$XDG_STATE_HOME/omarchy/current/theme/colors.toml`.
-//!   3. Nombre del tema en `.../current/theme.name` + `colors.toml` en
-//!      `/usr/share/omarchy/themes/<nombre>/`.
-//!   4. `~/.config/omarchy/themes/<nombre>/colors.toml`.
-//!   5. `alacritty.toml` del tema (`colors.primary.*` / `colors.normal.*`).
-//!   6. Fallback hardcodeado.
+//!   3. Theme name in `.../current/theme.name` + `colors.toml` in
+//!      `/usr/share/omarchy/themes/<name>/`.
+//!   4. `~/.config/omarchy/themes/<name>/colors.toml`.
+//!   5. The theme's `alacritty.toml` (`colors.primary.*` / `colors.normal.*`).
+//!   6. Hardcoded fallback.
 //!
-//! Nunca se hace panic por rutas de I/O: cada paso falla y se degrada con
-//! elegancia hasta el fallback final. La función `resolve_theme` recibe los
-//! directorios base por parámetro para poder testearse sin tocar el sistema.
+//! It never panics because of I/O paths: each step can fail and degrades
+//! gracefully down to the final fallback. The `resolve_theme` function receives the
+//! base directories as parameters so it can be tested without touching the system.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// Color RGB (8 bits por canal). Independiente de macroquad para que todo el
-/// mapeo de temas sea puro y testeable sin ventana.
+/// RGB colour (8 bits per channel). Independent of macroquad so that all the
+/// theme mapping is pure and testable without a window.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Rgb {
     pub r: u8,
@@ -32,7 +32,7 @@ impl Rgb {
         Rgb { r, g, b }
     }
 
-    /// Convierte a `macroquad::color::Color` con la transpariencia indicada.
+    /// Converts to `macroquad::color::Color` with the given transparency.
     pub fn to_mq(self, a: f32) -> macroquad::color::Color {
         macroquad::color::Color::new(
             self.r as f32 / 255.0,
@@ -43,8 +43,8 @@ impl Rgb {
     }
 }
 
-/// Paleta del juego, derivada del tema active de Omarchy. Ningún render hardcodea
-/// un color: todo sale de aquí (ARCHITECTURE.md §12 "Mapeo de roles").
+/// The game's palette, derived from Omarchy's active theme. No render hardcodes
+/// a colour: everything comes from here (ARCHITECTURE.md §12 "Role mapping").
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Theme {
     pub name: String,
@@ -61,11 +61,11 @@ pub struct Theme {
     pub accent: Rgb,
 }
 
-/// Formato del fichero de override del usuario (`theme.ron`, paso 1). Es un DTO
-/// deliberadamente más pequeño que `Theme`: expone los 9 roles documentados en
-/// docs/THEMING.md §3 como cadenas `#rrggbb`, sin los 3 campos que la app deriva
-/// (`name`, `bg_panel`, `fg_dim`). El parseo RON es estricto: si falta un rol o
-/// un hex no parsea, el override entero se descarta y se pasa al paso 2.
+/// Format of the user's override file (`theme.ron`, step 1). It is a DTO
+/// deliberately smaller than `Theme`: it exposes the 9 roles documented in
+/// docs/THEMING.md §3 as `#rrggbb` strings, without the 3 fields the app derives
+/// (`name`, `bg_panel`, `fg_dim`). RON parsing is strict: if a role is missing or
+/// a hex does not parse, the whole override is discarded and we move on to step 2.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ThemeOverrideFile {
     pub bg: String,
@@ -80,10 +80,10 @@ pub struct ThemeOverrideFile {
 }
 
 impl ThemeOverrideFile {
-    /// Convierte el DTO a `Theme`. Devuelve `None` si cualquiera de los 9 hex es
-    /// inválido: nunca se construye un tema a medias. Los campos que el usuario
-    /// no escribe se derivan: `name` es fijo y `bg_panel`/`fg_dim` se calculan
-    /// con un ajuste de luminosidad suave sobre `bg` y `fg` (≈12 %, ver
+    /// Converts the DTO into a `Theme`. Returns `None` if any of the 9 hex values is
+    /// invalid: a half-built theme is never constructed. The fields the user
+    /// does not write are derived: `name` is fixed and `bg_panel`/`fg_dim` are computed
+    /// with a soft luminosity adjustment over `bg` and `fg` (≈12 %, see
     /// docs/THEMING.md §3).
     fn into_theme(self) -> Option<Theme> {
         let bg = parse_hex(&self.bg)?;
@@ -105,7 +105,7 @@ impl ThemeOverrideFile {
     }
 }
 
-/// Colores del fallback hardcodeado (ARCHITECTURE.md §12, paso 6).
+/// Colours of the hardcoded fallback (ARCHITECTURE.md §12, step 6).
 pub const FB_BG: Rgb = Rgb {
     r: 0x0f,
     g: 0x0f,
@@ -162,7 +162,7 @@ pub const FB_ACCENT: Rgb = Rgb {
     b: 0xf7,
 };
 
-/// Constructor del fallback marcado por contrato.
+/// Constructor of the fallback set by contract.
 pub fn fallback() -> Theme {
     Theme {
         name: "fallback".to_string(),
@@ -186,8 +186,8 @@ impl Default for Theme {
     }
 }
 
-/// Directorios base que participan en la resolución del tema. Se inyectan por
-/// parámetro para no depender del entorno en los tests.
+/// Base directories that take part in the theme resolution. They are injected as
+/// parameters so the tests do not depend on the environment.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OmarchyDirs {
     pub config_home: PathBuf,
@@ -196,7 +196,7 @@ pub struct OmarchyDirs {
 }
 
 impl OmarchyDirs {
-    /// Calcula los directorios desde las variables XDG reales.
+    /// Computes the directories from the real XDG variables.
     pub fn from_env() -> Self {
         OmarchyDirs {
             config_home: crate::persist::config_home_dir(),
@@ -206,7 +206,7 @@ impl OmarchyDirs {
     }
 }
 
-/// Parsea `#rrggbb` (con o sin almohadilla). Devuelve `None` ante cadenas raras.
+/// Parses `#rrggbb` (with or without the hash). Returns `None` for odd strings.
 pub fn parse_hex(s: &str) -> Option<Rgb> {
     let t = s.trim().strip_prefix('#').unwrap_or(s.trim());
     if t.len() != 6 {
@@ -216,12 +216,12 @@ pub fn parse_hex(s: &str) -> Option<Rgb> {
     Some(Rgb::new(comp(0)?, comp(2)?, comp(4)?))
 }
 
-/// Fracción del ajuste suave de luminosidad para los roles derivados del
-/// override (docs/THEMING.md §3): `bg_panel` se aclara hacia el blanco y
-/// `fg_dim` se oscurece hacia el negro, ambos ≈12 %.
+/// Fraction of the soft luminosity adjustment for the roles derived from the
+/// override (docs/THEMING.md §3): `bg_panel` is lightened towards white and
+/// `fg_dim` is darkened towards black, both ≈12 %.
 const DERIVE_SHIFT: f32 = 0.12;
 
-/// Interpola el color `a` hacia el color `b` con factor `t` (0..=1), por canal.
+/// Interpolates colour `a` towards colour `b` with factor `t` (0..=1), per channel.
 fn mix(a: Rgb, b: Rgb, t: f32) -> Rgb {
     Rgb::new(
         (a.r as f32 + (b.r as f32 - a.r as f32) * t).round() as u8,
@@ -230,21 +230,21 @@ fn mix(a: Rgb, b: Rgb, t: f32) -> Rgb {
     )
 }
 
-/// Lee un valor `get` de un `toml::Value`, esperando una cadena de color.
+/// Reads a `get` value from a `toml::Value`, expecting a colour string.
 fn table_get<'a>(v: &'a toml::Value, key: &str) -> Option<&'a str> {
     v.get(key).and_then(|x| x.as_str())
 }
 
-/// Color opcional de una tabla por un conjunto de keys alternativas.
+/// Optional colour from a table, looked up by a set of alternative keys.
 fn color_or(v: &toml::Value, keys: &[&str]) -> Option<Rgb> {
     keys.iter()
         .find_map(|k| table_get(v, k))
         .and_then(parse_hex)
 }
 
-/// Construye `Theme` a partir de un `colors.toml` plano (keys directas).
-/// Exige `background` y `foreground`; el resto cae a alternativas del propio
-/// tema o al fallback por rol.
+/// Builds a `Theme` from a flat `colors.toml` (direct keys).
+/// It requires `background` and `foreground`; the rest falls back to alternatives from the
+/// theme itself or to the per-role fallback.
 fn theme_from_flat(v: &toml::Value) -> Option<Theme> {
     let bg = color_or(v, &["background", "darker_background"])?;
     let fg = color_or(v, &["foreground", "bright_foreground"])?;
@@ -253,13 +253,13 @@ fn theme_from_flat(v: &toml::Value) -> Option<Theme> {
         bg,
         bg_panel: color_or(v, &["lighter_background", "background", "selection"]).unwrap_or(bg),
         fg,
-        // `fg_dim` es el texto secundario (pies de pantalla, resúmenes de
-        // progreso, estrellas previas). Se prioriza `light_foreground` sobre
-        // `dark_foreground`: medido sobre el tema retro-82, `dark_foreground`
-        // (#3f8f8a) compuesto con el alfa 0.7-0.8 que usa el render cae a
-        // 2.94:1 de contraste sobre el fondo, muy por debajo del mínimo
-        // legible (4.5:1). `light_foreground` da 5.49:1 en las mismas
-        // condiciones.
+        // `fg_dim` is the secondary text (footers, progress
+        // summaries, previous stars). `light_foreground` is preferred over
+        // `dark_foreground`: measured on the retro-82 theme, `dark_foreground`
+        // (#3f8f8a) composited with the 0.7-0.8 alpha the render uses drops to
+        // 2.94:1 contrast against the background, far below the readable
+        // minimum (4.5:1). `light_foreground` gives 5.49:1 under the same
+        // conditions.
         fg_dim: color_or(v, &["light_foreground", "bright_foreground", "cyan"])
             .unwrap_or_else(|| mix(fg, bg, 0.35)),
         wall: color_or(v, &["muted", "blue", "cyan"]).unwrap_or(FB_WALL),
@@ -272,8 +272,8 @@ fn theme_from_flat(v: &toml::Value) -> Option<Theme> {
     })
 }
 
-/// Construye `Theme` a partir de un `alacritty.toml` (`colors.primary.*` y
-/// `colors.normal.*`). Exige `primary.background` y `primary.foreground`.
+/// Builds a `Theme` from an `alacritty.toml` (`colors.primary.*` and
+/// `colors.normal.*`). It requires `primary.background` and `primary.foreground`.
 fn theme_from_alacritty(v: &toml::Value) -> Option<Theme> {
     let colors = v.get("colors")?;
     let primary = colors.get("primary")?;
@@ -296,31 +296,31 @@ fn theme_from_alacritty(v: &toml::Value) -> Option<Theme> {
     })
 }
 
-/// Intenta construir un tema desde un TOML, indistintamente de si es plano o
-/// estilo alacritty.
+/// Tries to build a theme from a TOML, regardless of whether it is flat or
+/// alacritty style.
 fn theme_from_value(v: &toml::Value) -> Option<Theme> {
     theme_from_flat(v).or_else(|| theme_from_alacritty(v))
 }
 
-/// Lee `colors.toml` o `alacritty.toml` de un fichero. El nombre de fuente se
-/// usa como etiqueta del tema. Nunca devuelve error: solo `None`.
+/// Reads a `colors.toml` or `alacritty.toml` from a file. The source name is
+/// used as the theme's label. It never returns an error: only `None`.
 fn load_colors_file(path: &Path) -> Option<Theme> {
     let content = fs::read_to_string(path).ok()?;
     let v: toml::Value = toml::from_str(&content).ok()?;
     theme_from_value(&v)
 }
 
-/// Lee el override de usuario en RON (paso 1). Ignora errores de parseo: un
-/// fichero con un rol de menos o un hex inválido se descarta entero y la
-/// resolución cae al paso 2 (docs/THEMING.md §3).
+/// Reads the user's RON override (step 1). It ignores parsing errors: a
+/// file with one role missing or an invalid hex is discarded entirely and the
+/// resolution falls through to step 2 (docs/THEMING.md §3).
 fn load_ron_override(path: &Path) -> Option<Theme> {
     let content = fs::read_to_string(path).ok()?;
     let file: ThemeOverrideFile = ron::from_str(&content).ok()?;
     file.into_theme()
 }
 
-/// Lee el nombre del tema active (`theme.name`). Rechaza nombres con
-/// separadores de path para evitar traversal.
+/// Reads the name of the active theme (`theme.name`). It rejects names with
+/// path separators to avoid traversal.
 fn read_theme_name(path: &Path) -> Option<String> {
     let raw = fs::read_to_string(path).ok()?;
     let name = raw.trim();
@@ -331,10 +331,10 @@ fn read_theme_name(path: &Path) -> Option<String> {
     }
 }
 
-/// Resolución completa del tema según ARCHITECTURE.md §12. Primera fuente con
-/// éxito gana; si ninguna aparece, devuelve el fallback hardcodeado.
+/// Full theme resolution according to ARCHITECTURE.md §12. The first source that
+/// succeeds wins; if none shows up, it returns the hardcoded fallback.
 pub fn resolve_theme(dirs: &OmarchyDirs) -> Theme {
-    // 1. Override del usuario.
+    // 1. The user's override.
     let override_path = dirs.config_home.join("omarchy-jezzball").join("theme.ron");
     if let Some(t) = load_ron_override(&override_path) {
         return t;
@@ -348,30 +348,30 @@ pub fn resolve_theme(dirs: &OmarchyDirs) -> Theme {
 
     let name = read_theme_name(&dirs.state_home.join("omarchy/current/theme.name"));
 
-    // 2. Tema active symlinkeado (colors.toml plano). El nombre sale de
-    //    `theme.name` (p. ej. "retro-82"); antes se escribía el literal
-    //    "corriente" —traducción palabra por palabra de "current"— que además
-    //    de no significar nada en español descartaba el nombre real, que sí
-    //    está available justo al lado.
+    // 2. Active symlinked theme (flat colors.toml). The name comes from
+    //    `theme.name` (e.g. "retro-82"); previously the literal
+    //    "corriente" was written —a word-for-word translation of "current"— which, on top
+    //    of meaning nothing in Spanish, discarded the real name, which is
+    //    available right next to it.
     if let Some(mut t) = load_colors_file(&current.join("colors.toml")) {
         t.name = name.clone().unwrap_or_else(|| "omarchy".to_string());
         return t;
     }
 
     if let Some(n) = name.as_deref() {
-        // 3. Tema del sistema.
+        // 3. System theme.
         let sys = dirs.usr_share_themes.join(n);
         if let Some(mut t) = load_colors_file(&sys.join("colors.toml")) {
             t.name = n.to_string();
             return t;
         }
-        // 4. Tema de usuario.
+        // 4. User theme.
         let user = dirs.config_home.join("omarchy/themes").join(n);
         if let Some(mut t) = load_colors_file(&user.join("colors.toml")) {
             t.name = n.to_string();
             return t;
         }
-        // 5. Última fuente real: alacritty.toml del tema.
+        // 5. Last real source: the theme's alacritty.toml.
         if let Some(t) = load_colors_file(&sys.join("alacritty.toml")) {
             return t;
         }
@@ -380,7 +380,7 @@ pub fn resolve_theme(dirs: &OmarchyDirs) -> Theme {
         }
     }
 
-    // 5b. Alacritty del tema "current" (si no hubo nombre).
+    // 5b. Alacritty of the "current" theme (if there was no name).
     if let Some(t) = load_colors_file(&current.join("alacritty.toml")) {
         return t;
     }
@@ -405,8 +405,8 @@ mod tests {
         fs::read_to_string(fixture(name)).expect("fixture presente")
     }
 
-    /// Directorio temporal para tests que tocan disco, inside del repo
-    /// (el sandbox bloquea /tmp y ~/.local, pero el repo es de escritura).
+    /// Temporary directory for tests that touch disk, inside the repo
+    /// (the sandbox blocks /tmp and ~/.local, but the repo is writable).
     fn tmp_root(name: &str) -> PathBuf {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests/.tmp")
@@ -417,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_hex_funciona() {
+    fn parse_hex_works() {
         assert_eq!(parse_hex("  #05182e  "), Some(Rgb::new(0x05, 0x18, 0x2e)));
         assert_eq!(parse_hex("f6dcac"), Some(Rgb::new(0xf6, 0xdc, 0xac)));
         assert_eq!(parse_hex("F6DCAC"), Some(Rgb::new(0xf6, 0xdc, 0xac)));
@@ -428,9 +428,9 @@ mod tests {
     }
 
     #[test]
-    fn retro82_plano() {
+    fn retro82_flat_palette() {
         let v: toml::Value = toml::from_str(&read_fixture("retro-82-colors.toml")).unwrap();
-        let t = theme_from_flat(&v).expect("tema parseable");
+        let t = theme_from_flat(&v).expect("theme parses");
         assert_eq!(t.bg, Rgb::new(0x05, 0x18, 0x2e));
         assert_eq!(t.fg, Rgb::new(0xf6, 0xdc, 0xac));
         assert_eq!(t.accent, Rgb::new(0xfa, 0xa9, 0x68));
@@ -443,9 +443,9 @@ mod tests {
     }
 
     #[test]
-    fn tokyo_night_plano() {
+    fn tokyo_night_flat_palette() {
         let v: toml::Value = toml::from_str(&read_fixture("tokyo-night-colors.toml")).unwrap();
-        let t = theme_from_flat(&v).expect("tema parseable");
+        let t = theme_from_flat(&v).expect("theme parses");
         assert_eq!(t.bg, Rgb::new(0x1a, 0x1b, 0x26));
         assert_eq!(t.accent, Rgb::new(0x7a, 0xa2, 0xf7));
         assert_eq!(t.ok, Rgb::new(0x9e, 0xce, 0x6a));
@@ -459,12 +459,12 @@ mod tests {
         assert_eq!(t.fg, Rgb::new(0xf6, 0xdc, 0xac));
         assert_eq!(t.danger, Rgb::new(0xf8, 0x55, 0x25));
         assert_eq!(t.ok, Rgb::new(0x02, 0x83, 0x91));
-        // accent cae a magenta/blue de normal.
+        // accent falls back to magenta/blue from normal.
         assert_ne!(t.accent, FB_ACCENT);
     }
 
     #[test]
-    fn sin_ficheros_devuelve_fallback_sin_panic() {
+    fn with_no_files_it_returns_the_fallback_without_panicking() {
         let root = tmp_root("nc");
         let dirs = OmarchyDirs {
             config_home: root.join("config"),
@@ -479,7 +479,7 @@ mod tests {
     }
 
     #[test]
-    fn override_de_usuario_gana() {
+    fn user_override_wins() {
         let root = tmp_root("override");
         let cfg = root.join("omarchy-jezzball");
         fs::create_dir_all(&cfg).unwrap();
@@ -510,10 +510,10 @@ mod tests {
         fs::remove_dir_all(&root).unwrap();
     }
 
-    /// El bloque RON exacto de docs/THEMING.md (copiado literal, con su
-    /// sangrado) debe parse y producir los colores esperados. Es el contrato
-    /// que mantiene documento y código en la misma historia: si alguien cambia
-    /// el formato en uno de los dos sitios, este test se cae.
+    /// The exact RON block from docs/THEMING.md (copied literally, with its
+    /// indentation) must parse and produce the expected colours. It is the contract
+    /// that keeps document and code telling the same story: if someone changes
+    /// the format in one of the two places, this test fails.
     #[test]
     fn exact_block_from_theming_md_parses() {
         const DOCUMENTADO: &str = r##"(
@@ -528,7 +528,7 @@ mod tests {
     accent: "#7aa2f7",
 )"##;
         let f: ThemeOverrideFile = ron::from_str(DOCUMENTADO).expect("RON de docs parsea");
-        let t = f.into_theme().expect("hex válidos");
+        let t = f.into_theme().expect("valid hex");
         assert_eq!(t.name, "personalizado");
         assert_eq!(t.bg, Rgb::new(0x0f, 0x0f, 0x14));
         assert_eq!(t.accent, Rgb::new(0x7a, 0xa2, 0xf7));
@@ -539,20 +539,20 @@ mod tests {
         assert_eq!(t.ball_special, Rgb::new(0xc6, 0x78, 0xdd));
         assert_eq!(t.danger, Rgb::new(0xe0, 0x6c, 0x75));
         assert_eq!(t.ok, Rgb::new(0x98, 0xc3, 0x79));
-        // Campos derivados: bg_panel aclara bg un 12 % hacia blanco,
-        // fg_dim oscurece fg un 12 % hacia negro.
+        // Derived fields: bg_panel lightens bg by 12 % towards white,
+        // fg_dim darkens fg by 12 % towards black.
         assert_eq!(t.bg_panel, Rgb::new(0x2c, 0x2c, 0x30));
         assert_eq!(t.fg_dim, Rgb::new(0xb1, 0xb8, 0xbf));
     }
 
-    /// Si falta un rol, el override se ignora entero y la resolución cae al
-    /// paso 2 (docs/THEMING.md §3: "no se mezclan fuentes a medias").
+    /// If a role is missing, the whole override is ignored and the resolution falls
+    /// through to step 2 (docs/THEMING.md §3: "sources are not mixed halfway").
     #[test]
-    fn override_con_rol_faltante_cae_al_paso_2() {
+    fn override_with_a_missing_role_falls_through_to_step_2() {
         let root = tmp_root("faltante");
         let cfg = root.join("omarchy-jezzball");
         fs::create_dir_all(&cfg).unwrap();
-        // Falta `ok`: el fichero entero debe descartarse.
+        // `ok` is missing: the whole file must be discarded.
         fs::write(
             cfg.join("theme.ron"),
             r##"(
@@ -567,7 +567,7 @@ mod tests {
             )"##,
         )
         .unwrap();
-        // Paso 2 available para que la caída sea observable.
+        // Step 2 available so that the fallthrough is observable.
         let theme_dir = root.join("state/omarchy/current/theme");
         fs::create_dir_all(&theme_dir).unwrap();
         fs::copy(
@@ -581,15 +581,15 @@ mod tests {
             usr_share_themes: PathBuf::from("/nonexistent"),
         };
         let t = resolve_theme(&dirs);
-        // Sin theme.name en el fixture, el paso 2 usa el nombre generico.
-        assert_eq!(t.name, "omarchy"); // llegó al paso 2, override descartado
+        // With no theme.name in the fixture, step 2 uses the generic name.
+        assert_eq!(t.name, "omarchy"); // it reached step 2, override discarded
         assert_eq!(t.bg, Rgb::new(0x05, 0x18, 0x2e));
         fs::remove_dir_all(&root).unwrap();
     }
 
-    /// Un hex inválido descarta el override entero y cae al paso 2.
+    /// An invalid hex discards the whole override and falls through to step 2.
     #[test]
-    fn override_con_hex_invalido_cae_al_paso_2() {
+    fn override_with_invalid_hex_falls_through_to_step_2() {
         for (name, bad) in [("zz", "#zzzzzz"), ("corto", "#12345")] {
             let root = tmp_root(&format!("hexinv-{name}"));
             let cfg = root.join("omarchy-jezzball");
@@ -627,9 +627,9 @@ mod tests {
         }
     }
 
-    /// Hex sin `#` y en mayúsculas funciona (docs/THEMING.md acepta ambos).
+    /// Hex without `#` and in uppercase works (docs/THEMING.md accepts both).
     #[test]
-    fn override_hex_sin_almohadilla_y_mayusculas() {
+    fn override_accepts_hex_without_hash_and_uppercase() {
         let root = tmp_root("mayus");
         let cfg = root.join("omarchy-jezzball");
         fs::create_dir_all(&cfg).unwrap();
@@ -681,7 +681,7 @@ mod tests {
     }
 
     #[test]
-    fn nombre_de_tema_busca_en_sistema_y_usuario() {
+    fn theme_name_is_looked_up_in_system_and_user_dirs() {
         let root = tmp_root("name");
         let state = root.join("omarchy/current");
         fs::create_dir_all(&state).unwrap();
@@ -699,7 +699,7 @@ mod tests {
         assert_eq!(t.name, "aether");
         assert_eq!(t.accent, Rgb::new(0x7a, 0xa2, 0xf7));
 
-        // Tema de usuario sin colors.toml en sistema.
+        // User theme with no colors.toml in the system.
         let user = root.join("config/omarchy/themes/retro82");
         fs::create_dir_all(&user).unwrap();
         fs::copy(fixture("retro-82-colors.toml"), user.join("colors.toml")).unwrap();
@@ -710,7 +710,7 @@ mod tests {
     }
 
     #[test]
-    fn nombre_malicioso_no_viaja() {
+    fn malicious_theme_name_cannot_traverse() {
         let root = tmp_root("evil");
         let state = root.join("omarchy/current");
         fs::create_dir_all(&state).unwrap();

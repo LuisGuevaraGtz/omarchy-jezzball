@@ -1,22 +1,22 @@
-//! Guardia de internacionalización.
+//! Internationalisation guard.
 //!
-//! El objetivo de mover los texts a `assets/i18n/*.ron` se pierde en cuanto
-//! alguien vuelve a escribir una cadena visible inside del código. Este test
-//! recorre las fuentes de la capa de presentación y falla si encuentra
-//! string_literals que parezcan texto de interfaz.
+//! The point of moving the texts into `assets/i18n/*.ron` is lost as soon as
+//! someone writes a visible string inside the code again. This test walks the
+//! sources of the presentation layer and fails if it finds string literals
+//! that look like interface text.
 //!
-//! No pretende ser un analizador de Rust: busca string_literals con pinta de frase
-//! (varias words, o words con acentos) fuera de comentarios, y mantiene
-//! una lista explícita de excepciones para lo que legítimamente no es texto de
-//! interfaz (rutas, nombres de variables de entorno, keys de i18n).
+//! It does not aim to be a Rust parser: it looks for string literals that read
+//! like a phrase (several words, or words with accents) outside comments, and
+//! keeps an explicit list of exceptions for what legitimately is not interface
+//! text (paths, environment variable names, i18n keys).
 
 use std::path::Path;
 
-/// Ficheros que no deben contener texto visible incrustado.
+/// Files that must not contain embedded visible text.
 ///
-/// Incluye `screens.rs` además de la capa de render: ahí se construyen las
-/// etiquetas de los menús (`MenuItem`), y por dejarlo fuera se coló un
-/// "MODO ENHANCED" sin traducir que el jugador vio en pantalla.
+/// Includes `screens.rs` on top of the render layer: that is where the menu
+/// labels (`MenuItem`) are built, and leaving it out let an untranslated
+/// "MODO ENHANCED" slip through that the player saw on screen.
 const SOURCES: &[&str] = &[
     "src/render/menu.rs",
     "src/render/hud.rs",
@@ -25,14 +25,15 @@ const SOURCES: &[&str] = &[
     "src/screens.rs",
 ];
 
-/// Fragmentos permitidos: no son texto de interfaz.
+/// Allowed fragments: they are not interface text.
 fn is_allowed(lit: &str) -> bool {
-    // Claves de i18n: "menu.title", "ayuda.p1.body"...
+    // i18n keys: "menu.title", "ayuda.p1.body"...
     if lit.contains('.') && !lit.contains(' ') {
         return true;
     }
     const EXCEPTIONS: &[&str] = &[
         "OMARCHY_JEZZBALL_UI_SCALE",
+        "OMARCHY_JEZZBALL_ASSETS",
         "OMARCHY_JEZZBALL_BACKEND",
         "OMARCHY_JEZZBALL_LANG",
         "{}  (BLOQUEADO)",
@@ -42,35 +43,51 @@ fn is_allowed(lit: &str) -> bool {
     EXCEPTIONS.iter().any(|e| lit.contains(e))
 }
 
-/// ¿Este literal parece una frase de interfaz?
+/// Does this literal look like a UI phrase?
 fn looks_like_ui_text(lit: &str) -> bool {
     let trimmed = lit.trim();
-    if trimmed.len() < 6 {
+    if trimmed.len() < 4 {
         return false;
     }
-    // Acentos o eñe: inequívocamente texto en español.
+    // Accents or n-with-tilde: unmistakably Spanish text.
     if trimmed.chars().any(|c| "áéíóúñÁÉÍÓÚÑ¿¡".contains(c)) {
         return true;
     }
-    // Varias words alfabéticas seguidas.
+    // Single ALL-CAPS words are HUD labels ("SCORE", "LIVES", "PAUSED").
+    // They slipped through an earlier version of this check that demanded two
+    // words, and the whole HUD shipped untranslated because of it.
+    let letters: String = trimmed
+        .chars()
+        .filter(|c| c.is_alphabetic() || *c == ' ')
+        .collect();
+    let caps = letters.trim();
+    if caps.len() >= 4
+        && caps.chars().any(|c| c.is_alphabetic())
+        && caps
+            .chars()
+            .all(|c| c.is_uppercase() || c == ' ' || !c.is_alphabetic())
+    {
+        return true;
+    }
+    // Several alphabetic words in a row.
     let words: Vec<&str> = trimmed
         .split_whitespace()
-        .filter(|p| p.chars().filter(|c| c.is_alphabetic()).count() >= 3)
+        .filter(|w| w.chars().filter(|c| c.is_alphabetic()).count() >= 3)
         .collect();
     words.len() >= 2
 }
 
-/// Extrae string_literals de cadena de una línea, ignorando comentarios.
+/// Extracts string literals from a line, ignoring comments.
 ///
-/// También ignora las líneas que claramente no pintan interfaz: mensajes de
-/// aserción de los tests, diagnóstico por consola (`eprintln!`) y cadenas de
-/// error internas. Lo que se persigue es el texto que ve el jugador.
+/// It also ignores the lines that clearly do not render interface: test
+/// assertion messages, console diagnostics (`eprintln!`) and internal error
+/// strings. What we are after is the text the player sees.
 fn string_literals(line: &str) -> Vec<String> {
     let l = line.trim_start();
     if l.starts_with("//") || l.starts_with("/*") || l.starts_with('*') {
         return Vec::new();
     }
-    // Mensajes que nunca llegan a la interfaz del juego.
+    // Messages that never reach the game's interface.
     const NOT_UI: &[&str] = &[
         "assert",
         "panic!",
@@ -80,9 +97,9 @@ fn string_literals(line: &str) -> Vec<String> {
         "println!",
         "#[test]",
         "debug_assert",
-        // Cadenas de error internas (`Result<_, String>`): son diagnóstico
-        // técnico para el log, no texto que el jugador lea en pantalla. Lo que
-        // sí ve (`app.error_msg`) pasa por el catálogo.
+        // Internal error strings (`Result<_, String>`): they are technical
+        // diagnostics for the log, not text the player reads on screen. What
+        // the player does see (`app.error_msg`) goes through the catalog.
         "Err(format!",
         "map_err",
     ];
@@ -115,8 +132,8 @@ fn the_render_layer_has_no_hardcoded_text() {
     for rel in SOURCES {
         let path = root.join(rel);
         let contents = std::fs::read_to_string(&path)
-            .unwrap_or_else(|e| panic!("no se pudo leer {}: {e}", path.display()));
-        // El módulo de tests del propio fichero no pinta interfaz: se corta ahí.
+            .unwrap_or_else(|e| panic!("could not read {}: {e}", path.display()));
+        // The file's own test module does not render interface: we cut there.
         let code = match contents.find("mod tests {") {
             Some(i) => &contents[..i],
             None => &contents[..],
@@ -133,8 +150,8 @@ fn the_render_layer_has_no_hardcoded_text() {
 
     assert!(
         findings.is_empty(),
-        "hay {} texts escritos directamente en el code de render.\n\
-         Deben vivir en assets/i18n/*.ron y usarse con crate::i18n::t(\"key\"):\n  {}",
+        "{} pieces of text are hardcoded in the render layer.\n\
+         They must live in assets/i18n/*.ron and be used via crate::i18n::t(\"key\"):\n  {}",
         findings.len(),
         findings.join("\n  ")
     );
@@ -142,8 +159,8 @@ fn the_render_layer_has_no_hardcoded_text() {
 
 #[test]
 fn the_language_catalogs_exist_in_the_repository() {
-    // Los catalogos se empotran con include_str!, pero deben seguir siendo
-    // ficheros editables: es lo que permite traducir sin tocar code.
+    // The catalogs are embedded with include_str!, but they must remain
+    // editable files: that is what allows translating without touching code.
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/i18n");
     for language in ["es", "en"] {
         let path = root.join(format!("{language}.ron"));

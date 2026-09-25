@@ -1,9 +1,12 @@
 [package]
 name = "jezzball-core"
-description = "Lógica pura y determinista de Omarchy-Jezzball: bolas, muros, partición, puntuación. Sin I/O ni render."
+description = "Pure, deterministic game logic for Omarchy-Jezzball: balls, walls, area partitioning and scoring. No I/O, no rendering."
 edition.workspace = true
 version.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 [features]
 default = ["serde"]

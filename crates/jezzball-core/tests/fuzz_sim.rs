@@ -1,8 +1,8 @@
-//! Fuzz determinista: simula partidas completas de TODOS los niveles reales
-//! con entradas pseudoaleatorias, buscando panics y estados imposibles.
+//! Deterministic fuzzing: simulates complete games of ALL the real levels
+//! with pseudorandom inputs, hunting for panics and impossible states.
 //!
-//! No usa aleatoriedad del SO: cada partida se siembra con un `u64` fijo, así
-//! que cualquier fallo que encuentre es reproducible exactamente.
+//! It does not use OS randomness: every game is seeded with a fixed `u64`, so
+//! any failure it finds is exactly reproducible.
 
 use jezzball_core::level::{ArenaShape, BallSpawn, LevelSpec, Objective};
 use jezzball_core::rng::Rng64;
@@ -11,8 +11,8 @@ use jezzball_core::wall::WallAxis;
 
 const DT: f32 = 1.0 / 60.0;
 
-/// Genera un abanico de niveles sintéticos que cubre formas y tamaños raros,
-/// incluidos los casos límite que los assets no ejercitan.
+/// Generates a spread of synthetic levels covering odd shapes and sizes,
+/// including the edge cases the assets do not exercise.
 fn synthetic_levels() -> Vec<LevelSpec> {
     let mut out = Vec::new();
     let shapes = [
@@ -25,7 +25,7 @@ fn synthetic_levels() -> Vec<LevelSpec> {
         ArenaShape::Maze { density: 0 },
         ArenaShape::Maze { density: 100 },
     ];
-    // Tamaños deliberadamente hostiles: pares, impares y mínimos.
+    // Deliberately hostile sizes: even, odd and minimal.
     let sizes = [(64u16, 40u16), (33, 21), (32, 20), (9, 7), (4, 4), (3, 3)];
 
     let mut id = 0u16;
@@ -75,14 +75,14 @@ fn synthetic_levels() -> Vec<LevelSpec> {
     out
 }
 
-/// Ejecuta una partida entera martilleando entradas aleatorias.
-/// Si algo va a panicar, panica aquí (y el test falla con el nivel culpable).
+/// Runs a whole game hammering it with random inputs.
+/// If anything panics, it panics here (the test fails naming the guilty level).
 fn hammer(spec: &LevelSpec, seed: u64, frames: usize) {
     let mut rng = Rng64::new(seed);
     let mut st = GameState::new(spec.clone());
 
     for frame in 0..frames {
-        // ~1 de cada 12 frames intenta una acción del jugador.
+        // Roughly 1 in every 12 frames attempts a player action.
         let input = if rng.next_f32() < 0.08 {
             let roll = rng.next_f32();
             if roll < 0.70 {
@@ -110,27 +110,27 @@ fn hammer(spec: &LevelSpec, seed: u64, frames: usize) {
         let (next, _events) = step(&st, input, DT);
         st = next;
 
-        // Invariantes que deben cumplirse SIEMPRE.
+        // Invariants that must hold ALWAYS.
         for b in &st.balls {
             assert!(
                 b.pos.x.is_finite() && b.pos.y.is_finite(),
-                "{}: frame {frame}: posicion no finita ({}, {})",
+                "{}: frame {frame}: non-finite position ({}, {})",
                 spec.name,
                 b.pos.x,
                 b.pos.y
             );
             assert!(
                 b.vel.x.is_finite() && b.vel.y.is_finite(),
-                "{}: frame {frame}: velocidad no finita",
+                "{}: frame {frame}: non-finite velocity",
                 spec.name
             );
-            // Margen de 2 celdas: tolerante, solo busca fugas graves.
+            // A 2-cell margin: tolerant, it only looks for serious leaks.
             assert!(
                 b.pos.x >= -2.0
                     && b.pos.y >= -2.0
                     && b.pos.x <= spec.arena.w as f32 + 2.0
                     && b.pos.y <= spec.arena.h as f32 + 2.0,
-                "{}: frame {frame}: bola fuera de la arena ({}, {}) en {}x{}",
+                "{}: frame {frame}: ball outside the arena ({}, {}) in {}x{}",
                 spec.name,
                 b.pos.x,
                 b.pos.y,
@@ -140,7 +140,7 @@ fn hammer(spec: &LevelSpec, seed: u64, frames: usize) {
         }
         assert!(
             st.lives <= spec.lives,
-            "{}: frame {frame}: vidas subieron solas",
+            "{}: frame {frame}: lives went up on their own",
             spec.name
         );
 
@@ -150,7 +150,7 @@ fn hammer(spec: &LevelSpec, seed: u64, frames: usize) {
     }
 }
 
-/// Fuzz sobre niveles sintéticos: formas y tamaños hostiles.
+/// Fuzzing over synthetic levels: hostile shapes and sizes.
 #[test]
 fn fuzz_synthetic_levels_does_not_panic() {
     for spec in synthetic_levels() {
@@ -160,10 +160,10 @@ fn fuzz_synthetic_levels_does_not_panic() {
     }
 }
 
-/// Construir un `GameState` de CUALQUIER forma y tamaño no debe panicar.
-/// Cubre el off-by-one de `materialize_maze` y sus parientes.
+/// Building a `GameState` of ANY shape and size must not panic.
+/// Covers the off-by-one in `materialize_maze` and its relatives.
 #[test]
-fn construir_arena_de_cualquier_tamano_no_panica() {
+fn building_an_arena_of_any_size_does_not_panic() {
     for w in 3u16..=40 {
         for h in [3u16, 4, 7, 8, 20, 21, 39, 40] {
             for shape in [
@@ -201,7 +201,7 @@ fn construir_arena_de_cualquier_tamano_no_panica() {
                     seed: 42,
                 };
                 let st = GameState::new(spec);
-                // Avanzar unos frames para ejercitar la física en arenas mínimas.
+                // Advance a few frames to exercise the physics in minimal arenas.
                 let mut cur = st;
                 for _ in 0..60 {
                     cur = step(&cur, PlayerInput::None, DT).0;

@@ -1,38 +1,39 @@
-//! Rejilla lógica de la arena: fuente de verdad para "qué está cerrado" y
-//! para el % de área (ARCHITECTURE.md §2). Las coordenadas de celda son
-//! `(columna, fila)` con `(0, 0)` arriba a la izquierda.
+//! Logical arena grid: the source of truth for "what is closed" and for the
+//! area percentage (ARCHITECTURE.md §2). Cell coordinates are
+//! `(column, row)` with `(0, 0)` at the top left.
 
-/// Estado de una celda de la rejilla.
+/// State of a grid cell.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Cell {
-    /// Vacía: las bolas la atraviesan y los frentes de muro pueden crecer.
+    /// Empty: balls pass through it and wall fronts can grow over it.
     Open,
-    /// Rellenada por un muro consolidado o por el cierre de una región.
+    /// Filled in by a consolidated wall or by the closing of a region.
     Filled,
-    /// Obstáculo fijo o forma de la arena: ni bolas ni muros la cruzan.
+    /// Fixed obstacle or arena shape: neither balls nor walls cross it.
     Solid,
 }
 
-/// Rejilla `w × h` de celdas, más la máscara de zonas `NoSplit`.
+/// `w x h` grid of cells, plus the mask of `NoSplit` zones.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Grid {
     pub w: u16,
     pub h: u16,
     cells: Vec<Cell>,
-    // Verdadero en las celdas marcadas como `NoSplit`.
+    // True on the cells marked as `NoSplit`.
     //
-    // Semántica de las celdas NoSplit:
-    //   - son transitables por las bolas (como `Open`),
-    //   - NUNCA pueden rellenarse ni cerrarse (nunca pasan a `Filled`),
-    //   - bloquean los frentes de muro y el flood fill (impiden quedar
-    //     encerradas), y
-    //   - NO cuentan como "fillable": restan del denominador de
-    //     `filled_ratio` (documentado también en LEVEL_SCHEMA.md).
+    // Semantics of NoSplit cells:
+    //   - they are traversable by balls (like `Open`),
+    //   - they can NEVER be filled or closed (they never become `Filled`),
+    //   - they block wall fronts and the flood fill (which prevents them
+    //     from being enclosed), and
+    //   - they do NOT count as "fillable": they are subtracted from the
+    //     denominator of `filled_ratio` (also documented in
+    //     LEVEL_SCHEMA.md).
     no_split: Vec<bool>,
 }
 
 impl Grid {
-    /// Rejilla totalmente abierta.
+    /// Fully open grid.
     pub fn new(w: u16, h: u16) -> Self {
         let area = (w as usize) * (h as usize);
         Grid {
@@ -47,7 +48,7 @@ impl Grid {
         (y as usize) * (self.w as usize) + x as usize
     }
 
-    /// ¿El punto de rejilla `(x, y)` cae inside de la arena?
+    /// Does the grid point `(x, y)` fall inside the arena?
     pub fn in_bounds(&self, x: i64, y: i64) -> bool {
         x >= 0 && y >= 0 && (x as u64) < self.w as u64 && (y as u64) < self.h as u64
     }
@@ -78,8 +79,8 @@ impl Grid {
         self.no_split[i] = true;
     }
 
-    /// ¿Puede una bola pasar por la celda `(x, y)`? Devuelve `false` fuera de
-    /// la arena (los bordes son muros). Las celdas `NoSplit` son transitables.
+    /// Can a ball pass through cell `(x, y)`? Returns `false` outside the
+    /// arena (the borders are walls). `NoSplit` cells are traversable.
     pub fn is_passable(&self, x: i64, y: i64) -> bool {
         match self.in_bounds(x, y) {
             false => false,
@@ -90,8 +91,8 @@ impl Grid {
         }
     }
 
-    /// ¿Puede un frente de muro crecer sobre esta celda? Solo `Open` y que no
-    /// sea `NoSplit` (los frentes se detienen en Filled/Solid/NoSplit/borde).
+    /// Can a wall front grow over this cell? Only `Open` cells that are not
+    /// `NoSplit` (fronts stop at Filled/Solid/NoSplit/border).
     pub fn is_wall_open(&self, x: i64, y: i64) -> bool {
         if !self.in_bounds(x, y) {
             return false;
@@ -116,13 +117,13 @@ impl Grid {
         self.no_split.iter().filter(|b| **b).count()
     }
 
-    /// Celdas que pueden rellenarse para ganar. Las `Solid` y las `NoSplit`
-    /// NO cuentan (son el denominador de `filled_ratio`).
+    /// Cells that can be filled in to win. `Solid` and `NoSplit` cells do
+    /// NOT count (they are the denominator of `filled_ratio`).
     pub fn fillable_count(&self) -> usize {
         self.cells.len() - self.solid_count() - self.no_split_count()
     }
 
-    /// `filled / fillable`. Si no hay nada rellenable, devuelve 0.
+    /// `filled / fillable`. If there is nothing fillable, returns 0.
     pub fn filled_ratio(&self) -> f32 {
         let fillable = self.fillable_count();
         if fillable == 0 {
@@ -132,8 +133,8 @@ impl Grid {
         }
     }
 
-    /// Flood fill 4-conexo sobre celdas `Open` que no sean `NoSplit`.
-    /// Devuelve una lista de regiones, cada una con sus celdas.
+    /// 4-connected flood fill over `Open` cells that are not `NoSplit`.
+    /// Returns a list of regions, each one with its cells.
     pub fn open_regions(&self) -> Vec<Vec<(u16, u16)>> {
         let mut visited = vec![false; self.cells.len()];
         let mut regions = Vec::new();

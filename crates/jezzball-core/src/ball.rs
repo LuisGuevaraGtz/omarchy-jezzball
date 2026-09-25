@@ -1,29 +1,30 @@
-//! Bolas continuas (ARCHITECTURE.md §2 y §8).
+//! Continuous balls (ARCHITECTURE.md §2 and §8).
 //!
-//! Las bolas se mueven en coordenadas de celda `f32`. El movimiento usa
-//! integración semi-implícita con resolución de colisión POR EJES SEPARADOS
-//! contra la rejilla: mover en X, rebotar si la celda destino no es `Open`;
-//! mover en Y, idéntico. Eso produce el rebote de 45° clásico del JezzBall
-//! sin tuneleo, y sin túneles mientras `|vel| * dt < 0.5` celdas. Cuando
-//! `|vel| * dt >= 0.5` se aplican substeps internos (máx. 8).
+//! Balls move in `f32` cell coordinates. Movement uses semi-implicit
+//! integration with collision resolution ON SEPARATE AXES against the grid:
+//! move on X, bounce if the destination cell is not `Open`; move on Y, the
+//! same. That produces the classic 45-degree JezzBall bounce without
+//! tunnelling, and with no tunnels as long as `|vel| * dt < 0.5` cells. When
+//! `|vel| * dt >= 0.5`, internal substeps are applied (max. 8).
 
 use crate::geom::Vec2;
 use crate::grid::Grid;
 use crate::level::BallKind;
 use crate::rng::Rng64;
 
-/// Cada cuántos segundos una bola `Erratic` rota su velocidad ±30°.
+/// How many seconds pass between each rotation of an `Erratic` ball's
+/// velocity by +/-30 degrees.
 const ERRATIC_INTERVAL: f32 = 1.5;
-/// ±30° en radianes.
+/// +/-30 degrees in radians.
 const ERRATIC_ANGLE: f32 = std::f32::consts::PI / 6.0;
 
-/// Distancia máxima (celdas) por substep sin riesgo de túnel.
+/// Maximum distance (cells) per substep with no risk of tunnelling.
 const MAX_STEP_DISTANCE: f32 = 0.5;
-/// Tope de substeps por frame.
+/// Cap of substeps per frame.
 const MAX_SUBSTEPS: usize = 8;
-/// Holgura para comparaciones de frontera de celda: tras un rebote la bola
-/// queda apoyada EXACTAMENTE sobre una frontera, y sin esta tolerancia el
-/// error de coma flotante decide al azar si sigue chocando o no.
+/// Slack for cell boundary comparisons: after a bounce the ball rests
+/// EXACTLY on a boundary, and without this tolerance floating-point error
+/// decides at random whether it keeps colliding or not.
 const EPS: f32 = 1e-4;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -33,15 +34,15 @@ pub struct Ball {
     pub vel: Vec2,
     pub kind: BallKind,
     pub radius: f32,
-    /// Posición anterior: permite usar un AABB barrido para detectar impactos
-    /// contra muros en construcción sin túneles entre frames.
+    /// Previous position: lets us use a swept AABB to detect impacts against
+    /// walls under construction without tunnelling between frames.
     pub prev: Vec2,
     erratic_timer: f32,
 }
 
 impl Ball {
-    /// Crea una bola a partir de un `BallSpawn`. La velocidad y el radio
-    /// dependen del tipo (`BallKind::speed_mult` / `base_radius`).
+    /// Creates a ball from a `BallSpawn`. The velocity and the radius depend
+    /// on the kind (`BallKind::speed_mult` / `base_radius`).
     pub fn new(id: u32, x: f32, y: f32, vx: f32, vy: f32, kind: BallKind, radius_mul: f32) -> Self {
         let pos = Vec2::new(x, y);
         let vel = Vec2::new(vx, vy) * kind.speed_mult();
@@ -60,20 +61,21 @@ impl Ball {
         self.vel.length()
     }
 
-    /// Integra la bola un paso `dt`.
+    /// Integrates the ball by one `dt` step.
     ///
-    /// - Si el tipo es `Erratic`, cada `ERRATIC_INTERVAL` segundos rota su
-    ///   velocidad ±30° usando el PRNG determinista del core.
-    /// - Si `|vel| * dt >= 0.5` divide el paso en substeps para no atravesar
-    ///   celdas por height.
+    /// - If the kind is `Erratic`, every `ERRATIC_INTERVAL` seconds it
+    ///   rotates its velocity by +/-30 degrees using the core's
+    ///   deterministic PRNG.
+    /// - If `|vel| * dt >= 0.5` it splits the step into substeps so it does
+    ///   not go through cells by overshooting.
     pub fn step(&mut self, grid: &Grid, rng: &mut Rng64, dt: f32) {
         if dt <= 0.0 {
             return;
         }
 
-        // Snapshot de la posición previa para el AABB barrido: el `state`
-        // usa `prev`/`pos` para detectar impactos contra muros en construcción
-        // sin túneles entre frames.
+        // Snapshot of the previous position for the swept AABB: `state` uses
+        // `prev`/`pos` to detect impacts against walls under construction
+        // without tunnelling between frames.
         self.prev = self.pos;
 
         if self.kind == BallKind::Erratic {
@@ -103,17 +105,18 @@ impl Ball {
         }
     }
 
-    /// Resuelve el movimiento en un eje con separación de ejes.
-    /// `is_x = true` mueve (e rebota) el eje X.
+    /// Resolves the movement on one axis with axis separation.
+    /// `is_x = true` moves (and bounces) the X axis.
     ///
-    /// Sólo se consideran bloqueos que estén POR DELANTE del borde de avance
-    /// current de la bola. Es la diferencia entre rebotar y quedarse pegado:
-    /// tras un rebote la bola queda apoyada justo contra la celda (su borde
-    /// toca la frontera), y si el barrido siguiente volviera a mirar esa misma
-    /// celda la daría por bloqueante otra vez, invirtiendo la velocidad cada
-    /// frame (vibración) o empujándola al other lado (atravesar el muro).
-    /// Lo mismo ocurre cuando un muro se consolida DETRÁS de la bola: no debe
-    /// empujarla ni invertir su sentido, sólo frenar lo que tenga delante.
+    /// Only blockers that are IN FRONT OF the ball's current leading edge are
+    /// considered. That is the difference between bouncing and getting stuck:
+    /// after a bounce the ball rests right against the cell (its edge touches
+    /// the boundary), and if the next sweep looked at that very same cell it
+    /// would treat it as blocking again, inverting the velocity every frame
+    /// (jitter) or pushing the ball to the other side (going through the
+    /// wall). The same happens when a wall consolidates BEHIND the ball: it
+    /// must not push it nor reverse its direction, only stop whatever is
+    /// ahead of it.
     fn move_axis(&mut self, grid: &Grid, is_x: bool, dt: f32) {
         let velocity = if is_x { self.vel.x } else { self.vel.y };
         if velocity == 0.0 {
@@ -123,27 +126,27 @@ impl Ball {
         let current = if is_x { self.pos.x } else { self.pos.y };
         let along = current + velocity * dt;
 
-        // Borde de ataque: el lado de la bola que avanza, antes y después.
-        // Todo bloqueo que no esté estrictamente por delante del borde current
-        // se ignora (ya lo hemos dejado atrás o estamos apoyados en él).
+        // Leading edge: the side of the ball that advances, before and after.
+        // Any blocker that is not strictly in front of the current edge is
+        // ignored (we have already left it behind, or we are resting on it).
         let (lead_now, lead_next) = if velocity > 0.0 {
             (current + self.radius, along + self.radius)
         } else {
             (current - self.radius, along - self.radius)
         };
 
-        // Rango transversal que barre la bola (el eje perpendicular).
+        // Transverse range swept by the ball (the perpendicular axis).
         //
-        // Se encoge por EPS en ambos extremos a propósito. Tras rebotar, la
-        // bola queda apoyada con su borde EXACTAMENTE sobre una frontera de
-        // celda (p. ej. x + radio == 20.0 en una arena de 20 de width). Sin
-        // este encogimiento, `floor()` de ese borde devuelve la celda de más
-        // allá del muro —fuera de la rejilla, o el propio muro— y el eje
-        // PERPENDICULAR la interpreta como bloqueo: la bola rebota también en
-        // el other eje y sale despedida por donde vino, como si hubiera
-        // chocado en una esquina estando en mitad de una pared plana.
-        // Encogiendo el rango sólo se consideran las celdas que la bola
-        // solapa DE VERDAD, no las que toca de forma tangente.
+        // It is shrunk by EPS at both ends on purpose. After bouncing, the
+        // ball rests with its edge EXACTLY on a cell boundary (e.g.
+        // x + radius == 20.0 in an arena 20 wide). Without this shrinking,
+        // `floor()` of that edge returns the cell beyond the wall — outside
+        // the grid, or the wall itself — and the PERPENDICULAR axis reads it
+        // as a blocker: the ball bounces on the other axis too and shoots
+        // back the way it came, as if it had hit a corner while being in the
+        // middle of a flat wall. By shrinking the range, only the cells the
+        // ball REALLY overlaps are considered, not the ones it merely touches
+        // tangentially.
         let (c0, c1) = if is_x {
             (
                 self.pos.y - self.radius + EPS,
@@ -158,15 +161,15 @@ impl Ball {
         let cell_c0 = c0.floor() as i64;
         let cell_c1 = c1.floor() as i64;
 
-        // Celdas que el borde de ataque cruza en este paso.
+        // Cells that the leading edge crosses in this step.
         let mut blocked: Option<i64> = None;
         if velocity > 0.0 {
-            // `lead_now` puede estar exactamente sobre una frontera de celda
-            // (bola apoyada tras rebotar): empezamos en la celda siguiente.
+            // `lead_now` may sit exactly on a cell boundary (ball resting
+            // after a bounce): we start at the next cell.
             let first = lead_now.floor() as i64;
             let last = lead_next.floor() as i64;
             'outer: for a in first..=last {
-                // Ignorar la celda en la que ya estamos apoyados.
+                // Ignore the cell we are already resting on.
                 if (a as f32) < lead_now - EPS {
                     continue;
                 }
@@ -182,7 +185,7 @@ impl Ball {
             let first = lead_now.floor() as i64;
             let last = lead_next.floor() as i64;
             'outer: for a in (last..=first).rev() {
-                // Ignorar la celda en la que ya estamos apoyados.
+                // Ignore the cell we are already resting on.
                 if ((a + 1) as f32) > lead_now + EPS {
                     continue;
                 }
@@ -198,7 +201,7 @@ impl Ball {
 
         let mut result = along;
         if let Some(cell) = blocked {
-            // Apoyar el borde de la bola contra la celda bloqueante.
+            // Rest the ball's edge against the blocking cell.
             let limit = if velocity > 0.0 {
                 cell as f32 - self.radius
             } else {

@@ -1,8 +1,8 @@
-//! Helpers comunes de los tests de integración del core (ARCHITECTURE.md §15).
+//! Common helpers for the core integration tests (ARCHITECTURE.md §15).
 //!
-//! Todos los tests son deterministas: usan `dt = 0.04` y el seed fijo que
-//! `spec` inyecta en el `LevelSpec`. No dependen de cotas temporales exactas,
-//! solo de los OUTCOMES (eventos, vidas, muros consolidados/destruidos).
+//! All tests are deterministic: they use `dt = 0.04` and the fixed seed that
+//! `spec` injects into the `LevelSpec`. They do not depend on exact timing
+//! bounds, only on OUTCOMES (events, lives, consolidated/destroyed walls).
 
 use jezzball_core::level::{
     ArenaShape, ArenaSpec, BallKind, BallSpawn, LevelKind, LevelSpec, Objective, Obstacle,
@@ -11,7 +11,7 @@ use jezzball_core::state::{step, GameEvent, GamePhase, GameState, PlayerInput};
 
 pub const DT: f32 = 0.04;
 
-/// Bola de velocidad pura (los `kind` la escalan internamente).
+/// Pure-velocity ball (the `kind` scales it internally).
 pub fn ball(x: f32, y: f32, vx: f32, vy: f32, kind: BallKind) -> BallSpawn {
     BallSpawn {
         x,
@@ -23,7 +23,7 @@ pub fn ball(x: f32, y: f32, vx: f32, vy: f32, kind: BallKind) -> BallSpawn {
     }
 }
 
-/// `LevelSpec` recto y sin amañar para tests.
+/// A straightforward, unrigged `LevelSpec` for tests.
 #[allow(clippy::too_many_arguments)]
 pub fn spec(
     w: u16,
@@ -60,8 +60,8 @@ pub fn spec(
     }
 }
 
-/// Avanza `n` frames a `dt` fijo con `PlayerInput::None`, acumulando los
-/// eventos. Se detiene antes si la partida termina (Won/Lost).
+/// Advances `n` frames at a fixed `dt` with `PlayerInput::None`, accumulating
+/// the events. Stops early if the game ends (Won/Lost).
 pub fn frames(state: &GameState, n: u32) -> (GameState, Vec<GameEvent>) {
     let mut s = state.clone();
     let mut evs = Vec::new();

@@ -1,6 +1,6 @@
-//! Tests obligatorios de bolas-contra-muros y obstáculos (ARCHITECTURE.md §3):
-//! escudo (1 absorción + destrucción), Heavy ignorando el escudo y Mover
-//! destruyendo muros SIN coste de vidas.
+//! Mandatory balls-against-walls and obstacles tests (ARCHITECTURE.md §3):
+//! shield (1 absorption + destruction), Heavy ignoring the shield, and Mover
+//! destroying walls WITHOUT costing lives.
 
 mod common;
 
@@ -10,9 +10,9 @@ use jezzball_core::powerup::PowerUpKind;
 use jezzball_core::state::{step, GameEvent, GamePhase, GameState, PlayerInput};
 use jezzball_core::wall::WallAxis;
 
-/// Escudo: una bola cruza el muro en construcción varias veces mientras este
-/// se alarga despacio. La PRIMERA pasada la absorbe el escudo (muro intacto,
-/// vidas intactas); la SEGUNDA destruye el muro y cuesta una vida.
+/// Shield: a ball crosses the wall under construction several times while it
+/// grows slowly. The FIRST pass is absorbed by the shield (wall intact, lives
+/// intact); the SECOND destroys the wall and costs a life.
 #[test]
 fn shield_two_impacts() {
     let mut s = GameState::new(spec(
@@ -32,7 +32,7 @@ fn shield_two_impacts() {
     s = n;
     assert!(
         s.pending_shield,
-        "el escudo queda pendiente del próximo muro"
+        "the shield stays pending for the next wall"
     );
 
     let (n, e) = step(
@@ -45,14 +45,14 @@ fn shield_two_impacts() {
     );
     s = n;
     assert_eq!(s.lives, 3);
-    assert_eq!(s.builders.len(), 1, "el muro sigue construyéndose");
+    assert_eq!(s.builders.len(), 1, "the wall is still being built");
     assert!(
         e.contains(&GameEvent::WallStarted),
-        "el muro ha arrancado: {e:?}"
+        "the wall has started: {e:?}"
     );
 
-    // Avanzamos HASTA el momento en que la primera pasada de la bola consume
-    // el escudo (muro vivo, vida intacta), sin depender de frames exactos.
+    // We advance UP TO the moment when the ball's first pass consumes the
+    // shield (wall alive, life intact), without depending on exact frames.
     let mut all = Vec::new();
     let mut absorbed = false;
     for _ in 0..800 {
@@ -70,12 +70,15 @@ fn shield_two_impacts() {
             break;
         }
     }
-    assert!(absorbed, "el escudo debe absorver la primera pasada");
-    assert_eq!(s.lives, 3, "el escudo absorbe sin coste de vidas");
-    assert!(!s.builders.is_empty(), "el muro NO se ha destruido aún");
+    assert!(absorbed, "the shield must absorb the first pass");
+    assert_eq!(s.lives, 3, "the shield absorbs at no cost in lives");
+    assert!(
+        !s.builders.is_empty(),
+        "the wall has NOT been destroyed yet"
+    );
     assert!(!all.contains(&GameEvent::LifeLost));
 
-    // Segunda pasada: destruye el muro y cuesta una vida.
+    // Second pass: destroys the wall and costs a life.
     for _ in 0..800 {
         if s.phase != GamePhase::Running {
             break;
@@ -88,22 +91,22 @@ fn shield_two_impacts() {
         }
     }
     assert_eq!(s.lives, 2);
-    assert!(s.builders.is_empty(), "el muro quedó destruido");
+    assert!(s.builders.is_empty(), "the wall was destroyed");
     assert_eq!(
         all.iter().filter(|e| **e == GameEvent::LifeLost).count(),
         1,
-        "exactamente una vida perdida"
+        "exactly one life lost"
     );
     assert!(
         !all.iter()
             .any(|e| matches!(e, GameEvent::WallCompleted { .. })),
-        "el muro NO debe haberse consolidado"
+        "the wall must NOT have consolidated"
     );
     assert_eq!(s.phase, GamePhase::Running);
 }
 
-/// Heavy ignora el escudo: destruye el muro en construcción a la PRIMERA
-/// pasada, aunque esté protegido.
+/// Heavy ignores the shield: it destroys the wall under construction on the
+/// FIRST pass, even if it is protected.
 #[test]
 fn heavy_ignores_shield() {
     let mut s = GameState::new(spec(
@@ -133,7 +136,7 @@ fn heavy_ignores_shield() {
 
     assert!(e.contains(&GameEvent::LifeLost));
     assert_eq!(s.lives, 2);
-    assert!(s.builders.is_empty(), "Heavy destruye a la primera pasada");
+    assert!(s.builders.is_empty(), "Heavy destroys it on the first pass");
     assert!(!e
         .iter()
         .any(|e| matches!(e, GameEvent::WallCompleted { .. })));
@@ -145,8 +148,8 @@ fn heavy_ignores_shield() {
         .any(|e| matches!(e, GameEvent::WallCompleted { .. })));
 }
 
-/// Mover: el obstáculo cruza el muro en construcción y lo destruye SIN coste
-/// de vidas (las vidas son exclusivas de los impactos de bola, §3).
+/// Mover: the obstacle crosses the wall under construction and destroys it
+/// WITHOUT costing lives (lives are exclusive to ball impacts, §3).
 #[test]
 fn mover_destroys_wall_without_life_loss() {
     let s = GameState::new(spec(
@@ -160,8 +163,8 @@ fn mover_destroys_wall_without_life_loss() {
             vx: 20.0,
             vy: 0.0,
         }],
-        // Una bola estática, lejos: evita la derrota por "arena vacía"
-        // (check_end: sin bolas => GameOver) sin interferir con el Mover.
+        // A static ball, far away: avoids the "empty arena" defeat
+        // (check_end: no balls => GameOver) without interfering with the Mover.
         vec![ball(27.0, 8.0, 0.0, 0.0, BallKind::Normal)],
         20.0,
         0.99,
@@ -187,15 +190,12 @@ fn mover_destroys_wall_without_life_loss() {
     assert!(all.iter().any(|e| matches!(e, GameEvent::WallBlocked)));
     assert!(
         !all.contains(&GameEvent::LifeLost),
-        "el Mover no cuesta vidas"
+        "the Mover does not cost lives"
     );
     assert!(!all
         .iter()
         .any(|e| matches!(e, GameEvent::WallCompleted { .. })));
     assert_eq!(s.lives, 3);
-    assert!(
-        s.builders.is_empty(),
-        "el muro quedó destruido por el Mover"
-    );
+    assert!(s.builders.is_empty(), "the wall was destroyed by the Mover");
     assert_eq!(s.phase, GamePhase::Running);
 }

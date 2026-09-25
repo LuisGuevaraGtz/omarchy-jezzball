@@ -1,8 +1,8 @@
-//! Bucle principal de Omarchy-Jezzball (ARCHITECTURE.md §6 y §13).
+//! Main loop of Omarchy-Jezzball (ARCHITECTURE.md §6 and §13).
 //!
-//! Un solo bucle: muestrear entrada -> `step` (core puro) -> render. Nunca
-//! se llama a `step` costosamente más de una vez por frame. `dt` se clamp
-//! a 1/30 para que un frame largo no provoque vuelos de pared absurdos.
+//! A single loop: sample input -> `step` (pure core) -> render. `step` is
+//! never called expensively more than once per frame. `dt` is clamped
+//! to 1/30 so that a long frame does not cause absurd wall flights.
 
 use macroquad::prelude::*;
 
@@ -18,28 +18,28 @@ mod render;
 mod screens;
 mod theme;
 
-/// Ventana: 1024x768, reescalable, alta resolución, 4x MSAA, V-Sync.
+/// Window: 1024x768, resizable, high resolution, 4x MSAA, V-Sync.
 ///
-/// Backend de ventana: miniquad documenta su propio backend de Wayland como
-/// INESTABLE ("The Wayland implementation is currently unstable"), así que
-/// preferimos X11 —que bajo Hyprland funciona vía XWayland— y dejamos Wayland
-/// como alternativa para sistemas sin XWayland instalado. Lo contrario
-/// (Wayland first) suena más puro pero apuesta el arranque del juego a un
-/// backend que sus propios autores marcan como inestable.
+/// Window backend: miniquad documents its own Wayland backend as
+/// UNSTABLE ("The Wayland implementation is currently unstable"), so we
+/// prefer X11 —which under Hyprland works via XWayland— and leave Wayland
+/// as the alternative for systems without XWayland installed. The opposite
+/// (Wayland first) sounds purer but bets the game's startup on a
+/// backend its own authors mark as unstable.
 ///
-/// Se puede forzar con la variable `OMARCHY_JEZZBALL_BACKEND`:
-///   `x11`, `wayland`, `x11-first` (por defecto) o `wayland-first`.
+/// It can be forced with the `OMARCHY_JEZZBALL_BACKEND` variable:
+///   `x11`, `wayland`, `x11-first` (the default) or `wayland-first`.
 ///
-/// Aquí también atendemos `--help`: `#[macroquad::main]` llama a esta función
-/// y abre la ventana ANTES de ejecutar el body de `main`, así que imprimir
-/// la ayuda desde `main` exigiría un servidor gráfico. Un `--help` que solo
-/// funciona con pantalla no es ayuda; por eso salimos aquí mismo.
+/// We also handle `--help` here: `#[macroquad::main]` calls this function
+/// and opens the window BEFORE running the body of `main`, so printing
+/// the help from `main` would require a graphics server. A `--help` that only
+/// works with a display is not help; that is why we exit right here.
 fn window_conf() -> Conf {
-    // El hook se instala AQUÍ, no en `main`: `#[macroquad::main]` llama a esta
-    // función y abre la ventana ANTES de ejecutar el body de `main`, así que
-    // un fallo al crear la ventana (el caso más común: no hay servidor
-    // gráfico available) ocurriría sin hook y sin dejar rastro en disco.
-    instalar_hook_de_panico();
+    // The hook is installed HERE, not in `main`: `#[macroquad::main]` calls this
+    // function and opens the window BEFORE running the body of `main`, so
+    // a failure to create the window (the most common case: no graphics
+    // server available) would happen with no hook and leave no trace on disk.
+    install_panic_hook();
 
     if std::env::args().skip(1).any(|a| a == "--help" || a == "-h") {
         print_help();
@@ -60,8 +60,8 @@ fn window_conf() -> Conf {
     }
 }
 
-/// Backend de ventana según `OMARCHY_JEZZBALL_BACKEND`, con X11 first por
-/// defecto (ver la nota de `window_conf`).
+/// Window backend according to `OMARCHY_JEZZBALL_BACKEND`, with X11 first by
+/// default (see the note on `window_conf`).
 fn linux_backend_from_env() -> miniquad::conf::LinuxBackend {
     use miniquad::conf::LinuxBackend as B;
     match std::env::var("OMARCHY_JEZZBALL_BACKEND")
@@ -72,13 +72,13 @@ fn linux_backend_from_env() -> miniquad::conf::LinuxBackend {
         "x11" => B::X11Only,
         "wayland" => B::WaylandOnly,
         "wayland-first" => B::WaylandWithX11Fallback,
-        // Por defecto y para cualquier valor no reconocido.
+        // Default, and for any unrecognised value.
         _ => B::X11WithWaylandFallback,
     }
 }
 
-/// Ruta del registro de fallos: `$XDG_STATE_HOME/omarchy-jezzball/crash.log`
-/// (con el fallback habitual a `~/.local/state`).
+/// Path of the crash log: `$XDG_STATE_HOME/omarchy-jezzball/crash.log`
+/// (with the usual fallback to `~/.local/state`).
 fn crash_log_path() -> std::path::PathBuf {
     let base = std::env::var_os("XDG_STATE_HOME")
         .map(std::path::PathBuf::from)
@@ -89,14 +89,14 @@ fn crash_log_path() -> std::path::PathBuf {
     base.join("omarchy-jezzball").join("crash.log")
 }
 
-/// Escribe el fallo en disco además de en stderr.
+/// Writes the crash to disk as well as to stderr.
 ///
-/// Un juego a pantalla completa se cierra y se lleva la terminal por delante:
-/// pedirle al jugador que "copie el error" no es realista. Dejar el detalle en
-/// un fichero conocido es la diferencia entre diagnosticar el fallo y tener
-/// que adivinarlo.
-fn registrar_fallo(texto: &str) {
-    eprintln!("{texto}");
+/// A full-screen game closes and takes the terminal down with it:
+/// asking the player to "copy the error" is not realistic. Leaving the detail in
+/// a known file is the difference between diagnosing the failure and having
+/// to guess it.
+fn log_failure(text: &str) {
+    eprintln!("{text}");
     let path = crash_log_path();
     if let Some(dir) = path.parent() {
         let _ = std::fs::create_dir_all(dir);
@@ -107,37 +107,37 @@ fn registrar_fallo(texto: &str) {
         .append(true)
         .open(&path)
     {
-        let _ = writeln!(f, "{texto}");
-        eprintln!("omarchy-jezzball: detalle guardado en {}", path.display());
+        let _ = writeln!(f, "{text}");
+        eprintln!("omarchy-jezzball: details saved to {}", path.display());
     }
 }
 
-/// Instala el hook de panic que registra el fallo en stderr y en disco.
+/// Installs the panic hook that records the crash to stderr and to disk.
 ///
-/// Añade una pista concreta cuando el fallo es "no hay servidor gráfico", que
-/// es el motivo más habitual de que el juego no arranque.
-fn instalar_hook_de_panico() {
+/// It adds a concrete hint when the failure is "there is no graphics server", which
+/// is the most common reason for the game not to start.
+fn install_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
-        let detalle = info.to_string();
-        let mut texto = format!("\n=== omarchy-jezzball: fallo interno ===\n{detalle}\n");
-        if detalle.contains("XOpenDisplay") || detalle.contains("wayland") {
-            texto.push_str(
-                "No se pudo abrir una ventana. El juego necesita una sesion grafica \
-                 (Hyprland/Wayland con XWayland, o Xorg).\n\
-                 Prueba a forzar el backend:\n\
+        let details = info.to_string();
+        let mut text = format!("\n=== omarchy-jezzball: internal failure ===\n{details}\n");
+        if details.contains("XOpenDisplay") || details.contains("wayland") {
+            text.push_str(
+                "Could not open a window. The game needs a graphical session \
+                 (Hyprland/Wayland with XWayland, or Xorg).\n\
+                 Try forcing the backend:\n\
                  \x20 OMARCHY_JEZZBALL_BACKEND=wayland omarchy-jezzball\n\
                  \x20 OMARCHY_JEZZBALL_BACKEND=x11     omarchy-jezzball\n",
             );
         }
-        texto.push_str(
-            "Reporta esto con los pasos para reproducirlo:\n\
+        text.push_str(
+            "Please report this along with the steps to reproduce it:\n\
              https://github.com/LuisGuevaraGtz/omarchy-jezzball/issues",
         );
-        registrar_fallo(&texto);
+        log_failure(&text);
     }));
 }
 
-/// Entrada CLI: `--mode original|enhanced`, `--level N` (1-based), `--help`.
+/// CLI entry point: `--mode original|enhanced`, `--level N` (1-based), `--help`.
 fn parse_args() -> (Option<Mode>, Option<u16>, bool) {
     let mut mode = None;
     let mut level = None;
@@ -174,13 +174,13 @@ fn parse_args() -> (Option<Mode>, Option<u16>, bool) {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // `--help` ya se atendió en `window_conf` (ver nota allí): la macro de
-    // macroquad abre la ventana ANTES de ejecutar este body, así que la
-    // ayuda no puede imprimirse aquí sin exigir un servidor gráfico.
+    // `--help` was already handled in `window_conf` (see the note there): the
+    // macroquad macro opens the window BEFORE running this body, so the
+    // help cannot be printed here without requiring a graphics server.
     let (mode, level, _help) = parse_args();
 
-    // El hook de panic ya se instaló en `window_conf` (se ejecuta antes que
-    // este body). Aquí sólo protegemos el bucle de juego.
+    // The panic hook was already installed in `window_conf` (it runs before
+    // this body). Here we only protect the game loop.
 
     let mut app = App::new();
     crate::screens::launch(&mut app, mode, level);
@@ -188,8 +188,8 @@ async fn main() {
     loop {
         let dt = get_frame_time().min(1.0 / 30.0);
 
-        // Un panic inside de `update` no debe cerrar el juego en seco: se
-        // guarda la partida y se sale de forma ordenada.
+        // A panic inside `update` must not close the game abruptly: the
+        // save file is written and we exit in an orderly fashion.
         let tick = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             update(&mut app, dt);
         }));
@@ -206,21 +206,22 @@ async fn main() {
     }
 
     if !save_save(&app.save) {
-        eprintln!("omarchy-jezzball: no se pudo guardar la partida al salir");
+        eprintln!("omarchy-jezzball: could not save the game on exit");
     }
-    println!("omarchy-jezzball: hasta luego!");
+    println!("omarchy-jezzball: see you!");
 }
 
 fn print_help() {
     println!(
-        "Omarchy-Jezzball: JezzBall para Omarchy (modo teclado).
-Usa: omarchy-jezzball [--mode original|enhanced] [--level N] [--help]
-  --mode    arranca directamente en el modo dado.
-  --level   arranca en el nivel N (1-based) del modo elegido.
-  --help    esta ayuda.
+        "Omarchy-Jezzball: JezzBall for Omarchy (keyboard driven).
+Usage: omarchy-jezzball [--mode original|enhanced] [--level N] [--help]
+  --mode    start directly in the given mode.
+  --level   start at level N (1-based) of the chosen mode.
+  --help    this help.
 
-Controles en partida: flechas/k/j navegar, enter/espacio elegir,
-espacio pausa, R reiniciar, TAB eje, 1..5 power-ups, F HUD compacto,
-Q salir, ESC menu; raton: boton izq = eje current, boton der = opuesto."
+In-game controls: arrows/k/j navigate, enter/space select,
+space pause, R restart, TAB axis, 1..5 power-ups, F compact HUD,
+M back to menu, Q quit, ESC pause; mouse: left button = current axis,
+right button = opposite axis."
     );
 }

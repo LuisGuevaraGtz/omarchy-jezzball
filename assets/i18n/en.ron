@@ -45,6 +45,16 @@
     "hud.puntos": "Score",
     "hud.objetivos": "GOALS ",
     "hud.pausa": "PAUSED",
+    "hud.overlay_lento": "SLOW",
+    "hud.overlay_congelado": "FROZEN",
+    "hud.puntos_etq": "  SCORE {}",
+    "hud.area_etq": "  AREA {}%",
+    "hud.vidas_etq": "  LIVES {}",
+    "hud.modo_etq": "MODE ",
+    "hud.tiempo_etq": "  TIME {}",
+    "hud.restante_etq": "  LEFT {}",
+    "hud.estrellas_etq": "  STARS {}",
+    "hud.max_etq": "  MAX x{}",
 
     // --- Active power-ups ---
     "powerup.lento": "SLOW {:.0}s",
