@@ -90,6 +90,15 @@
     "dialogo.salir": "QUIT THE GAME?",
     "dialogo.salir_pie": "enter quit   esc cancel",
     "error.titulo": "ERROR",
+    "aviso.bloqueado": "BLOCKED",
+    "aviso.vida_perdida": "LIFE LOST",
+    "aviso.bola_perdida": "BALL LOST",
+    "aviso.powerup": "Power-up available",
+    "error.sin_niveles": "{} has no levels available.",
+    "error.rutas_probadas": "\nSearched in:\n",
+    "error.coloca_niveles": "\n\nPlace original.ron and enhanced.ron in one of those paths.",
+    "error.nivel_no_existe": "Level {} does not exist",
+    "error.nivel_no_existe_en": "Level {} does not exist in {}",
 
     // --- Help ---
     "ayuda.pagina": "page {} of {}",

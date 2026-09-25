@@ -152,6 +152,12 @@ pub fn fila_alto() -> f32 {
     30.0 * crate::render::ui_scale()
 }
 
+/// Y donde arranca la lista de opciones. Compartida por todas las pantallas
+/// de menú: si una la escala y otra no, los textos se solapan (ocurrió).
+pub fn lista_y() -> f32 {
+    170.0 * crate::render::ui_scale()
+}
+
 /// Cuántas filas de lista caben en pantalla. Única fuente de verdad: si el
 /// render y el scroll usaran cuentas distintas, la selección se saldría de la
 /// ventana visible.
@@ -241,7 +247,7 @@ pub fn draw_menu(app: &App, w: f32, _h: f32) {
             1,
         )
         .replacen("{}", &stars_e.to_string(), 1);
-    let y = option_list(app, 170.0 * crate::render::ui_scale());
+    let y = option_list(app, lista_y());
     draw_text_c(
         &progress,
         w / 2.0,
@@ -257,7 +263,10 @@ pub fn draw_level_select(app: &App, _w: f32, _h: f32) {
     let t = &app.theme;
     if app.screen == Screen::ModeMenu {
         title(app, crate::i18n::t("menu.elegir_nivel"));
-        option_list(app, 170.0);
+        // La `y` de la lista DEBE escalar igual que el título: con la ventana
+        // grande, un 170.0 sin escalar dejaba las opciones por encima del
+        // subtítulo y los textos se pisaban unos a otros.
+        option_list(app, lista_y());
         footer(app, crate::i18n::t("pie.menu"));
         return;
     }
@@ -265,7 +274,7 @@ pub fn draw_level_select(app: &App, _w: f32, _h: f32) {
         app,
         &crate::i18n::t("menu.elegir_nivel_modo").replace("{}", mode_name(app.selector_mode)),
     );
-    let y = option_list(app, 170.0 * crate::render::ui_scale());
+    let y = option_list(app, lista_y());
     let _ = y;
     footer(app, crate::i18n::t("pie.selector"));
     let _ = t;

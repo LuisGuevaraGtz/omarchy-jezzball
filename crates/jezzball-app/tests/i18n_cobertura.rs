@@ -12,12 +12,17 @@
 
 use std::path::Path;
 
-/// Ficheros de presentación que no deben contener texto visible incrustado.
+/// Ficheros que no deben contener texto visible incrustado.
+///
+/// Incluye `screens.rs` además de la capa de render: ahí se construyen las
+/// etiquetas de los menús (`MenuItem`), y por dejarlo fuera se coló un
+/// "MODO ENHANCED" sin traducir que el jugador vio en pantalla.
 const FUENTES: &[&str] = &[
     "src/render/menu.rs",
     "src/render/hud.rs",
     "src/render/arena.rs",
     "src/render/mod.rs",
+    "src/screens.rs",
 ];
 
 /// Fragmentos permitidos: no son texto de interfaz.
@@ -56,9 +61,32 @@ fn parece_texto_visible(lit: &str) -> bool {
 }
 
 /// Extrae literales de cadena de una línea, ignorando comentarios.
+///
+/// También ignora las líneas que claramente no pintan interfaz: mensajes de
+/// aserción de los tests, diagnóstico por consola (`eprintln!`) y cadenas de
+/// error internas. Lo que se persigue es el texto que ve el jugador.
 fn literales(linea: &str) -> Vec<String> {
     let l = linea.trim_start();
     if l.starts_with("//") || l.starts_with("/*") || l.starts_with('*') {
+        return Vec::new();
+    }
+    // Mensajes que nunca llegan a la interfaz del juego.
+    const NO_INTERFAZ: &[&str] = &[
+        "assert",
+        "panic!",
+        "expect(",
+        "unwrap_or_else",
+        "eprintln!",
+        "println!",
+        "#[test]",
+        "debug_assert",
+        // Cadenas de error internas (`Result<_, String>`): son diagnóstico
+        // técnico para el log, no texto que el jugador lea en pantalla. Lo que
+        // sí ve (`app.error_msg`) pasa por el catálogo.
+        "Err(format!",
+        "map_err",
+    ];
+    if NO_INTERFAZ.iter().any(|m| l.contains(m)) {
         return Vec::new();
     }
     let mut out = Vec::new();
@@ -88,7 +116,12 @@ fn la_capa_de_render_no_tiene_textos_incrustados() {
         let ruta = raiz.join(rel);
         let contenido = std::fs::read_to_string(&ruta)
             .unwrap_or_else(|e| panic!("no se pudo leer {}: {e}", ruta.display()));
-        for (n, linea) in contenido.lines().enumerate() {
+        // El módulo de tests del propio fichero no pinta interfaz: se corta ahí.
+        let codigo = match contenido.find("mod tests {") {
+            Some(i) => &contenido[..i],
+            None => &contenido[..],
+        };
+        for (n, linea) in codigo.lines().enumerate() {
             for lit in literales(linea) {
                 if permitido(&lit) || !parece_texto_visible(&lit) {
                     continue;

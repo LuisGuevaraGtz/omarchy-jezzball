@@ -394,7 +394,7 @@ fn open_mode_menu(app: &mut App) {
             enabled: !app.levels.original.is_empty(),
         },
         MenuItem {
-            label: "MODO ENHANCED".into(),
+            label: crate::i18n::t("menu.modo_enhanced").into(),
             enabled: !app.levels.enhanced.is_empty() && original_mode_completed(app),
         },
     ];
@@ -569,11 +569,11 @@ fn no_levels_message(mode: Mode, candidates: &[PathBuf]) -> String {
         .iter()
         .map(|c| format!("  {}", c.display()))
         .collect();
-    let mut msg = format!("{} no tiene niveles disponibles.", mode_name(mode));
+    let mut msg = crate::i18n::t("error.sin_niveles").replace("{}", mode_name(mode));
     if !paths.is_empty() {
-        msg.push_str("\nSe buscaron en:\n");
+        msg.push_str(crate::i18n::t("error.rutas_probadas"));
         msg.push_str(&paths.join("\n"));
-        msg.push_str("\n\nColoca original.ron y enhanced.ron en una de esas rutas.");
+        msg.push_str(crate::i18n::t("error.coloca_niveles"));
     }
     msg
 }
@@ -603,7 +603,8 @@ fn start_level(app: &mut App, mode: Mode, idx: u16) {
         // `idx + 1` pasa de 0-based a 1-based para el mensaje, pero con
         // `idx == u16::MAX` desbordaría y en debug eso panica. `saturating_add`
         // mantiene el mensaje legible sin poder romper nunca.
-        app.error_msg = format!("El nivel {} no existe", idx.saturating_add(1));
+        app.error_msg = crate::i18n::t("error.nivel_no_existe")
+            .replace("{}", &idx.saturating_add(1).to_string());
         app.screen = Screen::Error;
         app.nav = NavRepeat::default();
         return;
@@ -628,7 +629,9 @@ pub fn launch(app: &mut App, mode: Option<Mode>, level: Option<u16>) {
                 start_level(app, mode, idx);
                 return;
             }
-            app.error_msg = format!("El nivel {} no existe en {}", n, mode_name(mode));
+            app.error_msg = crate::i18n::t("error.nivel_no_existe_en")
+                .replacen("{}", &n.to_string(), 1)
+                .replacen("{}", mode_name(mode), 1);
             app.screen = Screen::Error;
             app.nav = NavRepeat::default();
             return;
@@ -886,17 +889,31 @@ fn handle_events(app: &mut App, events: Vec<GameEvent>) {
                 add_floater(app, FloaterKind::Good, format!("+{}", points));
             }
             GameEvent::WallBlocked => {
-                add_floater(app, FloaterKind::Bad, "BLOQUEADO".into());
+                add_floater(
+                    app,
+                    FloaterKind::Bad,
+                    crate::i18n::t("aviso.bloqueado").into(),
+                );
             }
-            GameEvent::LifeLost => add_floater(app, FloaterKind::Bad, "VIDA PERDIDA".into()),
-            GameEvent::BallLost => add_floater(app, FloaterKind::Neutral, "BOLA PERDIDA".into()),
-            GameEvent::ComboUp(m) if m > 1 => {
-                add_floater(app, FloaterKind::Combo, format!("COMBO x{}", m))
-            }
+            GameEvent::LifeLost => add_floater(
+                app,
+                FloaterKind::Bad,
+                crate::i18n::t("aviso.vida_perdida").into(),
+            ),
+            GameEvent::BallLost => add_floater(
+                app,
+                FloaterKind::Neutral,
+                crate::i18n::t("aviso.bola_perdida").into(),
+            ),
+            GameEvent::ComboUp(m) if m > 1 => add_floater(
+                app,
+                FloaterKind::Combo,
+                crate::i18n::t("hud.combo_mayus").replace("{}", &m.to_string()),
+            ),
             GameEvent::ComboReset | GameEvent::ComboUp(_) => {}
             GameEvent::PowerUpSpawned => {
                 app.toast = Some(Toast {
-                    text: "Power-up disponible".into(),
+                    text: crate::i18n::t("aviso.powerup").into(),
                     ttl: 2.0,
                 });
             }
