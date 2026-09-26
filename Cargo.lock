@@ -173,7 +173,7 @@ dependencies = [
 
 [[package]]
 name = "jezzball-app"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "jezzball-core",
  "macroquad",
@@ -184,7 +184,7 @@ dependencies = [
 
 [[package]]
 name = "jezzball-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "ron",
  "serde",

@@ -13,7 +13,7 @@
 #   letting makepkg add its own LTO flags breaks or duplicates that work.
 
 pkgname=omarchy-jezzball
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc='Native JezzBall clone for Omarchy (Wayland, keyboard-first)'
 arch=('x86_64')

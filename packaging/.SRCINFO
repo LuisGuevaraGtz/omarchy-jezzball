@@ -1,6 +1,6 @@
 pkgbase = omarchy-jezzball
 	pkgdesc = Native JezzBall clone for Omarchy (Wayland, keyboard-first)
-	pkgver = 1.0.0
+	pkgver = 1.0.1
 	pkgrel = 1
 	url = https://github.com/LuisGuevaraGtz/omarchy-jezzball
 	arch = x86_64
@@ -14,7 +14,7 @@ pkgbase = omarchy-jezzball
 	depends = libxi
 	optdepends = libdecor: client-side window decorations on compositors without xdg-decoration
 	options = !lto
-	source = git+https://github.com/LuisGuevaraGtz/omarchy-jezzball.git#tag=v1.0.0
+	source = git+https://github.com/LuisGuevaraGtz/omarchy-jezzball.git#tag=v1.0.1
 	sha256sums = SKIP
 
 pkgname = omarchy-jezzball
