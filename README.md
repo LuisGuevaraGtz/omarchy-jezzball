@@ -8,8 +8,28 @@ Seal off regions of the arena by drawing walls before the balls smash them.
 No Electron, no heavyweight engine, no accounts: one binary, keyboard-first,
 and a terminal aesthetic that follows your Omarchy theme.
 
-Architecture contract: `docs/ARCHITECTURE.md` (normative).
-Level schema: `docs/LEVEL_SCHEMA.md`. Theming: `docs/THEMING.md`.
+70 levels across two modes, written in Rust on `macroquad`.
+
+<!-- SCREENSHOT -->
+
+## Quick start
+
+```bash
+git clone https://github.com/LuisGuevaraGtz/omarchy-jezzball.git
+cd omarchy-jezzball
+./packaging/install.sh     # builds release, installs into ~/.local
+omarchy-jezzball           # play
+```
+
+Needs stable Rust and a Wayland session. To remove it again:
+
+```bash
+./packaging/install.sh --uninstall   # keeps your saved progress
+./packaging/install.sh --purge       # removes the save too
+```
+
+Arch users can build a real package instead — see
+[Installation](#installation) below.
 
 ## Philosophy and modes
 
@@ -47,7 +67,7 @@ This builds with `cargo build --frozen --release --all-features`, runs the
 core test suite and installs:
 
 - the binary at `/usr/bin/omarchy-jezzball`
-- levels and fonts at `/usr/share/omarchy-jezzball/`
+- levels at `/usr/share/omarchy-jezzball/`
 - the launcher at `/usr/share/applications/omarchy-jezzball.desktop`
 - the license at `/usr/share/licenses/omarchy-jezzball/LICENSE`
 
@@ -62,10 +82,13 @@ Builds in release mode and installs into `~/.local/bin`,
 It warns you if `~/.local/bin` is not on your `PATH`. To uninstall:
 
 ```bash
-./packaging/install.sh --uninstall
+./packaging/install.sh --uninstall   # keeps your saved progress
+./packaging/install.sh --purge       # also removes save, config and crash log
 ```
 
-(Your save file is left alone: it lives under the XDG path, see below.)
+`--uninstall` removes only what the installer put there. Your progress at
+`$XDG_DATA_HOME/omarchy-jezzball/save.ron` survives, and the directory is only
+removed if nothing of yours is left in it.
 
 ### Where does the game look for levels?
 
@@ -242,7 +265,8 @@ Omarchy-Jezzball/
 ├─ assets/
 │  ├─ levels/original.ron        # 10 Original Mode levels
 │  ├─ levels/enhanced.ron        # 60 Enhanced Mode levels
-│  └─ fonts/
+│  ├─ i18n/{en,es}.ron           # UI strings, compiled into the binary
+│  └─ icons/omarchy-jezzball.svg
 ├─ packaging/
 │  ├─ PKGBUILD
 │  ├─ omarchy-jezzball.desktop
@@ -254,6 +278,12 @@ Omarchy-Jezzball/
 │  └─ THEMING.md
 └─ README.md
 ```
+
+## Documentation
+
+- `docs/ARCHITECTURE.md` — the normative architecture contract.
+- `docs/LEVEL_SCHEMA.md` — the level schema (normative).
+- `docs/THEMING.md` — colour roles and a `theme.ron` example.
 
 ## Building and testing from source
 
