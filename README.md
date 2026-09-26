@@ -10,7 +10,8 @@ and a terminal aesthetic that follows your Omarchy theme.
 
 70 levels across two modes, written in Rust on `macroquad`.
 
-<!-- SCREENSHOT -->
+![Enhanced Mode, level 25: obstacles in the arena, combo and objectives in the
+HUD](docs/screenshots/gameplay-enhanced.png)
 
 ## Quick start
 
@@ -137,10 +138,15 @@ losing a life within 4 s pushes the combo up to x8.
 Command-line flags:
 
 ```bash
-omarchy-jezzball                 # mode selector
+omarchy-jezzball                 # Original Mode, first unfinished level
 omarchy-jezzball --mode original # start straight into Original Mode
 omarchy-jezzball --mode enhanced # start straight into Enhanced Mode
+omarchy-jezzball --level 25      # start at level 25 of the chosen mode
 ```
+
+With no arguments the game goes straight into Original Mode. Once you have
+completed a mode, launching it opens the level list instead, so you can replay
+any level. `M` goes back to the menu from inside a game.
 
 ## Keyboard shortcuts
 
@@ -275,7 +281,8 @@ Omarchy-Jezzball/
 ├─ docs/
 │  ├─ ARCHITECTURE.md            # normative contract
 │  ├─ LEVEL_SCHEMA.md            # level schema (normative)
-│  └─ THEMING.md
+│  ├─ THEMING.md
+│  └─ screenshots/               # images used by this README
 └─ README.md
 ```
 
