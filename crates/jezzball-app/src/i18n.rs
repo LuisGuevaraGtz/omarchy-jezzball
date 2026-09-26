@@ -93,8 +93,8 @@ pub fn catalog_for(code: &str) -> Option<Catalog> {
 /// From `es_MX.UTF-8` it keeps `es`. A pure function so it can be tested without
 /// touching the process environment.
 pub fn resolve_code(vars: &[(&str, Option<String>)]) -> String {
-    for (_, valor) in vars {
-        let Some(v) = valor else { continue };
+    for (_, value) in vars {
+        let Some(v) = value else { continue };
         let v = v.trim();
         if v.is_empty() || v == "C" || v == "POSIX" {
             continue;

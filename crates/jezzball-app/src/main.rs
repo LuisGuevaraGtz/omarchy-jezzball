@@ -151,22 +151,22 @@ fn parse_args() -> (Option<Mode>, Option<u16>, bool) {
                         "original" => Some(Mode::Original),
                         "enhanced" => Some(Mode::Enhanced),
                         other => {
-                            eprintln!("--mode invalido: {other} (usa original|enhanced)");
+                            eprintln!("--mode: invalid value '{other}' (use original|enhanced)");
                             None
                         }
                     };
                 } else {
-                    eprintln!("--mode requiere un valor (original|enhanced)");
+                    eprintln!("--mode needs a value (original|enhanced)");
                 }
             }
             "--level" => {
                 level = it.next().and_then(|v| v.trim().parse::<u16>().ok());
                 if level.is_none() {
-                    eprintln!("--level requiere un numero >= 1");
+                    eprintln!("--level needs a number >= 1");
                 }
             }
             "--help" | "-h" => help = true,
-            _ => eprintln!("argumento desconocido: {a}"),
+            _ => eprintln!("unknown argument: {a}"),
         }
     }
     (mode, level, help)

@@ -346,7 +346,7 @@ fn read_level_list(path: &Path) -> Result<Vec<LevelSpec>, String> {
 }
 
 fn parse_levels(text: &str) -> Result<Vec<LevelSpec>, String> {
-    let list: Vec<LevelSpec> = ron::from_str(text).map_err(|e| format!("RON invalido: {e}"))?;
+    let list: Vec<LevelSpec> = ron::from_str(text).map_err(|e| format!("invalid RON: {e}"))?;
     Ok(list.into_iter().filter(|l| l.id >= 1).collect())
 }
 

@@ -43,7 +43,12 @@ WORDS = re.compile(
     r"tema|fichero|archivo|ruta|"
     r"siempre|nunca|tambien|ademas|entonces|mientras|aunque|"
     r"hacer|tener|poder|deber|estar|"
-    r"ninguno|ninguna|cualquier"
+    r"ninguno|ninguna|cualquier|"
+    # The four `--mode`/`--level` CLI errors in main.rs shipped in Spanish
+    # ("--mode invalido", "requiere un valor", "requiere un numero",
+    # "argumento desconocido") because none of the words above appear in them.
+    # These are printed straight to the user's terminal, so they count.
+    r"invalido|invalida|requiere|valor|numero|argumento|desconocido|desconocida"
     r")\b",
     re.IGNORECASE,
 )
