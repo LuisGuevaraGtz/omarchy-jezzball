@@ -3,16 +3,14 @@
 #
 # Usage:
 #   ./packaging/install.sh            install into ~/.local
-#   ./packaging/install.sh --uninstall remove from ~/.local
+#   ./packaging/install.sh --uninstall remove from ~/.local, keep your save
+#   ./packaging/install.sh --purge     remove from ~/.local, save included
 #
 # What it installs:
 #   ~/.local/bin/omarchy-jezzball
 #   ~/.local/share/omarchy-jezzball/levels/*.ron (+ fonts if present)
 #   ~/.local/share/applications/omarchy-jezzball.desktop
 #   ~/.local/share/icons/hicolor/scalable/apps/omarchy-jezzball.svg
-#
-# ASSUMPTION: the workspace defines the `omarchy-jezzball` binary
-# (app worker: [[bin]] name = "omarchy-jezzball").
 
 set -euo pipefail
 
@@ -23,26 +21,63 @@ DESKTOPDIR="${PREFIX}/share/applications"
 ICONDIR="${PREFIX}/share/icons/hicolor/scalable/apps"
 BIN_NAME="omarchy-jezzball"
 
+# The save file lives under $XDG_DATA_HOME, which DEFAULTS to ~/.local/share —
+# the very directory this script installs levels into. A blanket
+# `rm -rf "${DATADIR}"` therefore took save.ron with it while the script
+# printed that it had not. Resolve the user's directories exactly the way
+# persist.rs does, and treat them as the player's data: only --purge removes
+# them, and only after saying so.
+SAVEDIR="${XDG_DATA_HOME:-${HOME}/.local/share}/omarchy-jezzball"
+CONFIGDIR="${XDG_CONFIG_HOME:-${HOME}/.config}/omarchy-jezzball"
+STATEDIR="${XDG_STATE_HOME:-${HOME}/.local/state}/omarchy-jezzball"
+
 # Repo root = the parent directory of this script (packaging/..).
 ROOT="$(cd "$(dirname "${0}")/.." && pwd)"
 
 log()  { printf '%s\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
+# Removes exactly what this script installs. `purge` additionally removes the
+# player's own data (save, config, crash log).
 uninstall() {
+    local purge="${1:-no}"
+
     log "Uninstalling ${BIN_NAME} from ${PREFIX}..."
     rm -f "${BINDIR}/${BIN_NAME}"
-    rm -rf "${DATADIR}"
+
+    # Only the asset directories we created, never the whole DATADIR: the save
+    # file may be sitting right next to them.
+    rm -rf "${DATADIR}/levels" "${DATADIR}/fonts"
+    # Clean up the parent only if nothing of the player's is left in it.
+    rmdir "${DATADIR}" 2>/dev/null || true
+
     rm -f "${DESKTOPDIR}/omarchy-jezzball.desktop"
     rm -f "${ICONDIR}/omarchy-jezzball.svg"
     if command -v update-desktop-database >/dev/null 2>&1; then
         update-desktop-database "${DESKTOPDIR}" || true
     fi
-    log "Uninstalled. (Your save file is untouched: ~/.local/share/omarchy-jezzball/save.ron is not there; the save lives alongside XDG_DATA_HOME, see the README.)"
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+        gtk-update-icon-cache -qtf "${PREFIX}/share/icons/hicolor" 2>/dev/null || true
+    fi
+
+    if [ "${purge}" = "purge" ]; then
+        log "Purging your saved progress and configuration..."
+        rm -rf "${SAVEDIR}" "${CONFIGDIR}" "${STATEDIR}"
+        log "Purged. Save, config and crash log are gone."
+        return
+    fi
+
+    log "Uninstalled. Your progress is kept at ${SAVEDIR}/save.ron"
+    log "(and your config at ${CONFIGDIR}). Use --purge to remove those too."
 }
 
 if [ "${1:-}" = "--uninstall" ]; then
     uninstall
+    exit 0
+fi
+
+if [ "${1:-}" = "--purge" ]; then
+    uninstall purge
     exit 0
 fi
 
