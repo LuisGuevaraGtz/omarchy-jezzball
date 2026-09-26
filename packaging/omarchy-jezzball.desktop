@@ -12,16 +12,16 @@ StartupWMClass=omarchy-jezzball
 Keywords=jezzball;arcade;game;strategy;balls;walls;omarchy;
 Actions=Original;Enhanced;
 
-# NOTE FOR THE APP WORKER (contract docs/ARCHITECTURE.md §7):
-# the application MUST accept the `--mode <original|enhanced>` flag for these
-# actions to work. With no flag it starts on the mode selector.
+# These actions rely on the `--mode <original|enhanced>` flag
+# (contract docs/ARCHITECTURE.md §7). With no flag the game opens on the mode
+# selector.
 
 [Desktop Action Original]
-Name=Modo Original
+Name=Original Mode
 Name[es]=Modo Original
 Exec=omarchy-jezzball --mode original
 
 [Desktop Action Enhanced]
-Name=Modo Enhanced
+Name=Enhanced Mode
 Name[es]=Modo Enhanced
 Exec=omarchy-jezzball --mode enhanced

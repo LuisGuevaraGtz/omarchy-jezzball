@@ -39,7 +39,7 @@ WORDS = re.compile(
     r"que|quien|cual|"
     r"del|los|las|una|unos|unas|"
     r"con|sin|por|"
-    r"muro|bola|celda|nivel|mundo|vidas|juego|jugador|pantalla|"
+    r"muro|bola|celda|nivel|mundo|vidas|juego|jugador|pantalla|modo|"
     r"tema|fichero|archivo|ruta|"
     r"siempre|nunca|tambien|ademas|entonces|mientras|aunque|"
     r"hacer|tener|poder|deber|estar|"
@@ -50,6 +50,13 @@ WORDS = re.compile(
 
 # i18n keys are Spanish on purpose ("menu.titulo"): they are identifiers.
 I18N_KEY = re.compile(r'"[a-z_]+(\.[a-z_0-9]+)+"')
+
+# A `.desktop` entry localises a key by suffixing the locale: `Name[es]=...`
+# IS the Spanish translation, exactly like assets/i18n/es.ron. The untagged
+# `Name=` on the line above it is the one that must be English -- and it was
+# not: both actions shipped as "Modo Original" / "Modo Enhanced", which no
+# word in this list happened to catch.
+DESKTOP_ES_KEY = re.compile(r"^\s*[A-Za-z]+\[es(_[A-Z]{2})?\]\s*=")
 
 
 # Lines that legitimately contain Spanish-looking text and must not be flagged:
@@ -62,6 +69,7 @@ FALSE_POSITIVES = (
     "math.cos(",
     'áéíóúñÁÉÍÓÚÑ¿¡',
     'the literal theme "corriente"',
+    '"MODO ENHANCED" slip through',
 )
 
 
@@ -87,6 +95,8 @@ def main():
             continue
         for n, line in enumerate(text.splitlines(), 1):
             if any(fp in line for fp in FALSE_POSITIVES):
+                continue
+            if DESKTOP_ES_KEY.match(line):
                 continue
             clean = I18N_KEY.sub("", line)
             if ACCENTS.search(clean) or WORDS.search(clean):
