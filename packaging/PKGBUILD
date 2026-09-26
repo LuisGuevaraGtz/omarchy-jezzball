@@ -4,7 +4,9 @@
 # Notes on the decisions taken (contract: docs/ARCHITECTURE.md, section 14):
 # - The final binary is named `omarchy-jezzball` (produced by the workspace
 #   member `jezzball-app`; see the assumption at the end of this file).
-# - Wayland-first: Wayland/GL dependencies only. No mandatory X11.
+# - X11 first, Wayland as the fallback: that is what `linux_backend_from_env()`
+#   in crates/jezzball-app/src/main.rs actually defaults to (X11WithWaylandFallback),
+#   so the X11 libraries are runtime dependencies too, not optional extras.
 # - Follows the Arch convention for Rust packages:
 #   `export RUSTUP_TOOLCHAIN=stable` + `export CARGO_TARGET_DIR=target`.
 # - `options=('!lto')`: LTO is already handled by Cargo's release profile;
@@ -17,12 +19,27 @@ pkgdesc='Native JezzBall clone for Omarchy (Wayland, keyboard-first)'
 arch=('x86_64')
 url='https://github.com/LuisGuevaraGtz/omarchy-jezzball'
 license=('MIT')
-# The real system dependencies of a macroquad/miniquad game on Wayland:
-# - wayland: the compositor protocol (Hyprland).
-# - libxkbcommon: keyboard handling on Wayland.
-# - libglvnd: provides the libGL/libEGL that miniquad uses for rendering.
-# - alsa-lib: miniquad's audio backend on Linux.
-depends=('wayland' 'libxkbcommon' 'libglvnd' 'alsa-lib')
+# miniquad 0.4.11 does not link any of these: it `dlopen`s every one of them, so
+# `ldd` on the binary shows only libc/libm/libgcc_s and proves nothing. The list
+# below is the set of sonames the binary really resolves at runtime, taken from
+# miniquad's `declare_module!` tables and confirmed by running the packaged
+# binary on both backends:
+# - wayland: libwayland-client.so.0 and libwayland-egl.so.1 (Wayland backend).
+# - libxkbcommon: libxkbcommon.so.0, keyboard handling on both backends.
+# - libglvnd: libEGL.so.1 / libGL.so.1, used for rendering on both backends.
+# - libx11: libX11.so.6, the default X11 backend. Reachable transitively through
+#   libglvnd -> libxext -> libx11, but this package dlopens it directly, so it is
+#   declared directly.
+# - libxi: libXi.so.6, XInput2 on the X11 backend. Nothing else in this list
+#   pulls it in, and without it `OMARCHY_JEZZBALL_BACKEND=x11` aborts with
+#   `X11 backend failed: DlOpenError("libXi.so.6")`.
+# alsa-lib is deliberately absent: macroquad's audio is behind the `audio`
+# feature (quad-snd), which this game does not enable, and libasound is never
+# mapped into the running process.
+depends=('wayland' 'libxkbcommon' 'libglvnd' 'libx11' 'libxi')
+# libdecor is loaded with `try_load()` and only when the compositor exposes no
+# xdg-decoration manager; missing it costs the window border, not the game.
+optdepends=('libdecor: client-side window decorations on compositors without xdg-decoration')
 makedepends=('cargo' 'git')
 options=('!lto')
 # Released via the `v$pkgver` tag. The checksum is skipped because the source is git.
@@ -42,7 +59,10 @@ build() {
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
   # `--frozen` guarantees reproducibility (uses Cargo.lock only).
-  # `--all-features` enables Wayland support in case it is opt-in.
+  # `--all-features` applies to this workspace's own members, not to macroquad:
+  # both backends are always compiled in, and macroquad's `audio` feature stays
+  # off. If a workspace feature ever turns audio on, `alsa-lib` has to come back
+  # to `depends`.
   cargo build --frozen --release --all-features
 }
 

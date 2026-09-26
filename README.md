@@ -52,7 +52,10 @@ Two modes with two very different intentions:
 
 - Arch Linux (or a derivative), a Wayland compositor (Hyprland recommended).
 - Stable Rust (`rustup`, `stable` toolchain).
-- System libraries: `wayland`, `libxkbcommon`, `libglvnd`, `alsa-lib`.
+- System libraries: `wayland`, `libxkbcommon`, `libglvnd`, `libx11`, `libxi`.
+  The X11 ones are needed because the default backend is X11 with a Wayland
+  fallback (see `OMARCHY_JEZZBALL_BACKEND` below). Optional: `libdecor`, only
+  for window decorations on compositors without `xdg-decoration`.
 - `git`, `cargo`. For the launcher: any menu that reads `.desktop` files.
 
 ## Installation
